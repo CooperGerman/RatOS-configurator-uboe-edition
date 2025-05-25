@@ -33,7 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          repository: Rat-OS/RatOS-configurator
+          repository: ${{ github.repository }}
           path: "ratos-configurator"
           fetch-tags: true
       - name: Extract target branch name
