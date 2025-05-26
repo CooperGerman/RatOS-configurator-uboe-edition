@@ -46,7 +46,7 @@ jobs:
           echo "KLIPPER_ENV=${{ env.KLIPPER_ENV }}" >> ratos-configurator/src/.env.local
           echo "MOONRAKER_DIR=${{ env.MOONRAKER_DIR }}" >> ratos-configurator/src/.env.local
           echo "LOG_FILE=${{ env.LOG_FILE }}" >> ratos-configurator/src/.env.local
-          echo "RATOS_DATA_DIR=${{ env.RATOS_DATA_DIR }}" >> ratos-configurator/src/.env.local	  
+          echo "RATOS_DATA_DIR=${{ env.RATOS_DATA_DIR }}" >> ratos-configurator/src/.env.local
 
       - name: Extract target branch name
         shell: bash
@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-  
+
       - uses: actions/cache@v3
         name: Setup pnpm cache
         with:
@@ -105,7 +105,7 @@ jobs:
         if: success() || failure() # run this step even if previous step failed
         with:
           project: ratos-configurator/src/tsconfig.json
-          
+
       - name: Run test suite
         working-directory: ratos-configurator/src
         if: success() || failure() # run this step even if previous step failed
