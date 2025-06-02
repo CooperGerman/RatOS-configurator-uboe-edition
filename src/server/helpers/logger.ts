@@ -10,12 +10,16 @@ export const getLogger = () => {
 		return logger;
 	}
 	const environment = serverSchema.parse(process.env);
-	const logDirExists = existsSync(path.dirname(environment.LOG_FILE));
-	const logFile = logDirExists ? environment.LOG_FILE : '/var/log/ratos-cli.log';
-	if (!logDirExists) {
-		// eslint-disable-next-line no-console
-		console.warn('cli logger logFile directory does not exist, using default', logFile);
-	}	
+    const logDirExists = existsSync(path.dirname(environment.LOG_FILE));
+    const fallbackPath = '/var/log/ratos-server.log';
+    const logFile = logDirExists ? environment.LOG_FILE : fallbackPath;
+    if (!logDirExists) {
+        if (!existsSync(path.dirname(fallbackPath))) {
+            console.warn('Neither configured nor fallback log directories exist. Logging may fail.');
+        }
+        // eslint-disable-next-line no-console
+        console.warn('server logger logFile directory does not exist, using default', logFile);
+    }
 	const transportOption: pino.LoggerOptions['transport'] =
 		process.env.NODE_ENV === 'development'
 			? undefined
