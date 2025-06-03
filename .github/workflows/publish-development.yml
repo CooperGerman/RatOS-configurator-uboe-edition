@@ -151,10 +151,12 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: .
+          force: false
           commit-message: |
             Deployed ${{ steps.commit-count.outputs.commit-count }} commit${{ steps.commit-count.outputs.commit-count > 1 && 's' || '' }}.
             See the complete list of changes here:
             https://github.com/${{ github.repository }}/compare/${{ steps.last-successful-commit.outputs.commit-sha }}...${{ github.sha }}
           git-config-name: ${{ steps.git-config-for-deployment.outputs.git-config-name }}
           git-config-email: ${{ steps.git-config-for-deployment.outputs.git-config-email }}
+
           branch: ${{ steps.variables.outputs.target-branch }} # The branch name where you want to push the assets
