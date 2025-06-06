@@ -97,7 +97,7 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - uses: actions/cache/restore@v4
-        name: Setup Next.js cache
+        name: Restore Next.js cache
         id: cache-nextjs-restore
         with:
           path: |
@@ -120,7 +120,7 @@ jobs:
         run: pnpm build:cli
 
       - uses: actions/cache/save@v4
-        name: Setup Next.js cache
+        name: Save Next.js cache
         id: cache-nextjs-save
         with:
           path: |
