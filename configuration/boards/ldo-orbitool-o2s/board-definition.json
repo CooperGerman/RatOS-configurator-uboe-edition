@@ -30,7 +30,7 @@
 		],
 		"hasBoot0Jumper": false
 	},
-	"ADSXL345SPI": {
+	"ADXL345SPI": {
 		"cs_pin": "PA4",
 		"hardware": {
 			"bus": "spi1"
