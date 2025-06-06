@@ -56,11 +56,19 @@ export const appRouter = router({
 	ipAddress: publicProcedure.query(async () => {
 		const wirelessInterface = await getWirelessInterface();
 		const iface = wirelessInterface == null || wirelessInterface.trim() === '' ? 'eth0' : wirelessInterface.trim();
-		return (
-			(await promisify(exec)(`ip address | grep "${iface}"`).then(
-				({ stdout }) => stdout.match(/inet\s(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/)?.[1],
-			)) ?? 'Unknown IP'
-		);
+		try {
+			return (
+				(await promisify(exec)(`ip address | grep "${iface}"`).then(
+					({ stdout }) => stdout.match(/inet\s(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/)?.[1],
+				)) ?? 'Unknown IP'
+			);
+		} catch (e) {
+			return (
+				await promisify(exec)(
+					'ip address | grep "inet" | grep -v "inet6" | grep -v "127.0.0.1" | awk \'{print $2}\' | cut -d "/" -f 1 | head -n 1',
+				)
+			).stdout.trim();
+		}
 	}),
 	resetCache: publicProcedure.mutation(async () => {
 		ServerCache.flushAll();
