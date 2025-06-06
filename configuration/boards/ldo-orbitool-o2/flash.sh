@@ -1,5 +1,5 @@
 #!/bin/bash
-MCU=/dev/ay-caramba
+MCU=/dev/ldo-orbitool-o2
 if [ "$EUID" -ne 0 ]
   then echo "ERROR: Please run as root"
   exit
