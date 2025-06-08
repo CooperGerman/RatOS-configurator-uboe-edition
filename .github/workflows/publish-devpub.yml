@@ -135,6 +135,12 @@ jobs:
         working-directory: ./
         run: mv src app
 
+      - name: Create .env.local file to fix paths pointing to src/
+        working-directory: ./app
+        run: |
+          cp .env .env.local
+          sed -i 's|/src/scripts|/app/scripts|g' .env.local
+
       - name: Write Commit SHA to .commit
         run: echo "${{ github.event.workflow_run.head_sha }}" > .commit
 
