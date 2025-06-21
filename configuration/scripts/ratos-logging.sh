@@ -47,7 +47,7 @@ CURRENT_LOG_LEVEL=${LOG_LEVELS[$RATOS_LOG_LEVEL]}
 
 # Helper function to escape strings for JSON
 escape_json() {
-    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g; s/\b/\\b/g'
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g; s/\x08/\\b/g'
 }
 
 # Get current timestamp in ISO format
@@ -154,6 +154,11 @@ log_message() {
         "debug")
             if [[ $RATOS_LOG_LEVEL == "debug" ]]; then
                 echo -e "\033[36m[$(date '+%H:%M:%S')] DEBUG: $message\033[0m"
+            fi
+            ;;
+        "trace")
+            if [[ $RATOS_LOG_LEVEL == "trace" ]]; then
+                echo -e "\033[35m[$(date '+%H:%M:%S')] TRACE: $message\033[0m"
             fi
             ;;
     esac
