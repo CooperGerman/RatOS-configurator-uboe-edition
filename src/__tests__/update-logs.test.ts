@@ -35,7 +35,7 @@ describe('Update Logs System', () => {
 		if (originalLogFile) {
 			process.env.LOG_FILE = originalLogFile;
 		} else {
-			delete process.env.LOG_FILE;
+			process.env.LOG_FILE = undefined;
 		}
 
 		// Clean up test directory
@@ -208,15 +208,19 @@ describe('Update Logs System', () => {
 describe('Bash Logging Library Integration', () => {
 	it('should generate valid JSON log entries from bash script', async () => {
 		// Set up test environment with proper log path
-		const testLogPath = TEST_LOG_FILE;
+		const testLogPath = path.join(TEST_LOG_DIR, 'bash-test.log');
 		const originalLogFile = process.env.RATOS_LOG_FILE;
-		process.env.RATOS_LOG_FILE = testLogPath;
+
+		// Clear any existing log file
+		if (existsSync(testLogPath)) {
+			await rm(testLogPath);
+		}
 
 		try {
 			// Execute the bash logging script
 			const scriptPath = path.resolve(__dirname, '../../configuration/scripts/ratos-logging.sh');
 
-			// Test basic logging functions
+			// Test basic logging functions with writable log path
 			execSync(`bash -c "source ${scriptPath} && log_info 'Test message' 'test_context'"`, {
 				env: { ...process.env, RATOS_LOG_FILE: testLogPath },
 			});
@@ -228,14 +232,14 @@ describe('Bash Logging Library Integration', () => {
 				.trim()
 				.split('\n')
 				.filter((line) => line.trim());
-			const logEntry = JSON.parse(lines[0]);
 
-			expect(logEntry).toMatchObject({
-				level: 30,
-				msg: expect.stringContaining('Test message'),
-				context: 'test_context',
-				source: 'ratos-update',
-			});
+			expect(lines.length).toBeGreaterThan(0);
+			const logEntry = JSON.parse(lines[lines.length - 1]); // Get the last entry
+
+			expect(logEntry.level).toBe(30);
+			expect(logEntry.msg).toBe('Test message');
+			expect(logEntry.context).toBe('test_context');
+			expect(logEntry.source).toBe('ratos-update');
 			expect(logEntry).toHaveProperty('time');
 			expect(logEntry).toHaveProperty('pid');
 			expect(logEntry).toHaveProperty('hostname');
@@ -244,18 +248,19 @@ describe('Bash Logging Library Integration', () => {
 			if (originalLogFile) {
 				process.env.RATOS_LOG_FILE = originalLogFile;
 			} else {
-				delete process.env.RATOS_LOG_FILE;
+				process.env.RATOS_LOG_FILE = undefined;
 			}
 		}
 	});
 
 	it('should handle different log levels correctly', async () => {
-		const testLogPath = TEST_LOG_FILE;
+		const testLogPath = path.join(TEST_LOG_DIR, 'bash-error-test.log');
 		const originalLogFile = process.env.RATOS_LOG_FILE;
 
-		// Clear the log file first to avoid interference from previous tests
-		await writeFile(testLogPath, '');
-		process.env.RATOS_LOG_FILE = testLogPath;
+		// Clear any existing log file
+		if (existsSync(testLogPath)) {
+			await rm(testLogPath);
+		}
 
 		try {
 			const scriptPath = path.resolve(__dirname, '../../configuration/scripts/ratos-logging.sh');
@@ -293,17 +298,15 @@ describe('Bash Logging Library Integration', () => {
 			const errorEntry = validEntries.find((entry) => entry.level === 50);
 			expect(errorEntry).toBeDefined();
 
-			expect(errorEntry).toMatchObject({
-				level: 50, // Error level
-				msg: expect.stringContaining('Error message'),
-				context: 'error_context',
-				source: 'ratos-update',
-			});
+			expect(errorEntry.level).toBe(50);
+			expect(errorEntry.msg).toBe('Error message');
+			expect(errorEntry.context).toBe('error_context');
+			expect(errorEntry.source).toBe('ratos-update');
 		} finally {
 			if (originalLogFile) {
 				process.env.RATOS_LOG_FILE = originalLogFile;
 			} else {
-				delete process.env.RATOS_LOG_FILE;
+				process.env.RATOS_LOG_FILE = undefined;
 			}
 		}
 	});

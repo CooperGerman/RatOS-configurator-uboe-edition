@@ -101,8 +101,8 @@ log_message() {
     timestamp=$(get_timestamp)
     process_info=$(get_process_info)
 
-    # Escape message for JSON
-    escaped_message=$(echo "$message" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ')
+    # Escape message for JSON (handle control characters)
+    escaped_message=$(printf '%s' "$message" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g')
     
     # Build context JSON
     local context_json=""
@@ -118,7 +118,9 @@ log_message() {
     
     # Create log entry
     local log_entry
-    log_entry="{\"level\":$level_value,\"time\":\"$timestamp\",\"msg\":\"$escaped_message\",\"source\":\"ratos-update\"$context_json$error_code_json,$(echo "$process_info" | sed 's/^{//;s/}$//')}"
+    local pid_hostname
+    pid_hostname="\"pid\":$$,\"hostname\":\"$(hostname)\""
+    log_entry="{\"level\":$level_value,\"time\":\"$timestamp\",\"msg\":\"$escaped_message\",\"source\":\"ratos-update\"$context_json$error_code_json,$pid_hostname}"
     
     # Write to log file
     echo "$log_entry" >> "$RATOS_LOG_FILE"
@@ -162,7 +164,7 @@ execute_with_logging() {
     local output
     local exit_code
     
-    output=$(eval "$cmd" 2>&1)
+    output=$($cmd 2>&1)
     exit_code=$?
     
     if [[ $exit_code -eq 0 ]]; then
