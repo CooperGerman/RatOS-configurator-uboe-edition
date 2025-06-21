@@ -235,6 +235,7 @@ setup_error_trap() {
     # Enable error trapping but be more selective about exit behavior
     set -E  # Inherit ERR trap to functions and subshells
 
+    # shellcheck disable=SC2064
     trap "handle_error \$? \$LINENO \"${context}\"" ERR
 }
 
