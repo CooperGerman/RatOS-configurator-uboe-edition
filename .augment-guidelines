@@ -2,7 +2,13 @@
 
 - Use `pnpx` instead of `npx`
 
+# Linting
+
+- use `pnpm run lint` in the `src` folder to run the linter once, without watching for changes.\
+- use `pnpm run lint:fix` in the `src` folder to run the linter once, without watching for changes, and output the results in a format that can be consumed by CI tools.
+
 # Testing
 
+- DO NOT EVER mock zod schemas. 
 - Use `pnpm run test` in the `src` folder to run the tests once, without watching for changes.
 - use `pnpm run test:nopp` for general use, **unless** you intentionally want to run the slow post-processor tests.
