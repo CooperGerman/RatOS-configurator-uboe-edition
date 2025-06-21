@@ -169,9 +169,11 @@ ensure_klipper_fork_migration()
 	fi
 
 	report_status "Klipper repository migration needed, running migration script..."
-	if ! "$SCRIPT_DIR"/klipper-fork-migration.sh; then
-		echo "ERROR: Klipper fork migration failed!"
-		return 1
+	"$SCRIPT_DIR"/klipper-fork-migration.sh
+	code=$?
+	if [ $code -ne 0 ]; then
+		echo "ERROR: Klipper fork migration failed (exit code $code)!"
+		return $code
 	fi
 
 	echo "Klipper fork migration completed successfully!"

@@ -246,32 +246,42 @@ migrate_klipper_repository()
     fi
 
     # Check for uncommitted changes
-    if ! check_uncommitted_changes; then
-        echo "ERROR: Uncommitted changes prevent migration"
+    check_uncommitted_changes
+    code=$?
+    if [ $code -ne 0 ]; then
+        echo "ERROR: Uncommitted changes prevent migration (exit code $code)"
         return 3
     fi
 
     # Handle existing remote
-    if ! handle_existing_remote; then
-        echo "ERROR: Failed to handle existing remote"
+    handle_existing_remote
+    code=$?
+    if [ $code -ne 0 ]; then
+        echo "ERROR: Failed to handle existing remote (exit code $code)"
         return 4
     fi
 
     # Fetch from RatOS fork
-    if ! fetch_ratos_fork; then
-        echo "ERROR: Failed to fetch from RatOS fork"
+    fetch_ratos_fork
+    code=$?
+    if [ $code -ne 0 ]; then
+        echo "ERROR: Failed to fetch from RatOS fork (exit code $code)"
         return 5
     fi
 
     # Checkout target branch
-    if ! checkout_target_branch; then
-        echo "ERROR: Failed to checkout target branch"
+    checkout_target_branch
+    code=$?
+    if [ $code -ne 0 ]; then
+        echo "ERROR: Failed to checkout target branch (exit code $code)"
         return 6
     fi
 
     # Reset to target commit
-    if ! reset_to_target_commit; then
-        echo "ERROR: Failed to reset to target commit"
+    reset_to_target_commit
+    code=$?
+    if [ $code -ne 0 ]; then
+        echo "ERROR: Failed to reset to target commit (exit code $code)"
         return 7
     fi
 
@@ -287,7 +297,9 @@ migrate_klipper_repository()
 }
 
 # Main execution
-if ! migrate_klipper_repository; then
-    echo "ERROR: Klipper repository migration failed!"
-    exit 1
+migrate_klipper_repository
+code=$?
+if [ $code -ne 0 ]; then
+    echo "ERROR: Klipper repository migration failed (exit code $code)!"
+    exit $code
 fi
