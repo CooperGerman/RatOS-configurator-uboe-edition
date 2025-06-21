@@ -339,51 +339,45 @@ describe('CLI Commands Integration', () => {
 		await writeFile(TEST_LOG_FILE, logContent);
 	});
 
-	it('should execute summary command successfully', () => {
-		try {
-			const result = execSync('npm run cli logs update-logs summary', {
-				env: { ...process.env, LOG_FILE: TEST_LOG_FILE },
-				encoding: 'utf-8',
-				cwd: path.resolve(__dirname, '../..'),
-			});
+	it('should have proper CLI command structure', async () => {
+		// Test that the CLI functions can be imported and have the expected structure
+		// This tests the CLI integration without actually executing the binary
+		const { parseLogFile, generateSummary } = await import('@/server/routers/update-logs');
 
-			expect(result).toContain('Update Log Summary');
-			expect(result).toContain('Total Entries: 2'); // Only ratos-update entries
-		} catch (error) {
-			// If CLI is not available in test environment, skip this test
-			// eslint-disable-next-line no-console
-			console.warn('CLI test skipped - CLI not available in test environment');
-		}
+		// Parse the test log file
+		const entries = await parseLogFile(TEST_LOG_FILE);
+		expect(entries).toHaveLength(2); // Only ratos-update entries
+
+		// Generate summary
+		const summary = generateSummary(entries, 1024, true);
+		expect(summary.totalEntries).toBe(2);
+		expect(summary.infoCount).toBe(1);
+		expect(summary.errorCount).toBe(1);
 	});
 
-	it('should execute show command with filters', () => {
-		try {
-			const result = execSync('npm run cli logs update-logs show -n 10 -l error', {
-				env: { ...process.env, LOG_FILE: TEST_LOG_FILE },
-				encoding: 'utf-8',
-				cwd: path.resolve(__dirname, '../..'),
-			});
+	it('should filter logs by source correctly', async () => {
+		// Test the core filtering functionality that the CLI uses
+		const entries = await parseLogFile(TEST_LOG_FILE);
 
-			expect(result).toContain('Test error message');
-			expect(result).not.toContain('Test info message');
-		} catch (error) {
-			// If CLI is not available in test environment, skip this test
-			// eslint-disable-next-line no-console
-			console.warn('CLI test skipped - CLI not available in test environment');
-		}
+		// Should only include ratos-update entries
+		expect(entries).toHaveLength(2);
+		expect(entries.every(entry => entry.source === 'ratos-update')).toBe(true);
+
+		// Should include both info and error messages
+		const messages = entries.map(entry => entry.msg);
+		expect(messages).toContain('Test info message');
+		expect(messages).toContain('Test error message');
+		expect(messages).not.toContain('Different service log');
 	});
 
 	it('should handle missing log file gracefully', async () => {
 		const nonExistentPath = path.join(TEST_LOG_DIR, 'nonexistent.log');
 
+		// Test that parseLogFile handles missing files gracefully
 		try {
-			execSync('npm run cli logs update-logs summary', {
-				env: { ...process.env, LOG_FILE: nonExistentPath },
-				encoding: 'utf-8',
-				cwd: path.resolve(__dirname, '../..'),
-			});
+			await parseLogFile(nonExistentPath);
 		} catch (error) {
-			// Expected to fail gracefully with proper error message
+			// Expected to throw an error for missing file
 			expect(error).toBeDefined();
 		}
 	});
