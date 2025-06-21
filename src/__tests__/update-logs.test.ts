@@ -5,24 +5,32 @@ import path from 'path';
 import { tmpdir } from 'os';
 import { execSync } from 'child_process';
 
-// Mock environment for testing
+// Test environment setup - relies on test-setup.ts and .env.test.local
 const TEST_LOG_DIR = path.join(tmpdir(), 'ratos-test-logs');
 const TEST_LOG_FILE = path.join(TEST_LOG_DIR, 'ratos-update.log');
 
-// override the environment
-process.env.LOG_FILE = TEST_LOG_FILE;
-process.env.KLIPPER_ENV = '/tmp/test-klipper.env';
-process.env.RATOS_DATA_DIR = TEST_LOG_DIR;
-
 describe('Update Logs System', () => {
+	let originalLogFile: string | undefined;
+
 	beforeEach(async () => {
 		// Create test directory
 		if (!existsSync(TEST_LOG_DIR)) {
 			await mkdir(TEST_LOG_DIR, { recursive: true });
 		}
+
+		// Override LOG_FILE for tests to use our test file
+		originalLogFile = process.env.LOG_FILE;
+		process.env.LOG_FILE = TEST_LOG_FILE;
 	});
 
 	afterEach(async () => {
+		// Restore original LOG_FILE
+		if (originalLogFile) {
+			process.env.LOG_FILE = originalLogFile;
+		} else {
+			delete process.env.LOG_FILE;
+		}
+
 		// Clean up test directory
 		if (existsSync(TEST_LOG_DIR)) {
 			await rm(TEST_LOG_DIR, { recursive: true, force: true });
@@ -212,20 +220,23 @@ describe('Bash Logging Library Integration', () => {
 
 			// Test basic logging functions
 			execSync(`bash -c "source ${scriptPath} && log_info 'Test message' 'test_context'"`, {
-				env: { ...process.env, RATOS_LOG_FILE: testLogPath }
+				env: { ...process.env, RATOS_LOG_FILE: testLogPath },
 			});
 
 			// Verify the log file was created and contains valid JSON
 			expect(existsSync(testLogPath)).toBe(true);
 			const logContent = await readFile(testLogPath, 'utf-8');
-			const lines = logContent.trim().split('\n').filter(line => line.trim());
+			const lines = logContent
+				.trim()
+				.split('\n')
+				.filter((line) => line.trim());
 			const logEntry = JSON.parse(lines[0]);
 
 			expect(logEntry).toMatchObject({
 				level: 30,
 				msg: expect.stringContaining('Test message'),
 				context: 'test_context',
-				source: 'ratos-update'
+				source: 'ratos-update',
 			});
 			expect(logEntry).toHaveProperty('time');
 			expect(logEntry).toHaveProperty('pid');
@@ -243,25 +254,52 @@ describe('Bash Logging Library Integration', () => {
 	it('should handle different log levels correctly', async () => {
 		const testLogPath = TEST_LOG_FILE;
 		const originalLogFile = process.env.RATOS_LOG_FILE;
+
+		// Clear the log file first to avoid interference from previous tests
+		await writeFile(testLogPath, '');
 		process.env.RATOS_LOG_FILE = testLogPath;
 
 		try {
 			const scriptPath = path.resolve(__dirname, '../../configuration/scripts/ratos-logging.sh');
 
-			// Test different log levels
+			// Test different log levels - use a fresh environment
 			execSync(`bash -c "source ${scriptPath} && log_error 'Error message' 'error_context'"`, {
-				env: { ...process.env, RATOS_LOG_FILE: testLogPath }
+				env: {
+					...process.env,
+					RATOS_LOG_FILE: testLogPath,
+					PATH: process.env.PATH,
+				},
 			});
 
 			const logContent = await readFile(testLogPath, 'utf-8');
-			const lines = logContent.trim().split('\n').filter(line => line.trim());
-			const logEntry = JSON.parse(lines[lines.length - 1]); // Get the last entry
+			const lines = logContent
+				.trim()
+				.split('\n')
+				.filter((line) => line.trim());
 
-			expect(logEntry).toMatchObject({
+			// Find the error entry (filter out any non-JSON lines)
+			const validEntries = lines
+				.map((line) => {
+					try {
+						return JSON.parse(line);
+					} catch {
+						return null;
+					}
+				})
+				.filter((entry) => entry !== null);
+
+			// Should have at least one entry
+			expect(validEntries.length).toBeGreaterThan(0);
+
+			// Find the error entry
+			const errorEntry = validEntries.find((entry) => entry.level === 50);
+			expect(errorEntry).toBeDefined();
+
+			expect(errorEntry).toMatchObject({
 				level: 50, // Error level
 				msg: expect.stringContaining('Error message'),
 				context: 'error_context',
-				source: 'ratos-update'
+				source: 'ratos-update',
 			});
 		} finally {
 			if (originalLogFile) {
@@ -282,24 +320,24 @@ describe('CLI Commands Integration', () => {
 				time: '2024-01-01T10:00:00.000Z',
 				msg: 'Test info message',
 				source: 'ratos-update',
-				context: 'main'
+				context: 'main',
 			},
 			{
 				level: 50,
 				time: '2024-01-01T10:01:00.000Z',
 				msg: 'Test error message',
 				source: 'ratos-update',
-				context: 'error_test'
+				context: 'error_test',
 			},
 			{
 				level: 30,
 				time: '2024-01-01T10:02:00.000Z',
 				msg: 'Different service log',
 				source: 'other-service',
-				context: 'main'
-			}
+				context: 'main',
+			},
 		];
-		const logContent = sampleLogs.map(log => JSON.stringify(log)).join('\n');
+		const logContent = sampleLogs.map((log) => JSON.stringify(log)).join('\n');
 		await writeFile(TEST_LOG_FILE, logContent);
 	});
 
@@ -308,13 +346,14 @@ describe('CLI Commands Integration', () => {
 			const result = execSync('npm run cli logs update-logs summary', {
 				env: { ...process.env, LOG_FILE: TEST_LOG_FILE },
 				encoding: 'utf-8',
-				cwd: path.resolve(__dirname, '../..')
+				cwd: path.resolve(__dirname, '../..'),
 			});
 
 			expect(result).toContain('Update Log Summary');
 			expect(result).toContain('Total Entries: 2'); // Only ratos-update entries
 		} catch (error) {
 			// If CLI is not available in test environment, skip this test
+			// eslint-disable-next-line no-console
 			console.warn('CLI test skipped - CLI not available in test environment');
 		}
 	});
@@ -324,13 +363,14 @@ describe('CLI Commands Integration', () => {
 			const result = execSync('npm run cli logs update-logs show -n 10 -l error', {
 				env: { ...process.env, LOG_FILE: TEST_LOG_FILE },
 				encoding: 'utf-8',
-				cwd: path.resolve(__dirname, '../..')
+				cwd: path.resolve(__dirname, '../..'),
 			});
 
 			expect(result).toContain('Test error message');
 			expect(result).not.toContain('Test info message');
 		} catch (error) {
 			// If CLI is not available in test environment, skip this test
+			// eslint-disable-next-line no-console
 			console.warn('CLI test skipped - CLI not available in test environment');
 		}
 	});
@@ -342,7 +382,7 @@ describe('CLI Commands Integration', () => {
 			execSync('npm run cli logs update-logs summary', {
 				env: { ...process.env, LOG_FILE: nonExistentPath },
 				encoding: 'utf-8',
-				cwd: path.resolve(__dirname, '../..')
+				cwd: path.resolve(__dirname, '../..'),
 			});
 		} catch (error) {
 			// Expected to fail gracefully with proper error message

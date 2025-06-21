@@ -59,7 +59,7 @@ export async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 		const result = await readObjects(logPath, LogEntrySchema);
 
 		// Filter entries to only include those from ratos-update source
-		const updateEntries = result.result.filter(entry => entry.source === 'ratos-update');
+		const updateEntries = result.result.filter((entry) => entry.source === 'ratos-update');
 
 		return updateEntries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 	} catch (error) {

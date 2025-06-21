@@ -247,7 +247,9 @@ const LogEntriesComponent: React.FC<{ entries: LogEntry[]; showDetails: boolean 
 );
 
 export const updateLogs = (parentCommand: Command) => {
-	const updateLogs = parentCommand.command('update-logs').description('View and analyze RatOS update script logs from the main RatOS log');
+	const updateLogs = parentCommand
+		.command('update-logs')
+		.description('View and analyze RatOS update script logs from the main RatOS log');
 
 	updateLogs
 		.command('summary')
