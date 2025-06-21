@@ -245,6 +245,10 @@ ratos update-logs summary
 
 # Clear problematic logs
 ratos update-logs clear
+
+# Validate bash scripts with ShellCheck
+shellcheck -ax -s bash configuration/scripts/ratos-logging.sh
+shellcheck -ax -s bash configuration/scripts/ratos-update.sh
 ```
 
 ## Development
@@ -255,13 +259,21 @@ ratos update-logs clear
 3. Use logging functions: `log_info`, `log_error`, etc.
 4. Add appropriate error codes to documentation
 
+### Code Quality Standards:
+- **ShellCheck Compliance**: All bash scripts must pass ShellCheck validation
+- **Error Handling**: Use proper error trapping with selective `set +e`/`set -e`
+- **Variable Quoting**: Always quote variables and use `read -r` for input
+- **Exit Codes**: Use proper exit code handling and propagation
+
 ### Testing:
 - Unit tests in `src/__tests__/update-logs.test.ts`
 - Integration tests for CLI commands
 - End-to-end tests for web UI
+- ShellCheck validation in CI/CD pipeline
 
 ### Contributing:
 - Follow existing log format and error code conventions
+- Run ShellCheck on all bash scripts before committing
 - Add tests for new functionality
 - Update documentation for new features
 - Ensure backward compatibility
