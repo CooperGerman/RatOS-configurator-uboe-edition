@@ -1,26 +1,27 @@
-# RatOS Error Logging System
+# RatOS Unified Logging System
 
-This document describes the comprehensive error logging system implemented for the RatOS-configurator project to capture and display errors from update scripts and other system operations.
+This document describes the comprehensive unified logging system implemented for the RatOS-configurator project. The system consolidates all RatOS logs into a single main log file while providing specialized tools for viewing and analyzing logs from different sources, including update scripts and other system operations.
 
 ## Overview
 
-The logging system consists of four main components:
+The unified logging system consists of four main components:
 
-1. **Structured Bash Logging Library** - Captures errors from shell scripts in JSON format
-2. **CLI Log Management Commands** - Command-line tools for viewing and analyzing logs
-3. **Web UI Integration** - Browser-based log viewer with filtering and analysis
+1. **Structured Bash Logging Library** - Captures errors from shell scripts in JSON format, writing to the main RatOS log
+2. **CLI Log Management Commands** - Command-line tools for viewing and analyzing logs with source filtering
+3. **Web UI Integration** - Browser-based log viewer with filtering and analysis capabilities
 4. **Debug Integration** - Automatic inclusion of logs in debug packages
 
 ## Architecture
 
 ### 1. Bash Logging Library (`configuration/scripts/ratos-logging.sh`)
 
-The bash logging library provides structured logging capabilities for shell scripts, outputting logs in JSON format compatible with the pino logging system used throughout the application.
+The bash logging library provides structured logging capabilities for shell scripts, outputting logs in JSON format compatible with the pino logging system used throughout the application. **All logs are written to the main RatOS log file** (`/var/log/ratos-configurator.log`) with a `source: "ratos-update"` field for filtering.
 
 #### Features:
 - **JSON-formatted logs** compatible with pino
 - **Multiple log levels**: trace, debug, info, warn, error, fatal
-- **Automatic log rotation** when files exceed size limits
+- **Unified log file** - writes to main RatOS log instead of separate files
+- **Source identification** - all entries tagged with `source: "ratos-update"`
 - **Error trapping** with stack trace capture
 - **Command execution logging** with automatic error handling
 - **Timestamped entries** with process information
@@ -50,46 +51,53 @@ log_script_complete "my-script.sh" $?
 
 #### Configuration:
 - `RATOS_LOG_LEVEL`: Set minimum log level (default: info)
-- `RATOS_LOG_FILE`: Log file path (default: `${RATOS_PRINTER_DATA_DIR}/logs/ratos-update.log`)
-- `RATOS_LOG_MAX_SIZE`: Maximum log file size before rotation (default: 10MB)
-- `RATOS_LOG_BACKUP_COUNT`: Number of backup files to keep (default: 5)
+- `RATOS_LOG_FILE`: Log file path (default: uses `${LOG_FILE}` from environment, typically `/var/log/ratos-configurator.log`)
+- `RATOS_LOG_MAX_SIZE`: Maximum log file size before rotation (default: 0 = disabled when using main log)
+- `RATOS_LOG_BACKUP_COUNT`: Number of backup files to keep (default: 0 = disabled when using main log)
+
+**Note**: When using the unified logging system, log rotation is handled by the main RatOS log configuration, not by individual scripts.
 
 ### 2. CLI Log Management (`src/cli/commands/update-logs.tsx`)
 
-The CLI provides several commands for viewing and analyzing update logs:
+The CLI provides several commands for viewing and analyzing update logs. **Update logs are now a subcommand of the main `logs` command** and automatically filter the main log file to show only entries with `source: "ratos-update"`.
 
 #### Commands:
 
-**`ratos update-logs summary`**
-- Shows a summary of the most recent update attempt
+**`ratos logs update-logs summary`**
+- Shows a summary of the most recent update attempt from the main log
 - Displays success/failure status, error counts, and timing information
+- Automatically filters by `source: "ratos-update"`
 
-**`ratos update-logs show`**
-- Shows detailed log entries with filtering options
+**`ratos logs update-logs show`**
+- Shows detailed log entries with filtering options from the main log
 - Options:
   - `-n, --lines <number>`: Number of recent lines to show (default: 50)
   - `-l, --level <level>`: Minimum log level (trace, debug, info, warn, error, fatal)
   - `-c, --context <context>`: Filter by context
   - `-d, --details`: Show detailed information
 
-**`ratos update-logs errors`**
+**`ratos logs update-logs errors`**
 - Shows only errors and warnings from the most recent update
 - Options:
   - `-d, --details`: Show detailed information
 
 #### Usage Examples:
 ```bash
-# Show update summary
-ratos update-logs summary
+# Show update summary (note the new command structure)
+ratos logs update-logs summary
 
 # Show last 100 log entries at debug level
-ratos update-logs show -n 100 -l debug
+ratos logs update-logs show -n 100 -l debug
 
 # Show only errors with details
-ratos update-logs errors -d
+ratos logs update-logs errors -d
 
 # Show logs from specific context
-ratos update-logs show -c "update_symlinks" -d
+ratos logs update-logs show -c "update_symlinks" -d
+
+# Other log commands remain available:
+ratos logs tail    # Tail the main log file
+ratos logs rotate  # Force log rotation
 ```
 
 ### 3. Web UI Integration
@@ -113,21 +121,22 @@ The web interface provides a comprehensive log viewer accessible at `/configure/
 ### 4. API Endpoints
 
 #### TRPC Endpoints (`src/server/routers/update-logs.ts`):
-- `update-logs.summary`: Get log summary statistics
-- `update-logs.entries`: Get filtered log entries
-- `update-logs.errors`: Get only errors and warnings
-- `update-logs.contexts`: Get available log contexts
-- `update-logs.clear`: Clear log file
-- `update-logs.download`: Download log file
+- `update-logs.summary`: Get log summary statistics (filtered by `source: "ratos-update"`)
+- `update-logs.entries`: Get filtered log entries (filtered by `source: "ratos-update"`)
+- `update-logs.errors`: Get only errors and warnings (filtered by `source: "ratos-update"`)
+- `update-logs.contexts`: Get available log contexts (filtered by `source: "ratos-update"`)
+- `update-logs.clear`: **Disabled** - Cannot clear main log file (use log rotation instead)
+- `update-logs.download`: Download main log file (contains all sources)
 
 #### REST Endpoints:
 - `GET /api/update-logs/download`: Download log file as attachment
 
 ### 5. Debug Integration
 
-Update logs are automatically included in debug packages:
-- Log files are added to the debug-zip functionality
+Update logs are automatically included in debug packages as part of the main log file:
+- Main log file (`/var/log/ratos-configurator.log`) is added to debug packages
 - Rotated log files (`.1`, `.2`, etc.) are included
+- All log sources (including update logs) are included in a single file
 - Logs are categorized appropriately in the debug package
 
 ## Log Format
@@ -234,17 +243,20 @@ Standardized error codes help identify common issues:
 
 ### Debug Commands:
 ```bash
-# Check log file location and size
-ls -la "${RATOS_DATA_DIR}/logs/"
+# Check main log file location and size
+ls -la /var/log/ratos-configurator.log*
 
-# View raw log file
-cat "${RATOS_DATA_DIR}/logs/ratos-update.log"
+# View raw log file (all sources)
+cat /var/log/ratos-configurator.log
+
+# View only update logs
+grep '"source":"ratos-update"' /var/log/ratos-configurator.log
 
 # Test log parsing
-ratos update-logs summary
+ratos logs update-logs summary
 
-# Clear problematic logs
-ratos update-logs clear
+# Force log rotation (instead of clearing)
+ratos logs rotate
 
 # Validate bash scripts with ShellCheck
 shellcheck -ax -s bash configuration/scripts/ratos-logging.sh

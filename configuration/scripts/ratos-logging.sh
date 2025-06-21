@@ -9,9 +9,11 @@ source "$SCRIPT_DIR/environment.sh"
 
 # Default log configuration
 RATOS_LOG_LEVEL=${RATOS_LOG_LEVEL:-"info"}
-RATOS_LOG_FILE=${RATOS_LOG_FILE:-"${RATOS_PRINTER_DATA_DIR}/logs/ratos-update.log"}
-RATOS_LOG_MAX_SIZE=${RATOS_LOG_MAX_SIZE:-10485760}  # 10MB
-RATOS_LOG_BACKUP_COUNT=${RATOS_LOG_BACKUP_COUNT:-5}
+# Use the main RatOS log file instead of a separate update log
+RATOS_LOG_FILE=${RATOS_LOG_FILE:-"${LOG_FILE:-/var/log/ratos-configurator.log}"}
+# Disable custom rotation since main log file has its own rotation
+RATOS_LOG_MAX_SIZE=${RATOS_LOG_MAX_SIZE:-0}  # 0 = disabled
+RATOS_LOG_BACKUP_COUNT=${RATOS_LOG_BACKUP_COUNT:-0}
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$RATOS_LOG_FILE")"
@@ -40,7 +42,14 @@ get_process_info() {
 }
 
 # Rotate log file if it exceeds max size
+# Note: Rotation is disabled when using main log file (RATOS_LOG_MAX_SIZE=0)
+# as the main log file has its own logrotate configuration
 rotate_log_if_needed() {
+    # Skip rotation if disabled (using main log file)
+    if [[ $RATOS_LOG_MAX_SIZE -eq 0 ]]; then
+        return 0
+    fi
+
     if [[ -f "$RATOS_LOG_FILE" ]] && [[ $(stat -c%s "$RATOS_LOG_FILE" 2>/dev/null || echo 0) -gt $RATOS_LOG_MAX_SIZE ]]; then
         # Rotate existing backups
         for ((i=RATOS_LOG_BACKUP_COUNT; i>=1; i--)); do

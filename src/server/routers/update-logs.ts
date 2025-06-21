@@ -4,6 +4,7 @@ import { existsSync } from 'fs';
 import { publicProcedure, router } from '@/server/trpc';
 import { getLogger } from '@/server/helpers/logger';
 import { serverSchema } from '@/env/schema.mjs';
+import { readObjects } from '@/server/helpers/ndjson';
 
 // Schema for parsing log entries
 const LogEntrySchema = z.object({
@@ -52,29 +53,15 @@ const LOG_LEVEL_MAP: Record<string, number> = {
 	fatal: 60,
 };
 
-// Parse log file and extract entries
+// Parse log file and extract entries, filtering for ratos-update source
 export async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 	try {
-		const content = await readFile(logPath, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter((line) => line.trim());
+		const result = await readObjects(logPath, LogEntrySchema);
 
-		const entries: LogEntry[] = [];
+		// Filter entries to only include those from ratos-update source
+		const updateEntries = result.result.filter(entry => entry.source === 'ratos-update');
 
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line);
-				const entry = LogEntrySchema.parse(parsed);
-				entries.push(entry);
-			} catch (e) {
-				// Skip invalid JSON lines
-				getLogger().debug(`Skipping invalid log line: ${line.substring(0, 100)}...`);
-			}
-		}
-
-		return entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+		return updateEntries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 	} catch (error) {
 		if (error instanceof Error) {
 			error.message = `Failed to read log file: ${error.message}`;
@@ -170,10 +157,10 @@ export function filterByContext(entries: LogEntry[], context: string): LogEntry[
 	return entries.filter((entry) => entry.context === context);
 }
 
-// Get log file path
+// Get log file path - now uses the main RatOS log file
 function getLogFilePath(): string {
 	const environment = serverSchema.parse(process.env);
-	return `${environment.RATOS_DATA_DIR}/logs/ratos-update.log`;
+	return environment.LOG_FILE;
 }
 
 export const updateLogsRouter = router({
@@ -266,22 +253,11 @@ export const updateLogsRouter = router({
 	}),
 
 	clear: publicProcedure.mutation(async () => {
-		const logPath = getLogFilePath();
-
-		if (!existsSync(logPath)) {
-			return { success: true, message: 'Log file does not exist' };
-		}
-
-		try {
-			// Truncate the log file instead of deleting it
-			await writeFile(logPath, '');
-			getLogger().info('Update log file cleared');
-			return { success: true, message: 'Log file cleared successfully' };
-		} catch (error) {
-			const errorMessage = `Failed to clear log file: ${error instanceof Error ? error.message : 'Unknown error'}`;
-			getLogger().error(errorMessage);
-			throw new Error(errorMessage);
-		}
+		// Note: This now operates on the main log file, so we cannot clear it entirely.
+		// Instead, we would need to implement a more sophisticated approach to remove
+		// only ratos-update entries, but this is complex and potentially dangerous.
+		// For now, we'll disable this functionality when using the unified log.
+		throw new Error('Clear operation is not supported when using the unified log file. Use log rotation instead.');
 	}),
 
 	download: publicProcedure.query(async () => {

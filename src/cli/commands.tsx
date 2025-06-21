@@ -453,7 +453,6 @@ program
 
 frontend(program);
 postprocessor(program);
-updateLogs(program);
 
 const log = program.command('logs').description('Commands for managing the RatOS log');
 
@@ -487,6 +486,9 @@ log
 		const log = '/etc/logrotate.d/ratos-configurator';
 		$({ verbose: true })`logrotate -f ${log}`;
 	});
+
+// Add update-logs as a subcommand of the log command
+updateLogs(log);
 
 development(program);
 

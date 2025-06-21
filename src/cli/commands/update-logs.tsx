@@ -45,7 +45,7 @@ interface LogSummary {
 	success: boolean;
 }
 
-// Parse log file and extract entries
+// Parse log file and extract entries, filtering for ratos-update source
 async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 	try {
 		const content = await readFile(logPath, 'utf-8');
@@ -60,7 +60,11 @@ async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 			try {
 				const parsed = JSON.parse(line);
 				const entry = LogEntrySchema.parse(parsed);
-				entries.push(entry);
+
+				// Only include entries from ratos-update source
+				if (entry.source === 'ratos-update') {
+					entries.push(entry);
+				}
 			} catch (e) {
 				// Skip invalid JSON lines
 				getLogger().debug(`Skipping invalid log line: ${line}`);
@@ -242,8 +246,8 @@ const LogEntriesComponent: React.FC<{ entries: LogEntry[]; showDetails: boolean 
 	</Container>
 );
 
-export const updateLogs = (program: Command) => {
-	const updateLogs = program.command('update-logs').description('View and analyze RatOS update script logs');
+export const updateLogs = (parentCommand: Command) => {
+	const updateLogs = parentCommand.command('update-logs').description('View and analyze RatOS update script logs from the main RatOS log');
 
 	updateLogs
 		.command('summary')
@@ -251,7 +255,7 @@ export const updateLogs = (program: Command) => {
 		.action(async () => {
 			try {
 				const env = loadEnvironment();
-				const logPath = `${env.RATOS_DATA_DIR}/logs/ratos-update.log`;
+				const logPath = env.LOG_FILE;
 
 				if (!existsSync(logPath)) {
 					return renderError(`Log file not found: ${logPath}`, { exitCode: 1 });
@@ -284,7 +288,7 @@ export const updateLogs = (program: Command) => {
 		.action(async (options) => {
 			try {
 				const env = loadEnvironment();
-				const logPath = `${env.RATOS_DATA_DIR}/logs/ratos-update.log`;
+				const logPath = env.LOG_FILE;
 
 				if (!existsSync(logPath)) {
 					return renderError(`Log file not found: ${logPath}`, { exitCode: 1 });
@@ -340,7 +344,7 @@ export const updateLogs = (program: Command) => {
 		.action(async (options) => {
 			try {
 				const env = loadEnvironment();
-				const logPath = `${env.RATOS_DATA_DIR}/logs/ratos-update.log`;
+				const logPath = env.LOG_FILE;
 
 				if (!existsSync(logPath)) {
 					return renderError(`Log file not found: ${logPath}`, { exitCode: 1 });
