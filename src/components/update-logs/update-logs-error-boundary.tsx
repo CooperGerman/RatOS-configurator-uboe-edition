@@ -13,46 +13,35 @@ interface UpdateLogsErrorFallbackProps {
 	resetErrorBoundary: () => void;
 }
 
-const UpdateLogsErrorFallback: React.FC<UpdateLogsErrorFallbackProps> = ({ 
-	error, 
-	resetErrorBoundary 
-}) => {
+const UpdateLogsErrorFallback: React.FC<UpdateLogsErrorFallbackProps> = ({ error, resetErrorBoundary }) => {
 	const handleDownloadDebugInfo = () => {
 		window.location.href = '/configure/api/debug-zip';
 	};
 
 	return (
 		<Card className="p-6">
-			<div className="text-center space-y-4">
-				<AlertTriangle className="h-12 w-12 text-red-500 mx-auto" />
+			<div className="space-y-4 text-center">
+				<AlertTriangle className="mx-auto h-12 w-12 text-red-500" />
 				<div>
-					<h2 className="text-xl font-semibold text-red-700 mb-2">
-						Update Logs Error
-					</h2>
-					<ErrorMessage title="Failed to load update logs">
-						{error.message}
-					</ErrorMessage>
+					<h2 className="mb-2 text-xl font-semibold text-red-700">Update Logs Error</h2>
+					<ErrorMessage title="Failed to load update logs">{error.message}</ErrorMessage>
 				</div>
-				
-				<div className="flex flex-col sm:flex-row gap-3 justify-center">
+
+				<div className="flex flex-col justify-center gap-3 sm:flex-row">
 					<Button onClick={resetErrorBoundary} className="flex items-center gap-2">
 						<RefreshCw className="h-4 w-4" />
 						Try Again
 					</Button>
-					<Button 
-						variant="outline" 
-						onClick={handleDownloadDebugInfo}
-						className="flex items-center gap-2"
-					>
+					<Button variant="outline" onClick={handleDownloadDebugInfo} className="flex items-center gap-2">
 						<Download className="h-4 w-4" />
 						Download Debug Info
 					</Button>
 				</div>
-				
-				<div className="text-sm text-gray-600 max-w-md mx-auto">
+
+				<div className="mx-auto max-w-md text-sm text-gray-600">
 					<p>
-						If this error persists, please download the debug information and share it 
-						on the RatOS support channel for assistance.
+						If this error persists, please download the debug information and share it on the RatOS support channel for
+						assistance.
 					</p>
 				</div>
 			</div>

@@ -11,17 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { 
-	AlertCircle, 
-	CheckCircle, 
-	Clock, 
-	Download, 
-	RefreshCw, 
+import {
+	AlertCircle,
+	CheckCircle,
+	Clock,
+	Download,
+	RefreshCw,
 	Trash2,
 	FileText,
 	Filter,
 	Eye,
-	EyeOff
+	EyeOff,
 } from 'lucide-react';
 import { formatBytes } from '@/helpers/util';
 
@@ -60,10 +60,10 @@ const LOG_LEVELS: Record<number, { name: string; color: string; bgColor: string 
 	60: { name: 'FATAL', color: 'text-purple-600', bgColor: 'bg-purple-50' },
 };
 
-const LogSummaryCard: React.FC<{ summary: LogSummary; onRefresh: () => void; onClear: () => void }> = ({ 
-	summary, 
-	onRefresh, 
-	onClear 
+const LogSummaryCard: React.FC<{ summary: LogSummary; onRefresh: () => void; onClear: () => void }> = ({
+	summary,
+	onRefresh,
+	onClear,
 }) => {
 	const clearMutation = trpc['update-logs'].clear.useMutation({
 		onSuccess: () => {
@@ -73,36 +73,36 @@ const LogSummaryCard: React.FC<{ summary: LogSummary; onRefresh: () => void; onC
 
 	return (
 		<Card className="p-6">
-			<div className="flex items-center justify-between mb-4">
-				<h2 className="text-xl font-semibold flex items-center gap-2">
+			<div className="mb-4 flex items-center justify-between">
+				<h2 className="flex items-center gap-2 text-xl font-semibold">
 					<FileText className="h-5 w-5" />
 					Update Log Summary
 				</h2>
 				<div className="flex gap-2">
 					<Button variant="outline" size="sm" onClick={onRefresh}>
-						<RefreshCw className="h-4 w-4 mr-1" />
+						<RefreshCw className="mr-1 h-4 w-4" />
 						Refresh
 					</Button>
-					<Button 
-						variant="outline" 
-						size="sm" 
+					<Button
+						variant="outline"
+						size="sm"
 						onClick={() => clearMutation.mutate()}
 						disabled={clearMutation.isLoading || !summary.logFileExists}
 					>
-						<Trash2 className="h-4 w-4 mr-1" />
+						<Trash2 className="mr-1 h-4 w-4" />
 						Clear
 					</Button>
 				</div>
 			</div>
 
 			{!summary.logFileExists ? (
-				<div className="text-center py-8 text-gray-500">
-					<FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+				<div className="py-8 text-center text-gray-500">
+					<FileText className="mx-auto mb-2 h-12 w-12 opacity-50" />
 					<p>No update log file found</p>
 					<p className="text-sm">Run an update to generate logs</p>
 				</div>
 			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
 					<div className="space-y-2">
 						<div className="flex items-center gap-2">
 							{summary.success ? (
@@ -110,9 +110,7 @@ const LogSummaryCard: React.FC<{ summary: LogSummary; onRefresh: () => void; onC
 							) : (
 								<AlertCircle className="h-5 w-5 text-red-500" />
 							)}
-							<span className="font-medium">
-								{summary.success ? 'Success' : 'Failed'}
-							</span>
+							<span className="font-medium">{summary.success ? 'Success' : 'Failed'}</span>
 						</div>
 						<div className="text-sm text-gray-600">
 							<div>Total Entries: {summary.totalEntries}</div>
@@ -155,9 +153,7 @@ const LogSummaryCard: React.FC<{ summary: LogSummary; onRefresh: () => void; onC
 							{summary.lastUpdate ? (
 								<div className="flex items-center gap-1">
 									<Clock className="h-4 w-4" />
-									<span>
-										{new Date(summary.lastUpdate).toLocaleString()}
-									</span>
+									<span>{new Date(summary.lastUpdate).toLocaleString()}</span>
 								</div>
 							) : (
 								<span>No recent updates</span>
@@ -168,16 +164,16 @@ const LogSummaryCard: React.FC<{ summary: LogSummary; onRefresh: () => void; onC
 					<div className="space-y-2">
 						<div className="font-medium text-gray-700">Actions</div>
 						<div className="space-y-1">
-							<Button 
-								variant="outline" 
-								size="sm" 
+							<Button
+								variant="outline"
+								size="sm"
 								className="w-full"
 								onClick={() => {
 									// Trigger download
 									window.open('/configure/api/update-logs/download', '_blank');
 								}}
 							>
-								<Download className="h-4 w-4 mr-1" />
+								<Download className="mr-1 h-4 w-4" />
 								Download
 							</Button>
 						</div>
@@ -193,13 +189,11 @@ const LogEntryComponent: React.FC<{ entry: LogEntry; showDetails: boolean }> = (
 	const timestamp = new Date(entry.time).toLocaleString();
 
 	return (
-		<div className={`p-3 rounded-lg border ${level.bgColor} border-gray-200`}>
+		<div className={`rounded-lg border p-3 ${level.bgColor} border-gray-200`}>
 			<div className="flex items-start justify-between gap-2">
-				<div className="flex-1 min-w-0">
-					<div className="flex items-center gap-2 mb-1">
-						<Badge className={`${level.color} bg-transparent border-current text-xs`}>
-							{level.name}
-						</Badge>
+				<div className="min-w-0 flex-1">
+					<div className="mb-1 flex items-center gap-2">
+						<Badge className={`${level.color} border-current bg-transparent text-xs`}>{level.name}</Badge>
 						<span className="text-xs text-gray-500">{timestamp}</span>
 						{entry.context && showDetails && (
 							<Badge variant="outline" className="text-xs">
@@ -207,20 +201,16 @@ const LogEntryComponent: React.FC<{ entry: LogEntry; showDetails: boolean }> = (
 							</Badge>
 						)}
 					</div>
-					<p className={`text-sm ${level.color} break-words`}>
-						{entry.msg}
-					</p>
+					<p className={`text-sm ${level.color} break-words`}>{entry.msg}</p>
 					{showDetails && (
-						<div className="mt-2 text-xs text-gray-500 space-y-1">
+						<div className="mt-2 space-y-1 text-xs text-gray-500">
 							{entry.errorCode && (
-								<div>Error Code: <code className="bg-gray-100 px-1 rounded">{entry.errorCode}</code></div>
+								<div>
+									Error Code: <code className="rounded bg-gray-100 px-1">{entry.errorCode}</code>
+								</div>
 							)}
-							{entry.pid && (
-								<div>PID: {entry.pid}</div>
-							)}
-							{entry.hostname && (
-								<div>Host: {entry.hostname}</div>
-							)}
+							{entry.pid && <div>PID: {entry.pid}</div>}
+							{entry.hostname && <div>Host: {entry.hostname}</div>}
 						</div>
 					)}
 				</div>
@@ -247,26 +237,32 @@ export const UpdateLogsViewer: React.FC = () => {
 		staleTime: 60000, // 1 minute
 	});
 
-	const entriesQuery = trpc['update-logs'].entries.useQuery({
-		lines: maxLines,
-		level: logLevel as any,
-		context: selectedContext || undefined,
-		showDetails,
-	}, {
-		enabled: !showOnlyErrors,
-		retry: 3,
-		retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-		staleTime: 10000, // 10 seconds
-	});
+	const entriesQuery = trpc['update-logs'].entries.useQuery(
+		{
+			lines: maxLines,
+			level: logLevel as any,
+			context: selectedContext || undefined,
+			showDetails,
+		},
+		{
+			enabled: !showOnlyErrors,
+			retry: 3,
+			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+			staleTime: 10000, // 10 seconds
+		},
+	);
 
-	const errorsQuery = trpc['update-logs'].errors.useQuery({
-		showDetails,
-	}, {
-		enabled: showOnlyErrors,
-		retry: 3,
-		retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-		staleTime: 10000, // 10 seconds
-	});
+	const errorsQuery = trpc['update-logs'].errors.useQuery(
+		{
+			showDetails,
+		},
+		{
+			enabled: showOnlyErrors,
+			retry: 3,
+			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+			staleTime: 10000, // 10 seconds
+		},
+	);
 
 	const handleRefresh = () => {
 		summaryQuery.refetch();
@@ -288,11 +284,7 @@ export const UpdateLogsViewer: React.FC = () => {
 	}
 
 	if (summaryQuery.error) {
-		return (
-			<ErrorMessage title="Failed to load update logs">
-				{summaryQuery.error.message}
-			</ErrorMessage>
-		);
+		return <ErrorMessage title="Failed to load update logs">{summaryQuery.error.message}</ErrorMessage>;
 	}
 
 	const summary = summaryQuery.data;
@@ -302,30 +294,26 @@ export const UpdateLogsViewer: React.FC = () => {
 
 	return (
 		<div className="space-y-6">
-			<LogSummaryCard 
-				summary={summary} 
-				onRefresh={handleRefresh} 
-				onClear={handleClear} 
-			/>
+			<LogSummaryCard summary={summary} onRefresh={handleRefresh} onClear={handleClear} />
 
 			{summary.logFileExists && (
 				<Card className="p-6">
-					<div className="flex items-center justify-between mb-4">
+					<div className="mb-4 flex items-center justify-between">
 						<h3 className="text-lg font-semibold">Log Entries</h3>
 						<div className="flex items-center gap-2">
 							<Button
-								variant={showOnlyErrors ? "default" : "outline"}
+								variant={showOnlyErrors ? 'default' : 'outline'}
 								size="sm"
 								onClick={() => setShowOnlyErrors(!showOnlyErrors)}
 							>
 								{showOnlyErrors ? (
 									<>
-										<Eye className="h-4 w-4 mr-1" />
+										<Eye className="mr-1 h-4 w-4" />
 										Show All
 									</>
 								) : (
 									<>
-										<AlertCircle className="h-4 w-4 mr-1" />
+										<AlertCircle className="mr-1 h-4 w-4" />
 										Errors Only
 									</>
 								)}
@@ -334,7 +322,7 @@ export const UpdateLogsViewer: React.FC = () => {
 					</div>
 
 					{!showOnlyErrors && (
-						<div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+						<div className="mb-4 grid grid-cols-1 gap-4 rounded-lg bg-gray-50 p-4 md:grid-cols-4">
 							<div className="space-y-2">
 								<Label htmlFor="log-level">Log Level</Label>
 								<Select value={logLevel} onValueChange={setLogLevel}>
@@ -384,11 +372,7 @@ export const UpdateLogsViewer: React.FC = () => {
 							<div className="space-y-2">
 								<Label htmlFor="show-details">Show Details</Label>
 								<div className="flex items-center space-x-2">
-									<Switch
-										id="show-details"
-										checked={showDetails}
-										onCheckedChange={setShowDetails}
-									/>
+									<Switch id="show-details" checked={showDetails} onCheckedChange={setShowDetails} />
 									<Label htmlFor="show-details" className="text-sm">
 										{showDetails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
 									</Label>
@@ -403,27 +387,21 @@ export const UpdateLogsViewer: React.FC = () => {
 								<Spinner />
 							</div>
 						) : currentQuery.error ? (
-							<ErrorMessage title="Failed to load log entries">
-								{currentQuery.error.message}
-							</ErrorMessage>
+							<ErrorMessage title="Failed to load log entries">{currentQuery.error.message}</ErrorMessage>
 						) : entries.length === 0 ? (
-							<div className="text-center py-8 text-gray-500">
-								<FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+							<div className="py-8 text-center text-gray-500">
+								<FileText className="mx-auto mb-2 h-12 w-12 opacity-50" />
 								<p>No log entries found</p>
 								{showOnlyErrors && <p className="text-sm">No errors or warnings in the logs</p>}
 							</div>
 						) : (
 							<>
-								<div className="text-sm text-gray-600 mb-2">
+								<div className="mb-2 text-sm text-gray-600">
 									Showing {entries.length} entries
-									{showOnlyErrors && " (errors and warnings only)"}
+									{showOnlyErrors && ' (errors and warnings only)'}
 								</div>
 								{entries.map((entry, index) => (
-									<LogEntryComponent
-										key={`${entry.time}-${index}`}
-										entry={entry}
-										showDetails={showDetails}
-									/>
+									<LogEntryComponent key={`${entry.time}-${index}`} entry={entry} showDetails={showDetails} />
 								))}
 							</>
 						)}

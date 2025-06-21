@@ -49,10 +49,13 @@ interface LogSummary {
 async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 	try {
 		const content = await readFile(logPath, 'utf-8');
-		const lines = content.trim().split('\n').filter(line => line.trim());
-		
+		const lines = content
+			.trim()
+			.split('\n')
+			.filter((line) => line.trim());
+
 		const entries: LogEntry[] = [];
-		
+
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line);
@@ -63,7 +66,7 @@ async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 				getLogger().debug(`Skipping invalid log line: ${line}`);
 			}
 		}
-		
+
 		return entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 	} catch (error) {
 		throw new Error(`Failed to read log file: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -84,21 +87,35 @@ function generateSummary(entries: LogEntry[]): LogSummary {
 		duration: null,
 		success: true,
 	};
-	
+
 	let startTime: Date | null = null;
 	let endTime: Date | null = null;
-	
+
 	for (const entry of entries) {
 		// Count by level
 		switch (entry.level) {
-			case 10: summary.traceCount++; break;
-			case 20: summary.debugCount++; break;
-			case 30: summary.infoCount++; break;
-			case 40: summary.warnCount++; break;
-			case 50: summary.errorCount++; summary.success = false; break;
-			case 60: summary.fatalCount++; summary.success = false; break;
+			case 10:
+				summary.traceCount++;
+				break;
+			case 20:
+				summary.debugCount++;
+				break;
+			case 30:
+				summary.infoCount++;
+				break;
+			case 40:
+				summary.warnCount++;
+				break;
+			case 50:
+				summary.errorCount++;
+				summary.success = false;
+				break;
+			case 60:
+				summary.fatalCount++;
+				summary.success = false;
+				break;
 		}
-		
+
 		// Track timing
 		const entryTime = new Date(entry.time);
 		if (!startTime || entryTime < startTime) {
@@ -107,46 +124,46 @@ function generateSummary(entries: LogEntry[]): LogSummary {
 		if (!endTime || entryTime > endTime) {
 			endTime = entryTime;
 		}
-		
+
 		// Find last update time
 		if (entry.errorCode === 'SCRIPT_SUCCESS' || entry.errorCode === 'SCRIPT_ERROR') {
 			summary.lastUpdate = entry.time;
 		}
 	}
-	
+
 	if (startTime && endTime) {
 		const durationMs = endTime.getTime() - startTime.getTime();
 		const seconds = Math.floor(durationMs / 1000);
 		const minutes = Math.floor(seconds / 60);
 		const remainingSeconds = seconds % 60;
-		
+
 		if (minutes > 0) {
 			summary.duration = `${minutes}m ${remainingSeconds}s`;
 		} else {
 			summary.duration = `${remainingSeconds}s`;
 		}
 	}
-	
+
 	return summary;
 }
 
 // Filter entries by severity level
 function filterBySeverity(entries: LogEntry[], minLevel: number): LogEntry[] {
-	return entries.filter(entry => entry.level >= minLevel);
+	return entries.filter((entry) => entry.level >= minLevel);
 }
 
 // Filter entries by context
 function filterByContext(entries: LogEntry[], context: string): LogEntry[] {
-	return entries.filter(entry => entry.context === context);
+	return entries.filter((entry) => entry.context === context);
 }
 
 // Format log entry for display
 function formatLogEntry(entry: LogEntry, showDetails: boolean = false): string {
 	const level = LOG_LEVELS[entry.level] || { name: 'UNKNOWN', color: 'white' };
 	const timestamp = new Date(entry.time).toLocaleString();
-	
+
 	let formatted = `[${timestamp}] ${level.name}: ${entry.msg}`;
-	
+
 	if (showDetails) {
 		if (entry.context) {
 			formatted += ` (context: ${entry.context})`;
@@ -158,7 +175,7 @@ function formatLogEntry(entry: LogEntry, showDetails: boolean = false): string {
 			formatted += ` (pid: ${entry.pid})`;
 		}
 	}
-	
+
 	return formatted;
 }
 
@@ -166,9 +183,11 @@ function formatLogEntry(entry: LogEntry, showDetails: boolean = false): string {
 const LogSummaryComponent: React.FC<{ summary: LogSummary }> = ({ summary }) => (
 	<Container>
 		<Box flexDirection="column" paddingY={1}>
-			<Text bold color="white">RatOS Update Log Summary</Text>
+			<Text bold color="white">
+				RatOS Update Log Summary
+			</Text>
 			<Text color="gray">─────────────────────────</Text>
-			
+
 			<Box flexDirection="row" justifyContent="space-between" marginY={1}>
 				<Box flexDirection="column">
 					<Text color="white">Status:</Text>
@@ -177,15 +196,13 @@ const LogSummaryComponent: React.FC<{ summary: LogSummary }> = ({ summary }) => 
 					<Text color="white">Last Update:</Text>
 				</Box>
 				<Box flexDirection="column">
-					<Text color={summary.success ? 'green' : 'red'}>
-						{summary.success ? '✓ SUCCESS' : '✗ FAILED'}
-					</Text>
+					<Text color={summary.success ? 'green' : 'red'}>{summary.success ? '✓ SUCCESS' : '✗ FAILED'}</Text>
 					<Text>{summary.totalEntries}</Text>
 					<Text>{summary.duration || 'Unknown'}</Text>
 					<Text>{summary.lastUpdate ? new Date(summary.lastUpdate).toLocaleString() : 'Unknown'}</Text>
 				</Box>
 			</Box>
-			
+
 			<Text color="gray">Log Level Breakdown:</Text>
 			<Box flexDirection="row" justifyContent="space-between" marginLeft={2}>
 				<Box flexDirection="column">
@@ -226,9 +243,7 @@ const LogEntriesComponent: React.FC<{ entries: LogEntry[]; showDetails: boolean 
 );
 
 export const updateLogs = (program: Command) => {
-	const updateLogs = program
-		.command('update-logs')
-		.description('View and analyze RatOS update script logs');
+	const updateLogs = program.command('update-logs').description('View and analyze RatOS update script logs');
 
 	updateLogs
 		.command('summary')
@@ -249,13 +264,13 @@ export const updateLogs = (program: Command) => {
 
 				const summary = generateSummary(entries);
 				render(<LogSummaryComponent summary={summary} />);
-
 			} catch (error) {
-				getLogger().error('Failed to read update logs', { error: error instanceof Error ? error.message : String(error) });
-				return renderError(
-					`Failed to read update logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
-					{ exitCode: 1 }
-				);
+				getLogger().error('Failed to read update logs', {
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return renderError(`Failed to read update logs: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+					exitCode: 1,
+				});
 			}
 		});
 
@@ -282,7 +297,12 @@ export const updateLogs = (program: Command) => {
 
 				// Apply filters
 				const levelMap: Record<string, number> = {
-					trace: 10, debug: 20, info: 30, warn: 40, error: 50, fatal: 60
+					trace: 10,
+					debug: 20,
+					info: 30,
+					warn: 40,
+					error: 50,
+					fatal: 60,
 				};
 
 				const minLevel = levelMap[options.level.toLowerCase()] || 30;
@@ -303,13 +323,13 @@ export const updateLogs = (program: Command) => {
 				}
 
 				render(<LogEntriesComponent entries={entries} showDetails={options.details} />);
-
 			} catch (error) {
-				getLogger().error('Failed to read update logs', { error: error instanceof Error ? error.message : String(error) });
-				return renderError(
-					`Failed to read update logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
-					{ exitCode: 1 }
-				);
+				getLogger().error('Failed to read update logs', {
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return renderError(`Failed to read update logs: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+					exitCode: 1,
+				});
 			}
 		});
 
@@ -321,35 +341,33 @@ export const updateLogs = (program: Command) => {
 			try {
 				const env = loadEnvironment();
 				const logPath = `${env.RATOS_DATA_DIR}/logs/ratos-update.log`;
-				
+
 				if (!existsSync(logPath)) {
 					return renderError(`Log file not found: ${logPath}`, { exitCode: 1 });
 				}
-				
+
 				let entries = await parseLogFile(logPath);
 				if (entries.length === 0) {
 					return renderError('No log entries found', { exitCode: 1 });
 				}
-				
+
 				// Filter to only errors and warnings
 				entries = filterBySeverity(entries, 40); // warn level and above
-				
+
 				if (entries.length === 0) {
 					render(
 						<Container>
 							<Text color="green">✓ No errors or warnings found in the update logs!</Text>
-						</Container>
+						</Container>,
 					);
 					return;
 				}
-				
+
 				render(<LogEntriesComponent entries={entries} showDetails={options.details} />);
-				
 			} catch (error) {
-				return renderError(
-					`Failed to read update logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
-					{ exitCode: 1 }
-				);
+				return renderError(`Failed to read update logs: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+					exitCode: 1,
+				});
 			}
 		});
 };

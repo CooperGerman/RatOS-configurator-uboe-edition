@@ -27,11 +27,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 		// Set headers for file download
 		res.setHeader('Content-Type', 'text/plain');
-		res.setHeader('Content-Disposition', `attachment; filename="ratos-update-${new Date().toISOString().split('T')[0]}.log"`);
+		res.setHeader(
+			'Content-Disposition',
+			`attachment; filename="ratos-update-${new Date().toISOString().split('T')[0]}.log"`,
+		);
 		res.setHeader('Content-Length', stats.size);
 
 		return res.status(200).send(content);
-
 	} catch (error) {
 		getLogger().error(`Failed to download update log: ${error instanceof Error ? error.message : 'Unknown error'}`);
 		return res.status(500).json({
