@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # performed outside of a function so that other scripts sourcing this in will run this by default
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # RatOS Structured Logging Library
 # Provides JSON-formatted logging compatible with pino for bash scripts

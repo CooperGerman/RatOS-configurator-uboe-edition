@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 KLIPPER_DIR=/mnt/persist/klipper
 KLIPPER_ENV_DIR=/mnt/persist/klipper-env
