@@ -137,9 +137,8 @@ fetch_ratos_fork()
             retry_count=$((retry_count + 1))
             echo "Fetch attempt $retry_count failed."
             if [ $retry_count -lt $max_retries ]; then
-                local delay=$((5 * retry_count))  # Exponential backoff
-                echo "Retrying in $delay seconds..."
-                sleep $delay
+                echo "Retrying in 5 seconds..."
+                sleep 5
             fi
         fi
     done
