@@ -76,7 +76,11 @@ export async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 
 		return entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 	} catch (error) {
-		throw new Error(`Failed to read log file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		if (error instanceof Error) {
+			error.message = `Failed to read log file: ${error.message}`;
+			throw error;
+		}
+		throw new Error(`Failed to read log file: ${error != null ? String(error) : 'Unknown error'}`);
 	}
 }
 

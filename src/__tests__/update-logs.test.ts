@@ -8,14 +8,8 @@ import { tmpdir } from 'os';
 const TEST_LOG_DIR = path.join(tmpdir(), 'ratos-test-logs');
 const TEST_LOG_FILE = path.join(TEST_LOG_DIR, 'ratos-update.log');
 
-// Mock process.env
-vi.mock('@/env/schema.mjs', () => ({
-	serverSchema: {
-		parse: () => ({
-			RATOS_DATA_DIR: TEST_LOG_DIR,
-		}),
-	},
-}));
+// override the environment
+process.env.LOG_FILE = TEST_LOG_FILE;
 
 describe('Update Logs System', () => {
 	beforeEach(async () => {
@@ -56,11 +50,11 @@ describe('Update Logs System', () => {
 				},
 			];
 
-			const logContent = logEntries.map(entry => JSON.stringify(entry)).join('\n');
+			const logContent = logEntries.map((entry) => JSON.stringify(entry)).join('\n');
 			await writeFile(TEST_LOG_FILE, logContent);
 
 			// Import the function
-			const { parseLogFile } = await import('../server/routers/update-logs');
+			const { parseLogFile } = await import('@/server/routers/update-logs');
 			const parsedEntries = await parseLogFile(TEST_LOG_FILE);
 
 			expect(parsedEntries).toHaveLength(2);
@@ -77,7 +71,7 @@ describe('Update Logs System', () => {
 
 			await writeFile(TEST_LOG_FILE, logContent);
 
-			const { parseLogFile } = await import('../server/routers/update-logs');
+			const { parseLogFile } = await import('@/server/routers/update-logs');
 			const parsedEntries = await parseLogFile(TEST_LOG_FILE);
 
 			expect(parsedEntries).toHaveLength(2);
@@ -104,10 +98,10 @@ describe('Update Logs System', () => {
 				},
 			];
 
-			const logContent = logEntries.map(entry => JSON.stringify(entry)).join('\n');
+			const logContent = logEntries.map((entry) => JSON.stringify(entry)).join('\n');
 			await writeFile(TEST_LOG_FILE, logContent);
 
-			const { parseLogFile } = await import('../server/routers/update-logs');
+			const { parseLogFile } = await import('@/server/routers/update-logs');
 			const parsedEntries = await parseLogFile(TEST_LOG_FILE);
 
 			expect(parsedEntries).toHaveLength(3);
@@ -126,7 +120,7 @@ describe('Update Logs System', () => {
 				{ level: 50, time: '2024-01-01T10:03:00.000Z', msg: 'Another error' },
 			];
 
-			const { generateSummary } = await import('../server/routers/update-logs');
+			const { generateSummary } = await import('@/server/routers/update-logs');
 			const summary = generateSummary(logEntries, 1024, true);
 
 			expect(summary.totalEntries).toBe(4);
@@ -144,7 +138,7 @@ describe('Update Logs System', () => {
 				{ level: 30, time: '2024-01-01T10:02:30.000Z', msg: 'End' },
 			];
 
-			const { generateSummary } = await import('../server/routers/update-logs');
+			const { generateSummary } = await import('@/server/routers/update-logs');
 			const summary = generateSummary(logEntries, 1024, true);
 
 			expect(summary.duration).toBe('2m 30s');
@@ -157,7 +151,7 @@ describe('Update Logs System', () => {
 				{ level: 30, time: '2024-01-01T10:02:00.000Z', msg: 'End', errorCode: 'SCRIPT_SUCCESS' },
 			];
 
-			const { generateSummary } = await import('../server/routers/update-logs');
+			const { generateSummary } = await import('@/server/routers/update-logs');
 			const summary = generateSummary(logEntries, 1024, true);
 
 			expect(summary.lastUpdate).toBe('2024-01-01T10:02:00.000Z');
@@ -173,7 +167,7 @@ describe('Update Logs System', () => {
 				{ level: 50, time: '2024-01-01T10:03:00.000Z', msg: 'Error' },
 			];
 
-			const { filterBySeverity } = await import('../server/routers/update-logs');
+			const { filterBySeverity } = await import('@/server/routers/update-logs');
 			const filtered = filterBySeverity(logEntries, 40); // Warning and above
 
 			expect(filtered).toHaveLength(2);
@@ -188,7 +182,7 @@ describe('Update Logs System', () => {
 				{ level: 30, time: '2024-01-01T10:02:00.000Z', msg: 'Message 3', context: 'main' },
 			];
 
-			const { filterByContext } = await import('../server/routers/update-logs');
+			const { filterByContext } = await import('@/server/routers/update-logs');
 			const filtered = filterByContext(logEntries, 'main');
 
 			expect(filtered).toHaveLength(2);
@@ -228,7 +222,7 @@ describe('CLI Commands', () => {
 	it('should handle missing log file gracefully', async () => {
 		// Test that CLI commands handle missing log files without crashing
 		const nonExistentPath = path.join(TEST_LOG_DIR, 'nonexistent.log');
-		
+
 		// This would be tested by running the actual CLI command
 		// For now, we verify the expected behavior
 		expect(existsSync(nonExistentPath)).toBe(false);
