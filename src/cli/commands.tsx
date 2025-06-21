@@ -17,6 +17,7 @@ import { createSignal } from '@/app/_helpers/signal';
 import { getLogger } from '@/cli/logger';
 import { frontend } from '@/cli/commands/frontend';
 import { postprocessor } from '@/cli/commands/postprocessor';
+import { updateLogs } from '@/cli/commands/update-logs';
 import development from '@/cli/commands/development';
 
 export const program = new commander.Command()
@@ -452,6 +453,7 @@ program
 
 frontend(program);
 postprocessor(program);
+updateLogs(program);
 
 const log = program.command('logs').description('Commands for managing the RatOS log');
 
