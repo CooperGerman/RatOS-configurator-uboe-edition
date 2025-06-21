@@ -141,34 +141,34 @@ ensure_klipper_fork_migration()
 	report_status "Checking if Klipper fork migration is needed..."
 
 	if [ ! -d "$KLIPPER_DIR" ]; then
-		echo "Klipper directory not found, skipping migration check."
+		report_status "Klipper directory not found, skipping migration check."
 		return 0
 	fi
 
 	if [ ! -d "$KLIPPER_DIR/.git" ]; then
-		echo "Klipper directory is not a git repository, skipping migration check."
+		report_status "Klipper directory is not a git repository, skipping migration check."
 		return 0
 	fi
 
 	cd "$KLIPPER_DIR" || {
-		echo "Cannot change to Klipper directory, skipping migration check."
+		report_status "Cannot change to Klipper directory, skipping migration check."
 		return 0
 	}
 
 	# Check if current origin is the official Klipper repository
 	local current_origin
-	current_origin=$(git remote get-url origin 2>/dev/null)
-	if [ $? -ne 0 ]; then
-		echo "Cannot get origin URL from Klipper repository, skipping migration check."
+	if ! current_origin=$(git remote get-url origin 2>/dev/null); then
+		report_status "Cannot get origin URL from Klipper repository, skipping migration check."
 		return 0
 	fi
 
-	if [ "$current_origin" != "https://github.com/Klipper3d/klipper.git" ]; then
-		echo "Klipper repository is not using the official source, migration not needed."
+	# Support both HTTPS and SSH formats for official Klipper repository
+	if [[ "$current_origin" != "https://github.com/Klipper3d/klipper.git" ]] && [[ "$current_origin" != "git@github.com:Klipper3d/klipper.git" ]]; then
+		report_status "Klipper repository is not using the official source, migration not needed."
 		return 0
 	fi
 
-	echo "Klipper repository migration needed, running migration script..."
+	report_status "Klipper repository migration needed, running migration script..."
 	if ! "$SCRIPT_DIR"/klipper-fork-migration.sh; then
 		echo "ERROR: Klipper fork migration failed!"
 		return 1

@@ -1,11 +1,15 @@
 #!/bin/bash
-if [ "$EUID" -ne 0 ]
-  then echo "ERROR: Please run as root"
-  exit
+if [ "$EUID" -ne 0 ]; then
+  echo "ERROR: Please run as root"
+  exit 1
 fi
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "$(realpath -- "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
 # shellcheck source=configuration/scripts/ratos-common.sh
+if [ ! -f "$SCRIPT_DIR/ratos-common.sh" ]; then
+  echo "ERROR: ratos-common.sh not found in $SCRIPT_DIR"
+  exit 1
+fi
 source "$SCRIPT_DIR"/ratos-common.sh
 
 # Constants
@@ -18,36 +22,36 @@ TARGET_COMMIT="1c96f096fdeea8e2e79237b679ed6fa944fbae5e"
 check_klipper_repository()
 {
     report_status "Checking Klipper repository configuration..."
-    
+
     if [ ! -d "$KLIPPER_DIR" ]; then
         echo "ERROR: Klipper directory not found at $KLIPPER_DIR"
-        return 1
+        return 2  # Fatal error
     fi
-    
+
     if [ ! -d "$KLIPPER_DIR/.git" ]; then
         echo "ERROR: Klipper directory is not a git repository"
-        return 1
+        return 2  # Fatal error
     fi
-    
+
     cd "$KLIPPER_DIR" || {
         echo "ERROR: Cannot change to Klipper directory"
-        return 1
+        return 2  # Fatal error
     }
-    
+
     # Check if current origin is the official Klipper repository
     local current_origin
-    current_origin=$(git remote get-url origin 2>/dev/null)
-    if [ $? -ne 0 ]; then
+    if ! current_origin=$(git remote get-url origin 2>/dev/null); then
         echo "ERROR: Cannot get origin URL from Klipper repository"
-        return 1
+        return 2  # Fatal error
     fi
-    
-    if [ "$current_origin" != "$OFFICIAL_KLIPPER_URL" ]; then
+
+    # Support both HTTPS and SSH formats
+    if [[ "$current_origin" != "$OFFICIAL_KLIPPER_URL" ]] && [[ "$current_origin" != "git@github.com:Klipper3d/klipper.git" ]]; then
         echo "Klipper repository is not using the official source ($current_origin)"
         echo "Migration not needed."
-        return 1
+        return 1  # Skip migration
     fi
-    
+
     echo "Klipper repository is using official source, migration needed."
     return 0
 }
@@ -133,8 +137,9 @@ fetch_ratos_fork()
             retry_count=$((retry_count + 1))
             echo "Fetch attempt $retry_count failed."
             if [ $retry_count -lt $max_retries ]; then
-                echo "Retrying in 5 seconds..."
-                sleep 5
+                local delay=$((5 * retry_count))  # Exponential backoff
+                echo "Retrying in $delay seconds..."
+                sleep $delay
             fi
         fi
     done
@@ -154,7 +159,7 @@ checkout_target_branch()
     if ! git symbolic-ref HEAD >/dev/null 2>&1; then
         echo "Repository is in detached HEAD state."
         echo "Creating and checking out a temporary branch..."
-        if ! git checkout -b "temp-migration-$(date +%s)"; then
+        if ! git checkout -b "temp-migration-$(date +%s)-$$"; then
             echo "ERROR: Failed to create temporary branch"
             return 1
         fi
@@ -226,45 +231,59 @@ fix_klipper_ownership()
 migrate_klipper_repository()
 {
     report_status "Starting Klipper repository migration to RatOS fork..."
-    
+
     # Check if migration is needed
-    if ! check_klipper_repository; then
+    local check_result
+    check_klipper_repository
+    check_result=$?
+
+    if [ $check_result -eq 1 ]; then
+        # Migration not needed (safe skip)
         return 0
+    elif [ $check_result -eq 2 ]; then
+        # Fatal error occurred
+        echo "ERROR: Fatal error during repository check"
+        return 2
     fi
-    
+
     # Check for uncommitted changes
     if ! check_uncommitted_changes; then
-        return 1
+        echo "ERROR: Uncommitted changes prevent migration"
+        return 3
     fi
-    
+
     # Handle existing remote
     if ! handle_existing_remote; then
-        return 1
+        echo "ERROR: Failed to handle existing remote"
+        return 4
     fi
-    
+
     # Fetch from RatOS fork
     if ! fetch_ratos_fork; then
-        return 1
+        echo "ERROR: Failed to fetch from RatOS fork"
+        return 5
     fi
-    
+
     # Checkout target branch
     if ! checkout_target_branch; then
-        return 1
+        echo "ERROR: Failed to checkout target branch"
+        return 6
     fi
-    
+
     # Reset to target commit
     if ! reset_to_target_commit; then
-        return 1
+        echo "ERROR: Failed to reset to target commit"
+        return 7
     fi
-    
+
     # Fix ownership
     fix_klipper_ownership
-    
+
     report_status "Klipper repository migration completed successfully!"
     echo "Repository is now using RatOS fork at commit $TARGET_COMMIT"
     echo "Branch: $TARGET_BRANCH"
     echo "Remote: $RATOS_FORK_URL"
-    
+
     return 0
 }
 
