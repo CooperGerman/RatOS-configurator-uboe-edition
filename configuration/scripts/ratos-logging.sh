@@ -41,7 +41,7 @@ get_process_info() {
 
 # Rotate log file if it exceeds max size
 rotate_log_if_needed() {
-    if [[ -f "$RATOS_LOG_FILE" ]] && [[ $(stat -f%z "$RATOS_LOG_FILE" 2>/dev/null || stat -c%s "$RATOS_LOG_FILE" 2>/dev/null || echo 0) -gt $RATOS_LOG_MAX_SIZE ]]; then
+    if [[ -f "$RATOS_LOG_FILE" ]] && [[ $(stat -c%s "$RATOS_LOG_FILE" 2>/dev/null || echo 0) -gt $RATOS_LOG_MAX_SIZE ]]; then
         # Rotate existing backups
         for ((i=RATOS_LOG_BACKUP_COUNT; i>=1; i--)); do
             if [[ -f "${RATOS_LOG_FILE}.$i" ]]; then

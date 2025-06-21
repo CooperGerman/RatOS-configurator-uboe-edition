@@ -247,7 +247,7 @@ export const updateLogs = (program: Command) => {
 					return renderError('No log entries found', { exitCode: 1 });
 				}
 
-				const summary = generateSummary(entries, 0, true);
+				const summary = generateSummary(entries);
 				render(<LogSummaryComponent summary={summary} />);
 
 			} catch (error) {

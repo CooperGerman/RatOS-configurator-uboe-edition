@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { readFile, stat } from 'fs/promises';
+import { readFile, stat, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { publicProcedure, router } from '@/server/trpc';
 import { getLogger } from '@/server/helpers/logger';
@@ -260,7 +260,7 @@ export const updateLogsRouter = router({
 			
 			try {
 				// Truncate the log file instead of deleting it
-				await require('fs/promises').writeFile(logPath, '');
+				await writeFile(logPath, '');
 				getLogger().info('Update log file cleared');
 				return { success: true, message: 'Log file cleared successfully' };
 			} catch (error) {
