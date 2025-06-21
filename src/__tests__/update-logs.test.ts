@@ -4,8 +4,13 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { execSync } from 'child_process';
-import { parseLogFile, generateSummary, filterBySeverity, filterByContext } from '@/server/routers/update-logs';
-import type { LogEntry } from '@/server/routers/update-logs';
+import {
+	parseLogFile,
+	generateSummary,
+	filterBySeverity,
+	filterByContext,
+	type LogEntry,
+} from '@/server/routers/update-logs';
 
 // Test environment setup - relies on test-setup.ts and .env.test.local
 const TEST_LOG_DIR = path.join(tmpdir(), 'ratos-test-logs');
