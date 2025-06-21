@@ -34,6 +34,12 @@ declare -A LOG_LEVELS=(
     ["fatal"]=60
 )
 
+# Validate log level and default to "info" if invalid
+if [[ -z "${LOG_LEVELS[$RATOS_LOG_LEVEL]}" ]]; then
+    echo "Warning: Invalid log level '$RATOS_LOG_LEVEL', defaulting to 'info'" >&2
+    RATOS_LOG_LEVEL="info"
+fi
+
 # Current log level numeric value
 CURRENT_LOG_LEVEL=${LOG_LEVELS[$RATOS_LOG_LEVEL]}
 
@@ -95,25 +101,27 @@ log_message() {
     
     # Build JSON log entry
     local timestamp
-    local process_info
     local escaped_message
 
     timestamp=$(get_timestamp)
-    process_info=$(get_process_info)
 
     # Escape message for JSON (handle control characters)
     escaped_message=$(printf '%s' "$message" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g')
     
-    # Build context JSON
+    # Build context JSON with proper escaping
     local context_json=""
     if [[ -n "$context" ]]; then
-        context_json=",\"context\":\"$context\""
+        local escaped_context
+        escaped_context=$(printf '%s' "$context" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g')
+        context_json=",\"context\":\"$escaped_context\""
     fi
-    
-    # Build error code JSON
+
+    # Build error code JSON with proper escaping
     local error_code_json=""
     if [[ -n "$error_code" ]]; then
-        error_code_json=",\"errorCode\":\"$error_code\""
+        local escaped_error_code
+        escaped_error_code=$(printf '%s' "$error_code" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g')
+        error_code_json=",\"errorCode\":\"$escaped_error_code\""
     fi
     
     # Create log entry
@@ -153,20 +161,53 @@ log_error() { log_message "error" "$1" "$2" "$3"; }
 log_fatal() { log_message "fatal" "$1" "$2" "$3"; }
 
 # Function to log command execution with error handling
+# Usage: execute_with_logging "context" "error_code" command arg1 arg2 ...
 execute_with_logging() {
-    local cmd="$1"
-    local context="$2"
-    local error_code="$3"
-    
-    log_debug "Executing command: $cmd" "$context"
-    
+    local context="$1"
+    local error_code="$2"
+    shift 2
+
+    local cmd_str="$*"
+    log_debug "Executing command: $cmd_str" "$context"
+
     # Execute command and capture output and exit code
     local output
     local exit_code
-    
-    output=$($cmd 2>&1)
+
+    output=$("$@" 2>&1)
     exit_code=$?
-    
+
+    if [[ $exit_code -eq 0 ]]; then
+        log_info "Command completed successfully: $cmd_str" "$context"
+        if [[ -n "$output" ]]; then
+            log_debug "Command output: $output" "$context"
+        fi
+    else
+        log_error "Command failed with exit code $exit_code: $cmd_str" "$context" "${error_code:-CMD_FAILED}"
+        if [[ -n "$output" ]]; then
+            log_error "Command error output: $output" "$context" "${error_code:-CMD_FAILED}"
+        fi
+    fi
+
+    return $exit_code
+}
+
+# Legacy wrapper for backward compatibility
+# Usage: execute_with_logging_legacy "command string" "context" "error_code"
+execute_with_logging_legacy() {
+    local cmd="$1"
+    local context="$2"
+    local error_code="$3"
+
+    log_debug "Executing command (legacy): $cmd" "$context"
+
+    # Execute command and capture output and exit code
+    local output
+    local exit_code
+
+    output=$(bash -c "$cmd" 2>&1)
+    exit_code=$?
+
     if [[ $exit_code -eq 0 ]]; then
         log_info "Command completed successfully: $cmd" "$context"
         if [[ -n "$output" ]]; then
@@ -178,7 +219,7 @@ execute_with_logging() {
             log_error "Command error output: $output" "$context" "${error_code:-CMD_FAILED}"
         fi
     fi
-    
+
     return $exit_code
 }
 
@@ -245,14 +286,14 @@ create_log_summary() {
     local start_time="$2"
     local end_time="${3:-$(get_timestamp)}"
     
-    # Count log entries by level for this session
+    # Count log entries by level for this session (filtered by ratos-update source)
     local error_count
     local warn_count
     local info_count
 
-    error_count=$(grep -c '"level":50' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
-    warn_count=$(grep -c '"level":40' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
-    info_count=$(grep -c '"level":30' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
+    error_count=$(grep '"source":"ratos-update"' "$RATOS_LOG_FILE" 2>/dev/null | grep -c '"level":50' || echo 0)
+    warn_count=$(grep '"source":"ratos-update"' "$RATOS_LOG_FILE" 2>/dev/null | grep -c '"level":40' || echo 0)
+    info_count=$(grep '"source":"ratos-update"' "$RATOS_LOG_FILE" 2>/dev/null | grep -c '"level":30' || echo 0)
     
     log_info "Log summary for $script_name:" "script_lifecycle" "SCRIPT_SUMMARY"
     log_info "  Errors: $error_count, Warnings: $warn_count, Info: $info_count" "script_lifecycle" "SCRIPT_SUMMARY"
@@ -261,5 +302,5 @@ create_log_summary() {
 
 # Export functions for use in other scripts
 export -f log_trace log_debug log_info log_warn log_error log_fatal
-export -f execute_with_logging setup_error_trap handle_error
+export -f execute_with_logging execute_with_logging_legacy setup_error_trap handle_error
 export -f log_script_start log_script_complete create_log_summary
