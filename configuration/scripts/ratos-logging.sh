@@ -43,6 +43,11 @@ fi
 # Current log level numeric value
 CURRENT_LOG_LEVEL=${LOG_LEVELS[$RATOS_LOG_LEVEL]}
 
+# Helper function to escape strings for JSON
+escape_json() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g'
+}
+
 # Get current timestamp in ISO format
 get_timestamp() {
     date -u +"%Y-%m-%dT%H:%M:%S.%3NZ"
@@ -106,13 +111,13 @@ log_message() {
     timestamp=$(get_timestamp)
 
     # Escape message for JSON (handle control characters)
-    escaped_message=$(printf '%s' "$message" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g')
-    
+    escaped_message=$(escape_json "$message")
+
     # Build context JSON with proper escaping
     local context_json=""
     if [[ -n "$context" ]]; then
         local escaped_context
-        escaped_context=$(printf '%s' "$context" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g')
+        escaped_context=$(escape_json "$context")
         context_json=",\"context\":\"$escaped_context\""
     fi
 
@@ -120,7 +125,7 @@ log_message() {
     local error_code_json=""
     if [[ -n "$error_code" ]]; then
         local escaped_error_code
-        escaped_error_code=$(printf '%s' "$error_code" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g')
+        escaped_error_code=$(escape_json "$error_code")
         error_code_json=",\"errorCode\":\"$escaped_error_code\""
     fi
     
@@ -189,7 +194,7 @@ execute_with_logging() {
         fi
     fi
 
-    return $exit_code
+    return "$exit_code"
 }
 
 # Legacy wrapper for backward compatibility
@@ -220,7 +225,7 @@ execute_with_logging_legacy() {
         fi
     fi
 
-    return $exit_code
+    return "$exit_code"
 }
 
 # Function to set up error trapping
@@ -230,7 +235,7 @@ setup_error_trap() {
     # Enable error trapping but be more selective about exit behavior
     set -E  # Inherit ERR trap to functions and subshells
 
-    trap 'handle_error $? $LINENO "$context"' ERR
+    trap "handle_error \$? \$LINENO \"${context}\"" ERR
 }
 
 # Error trap handler
@@ -302,5 +307,5 @@ create_log_summary() {
 
 # Export functions for use in other scripts
 export -f log_trace log_debug log_info log_warn log_error log_fatal
-export -f execute_with_logging execute_with_logging_legacy setup_error_trap handle_error
+export -f escape_json execute_with_logging execute_with_logging_legacy setup_error_trap handle_error
 export -f log_script_start log_script_complete create_log_summary
