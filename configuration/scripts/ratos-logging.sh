@@ -14,7 +14,9 @@ else
 fi
 
 # Default log configuration
+# Convert RATOS_LOG_LEVEL to lowercase for case-insensitive matching
 RATOS_LOG_LEVEL=${RATOS_LOG_LEVEL:-"info"}
+RATOS_LOG_LEVEL=${RATOS_LOG_LEVEL,,}  # Convert to lowercase
 # Use the main RatOS log file instead of a separate update log
 RATOS_LOG_FILE=${RATOS_LOG_FILE:-"${LOG_FILE:-/var/log/ratos-configurator.log}"}
 # Disable custom rotation since main log file has its own rotation
