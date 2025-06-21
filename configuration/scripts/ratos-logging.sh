@@ -248,7 +248,7 @@ handle_error() {
     log_fatal "Script failed at line $line_number with exit code $exit_code" "$context" "SCRIPT_ERROR"
     
     # Log stack trace if available
-    if declare -f caller > /dev/null; then
+    if command -v caller >/dev/null 2>&1; then
         local frame=0
         log_error "Stack trace:" "$context" "SCRIPT_ERROR"
         while caller "$frame"; do
