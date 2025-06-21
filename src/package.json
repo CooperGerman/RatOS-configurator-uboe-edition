@@ -9,6 +9,7 @@
 		"lint": "next lint",
 		"lint:ci": "next lint --format json --output-file eslint_report.json .",
 		"test": "vitest run",
+		"test:nopp": "vitest run --exclude=server/gcode-processor",
 		"test:dev": "vitest dev",
 		"test-ui": "vitest dev --ui",
 		"test:config": "vitest configuration",

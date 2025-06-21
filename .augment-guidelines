@@ -1,2 +1,8 @@
+# General
+
 - Use `pnpx` instead of `npx`
+
+# Testing
+
 - Use `pnpm run test` in the `src` folder to run the tests once, without watching for changes.
+- use `pnpm run test:nopp` for general use, **unless** you intentionally want to run the slow post-processor tests.
