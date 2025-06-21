@@ -4,6 +4,8 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { execSync } from 'child_process';
+import { parseLogFile, generateSummary, filterBySeverity, filterByContext } from '@/server/routers/update-logs';
+import type { LogEntry } from '@/server/routers/update-logs';
 
 // Test environment setup - relies on test-setup.ts and .env.test.local
 const TEST_LOG_DIR = path.join(tmpdir(), 'ratos-test-logs');
@@ -64,8 +66,6 @@ describe('Update Logs System', () => {
 			const logContent = logEntries.map((entry) => JSON.stringify(entry)).join('\n');
 			await writeFile(TEST_LOG_FILE, logContent);
 
-			// Import the function
-			const { parseLogFile } = await import('@/server/routers/update-logs');
 			const parsedEntries = await parseLogFile(TEST_LOG_FILE);
 
 			expect(parsedEntries).toHaveLength(2);
@@ -83,7 +83,6 @@ describe('Update Logs System', () => {
 
 			await writeFile(TEST_LOG_FILE, logContent);
 
-			const { parseLogFile } = await import('@/server/routers/update-logs');
 			const parsedEntries = await parseLogFile(TEST_LOG_FILE);
 
 			expect(parsedEntries).toHaveLength(2); // Only ratos-update entries
@@ -116,7 +115,6 @@ describe('Update Logs System', () => {
 			const logContent = logEntries.map((entry) => JSON.stringify(entry)).join('\n');
 			await writeFile(TEST_LOG_FILE, logContent);
 
-			const { parseLogFile } = await import('@/server/routers/update-logs');
 			const parsedEntries = await parseLogFile(TEST_LOG_FILE);
 
 			expect(parsedEntries).toHaveLength(3);
@@ -135,7 +133,6 @@ describe('Update Logs System', () => {
 				{ level: 50, time: '2024-01-01T10:03:00.000Z', msg: 'Another error' },
 			];
 
-			const { generateSummary } = await import('@/server/routers/update-logs');
 			const summary = generateSummary(logEntries, 1024, true);
 
 			expect(summary.totalEntries).toBe(4);
@@ -153,7 +150,6 @@ describe('Update Logs System', () => {
 				{ level: 30, time: '2024-01-01T10:02:30.000Z', msg: 'End' },
 			];
 
-			const { generateSummary } = await import('@/server/routers/update-logs');
 			const summary = generateSummary(logEntries, 1024, true);
 
 			expect(summary.duration).toBe('2m 30s');
@@ -166,7 +162,6 @@ describe('Update Logs System', () => {
 				{ level: 30, time: '2024-01-01T10:02:00.000Z', msg: 'End', errorCode: 'SCRIPT_SUCCESS' },
 			];
 
-			const { generateSummary } = await import('@/server/routers/update-logs');
 			const summary = generateSummary(logEntries, 1024, true);
 
 			expect(summary.lastUpdate).toBe('2024-01-01T10:02:00.000Z');
@@ -182,7 +177,6 @@ describe('Update Logs System', () => {
 				{ level: 50, time: '2024-01-01T10:03:00.000Z', msg: 'Error' },
 			];
 
-			const { filterBySeverity } = await import('@/server/routers/update-logs');
 			const filtered = filterBySeverity(logEntries, 40); // Warning and above
 
 			expect(filtered).toHaveLength(2);
@@ -197,7 +191,6 @@ describe('Update Logs System', () => {
 				{ level: 30, time: '2024-01-01T10:02:00.000Z', msg: 'Message 3', context: 'main' },
 			];
 
-			const { filterByContext } = await import('@/server/routers/update-logs');
 			const filtered = filterByContext(logEntries, 'main');
 
 			expect(filtered).toHaveLength(2);
