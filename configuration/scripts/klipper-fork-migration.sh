@@ -1,4 +1,7 @@
 #!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
+
 if [ "$EUID" -ne 0 ]; then
   echo "ERROR: Please run as root"
   exit 1
