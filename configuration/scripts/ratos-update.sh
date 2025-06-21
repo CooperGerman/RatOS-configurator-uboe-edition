@@ -142,6 +142,9 @@ main() {
 	log_info "Starting RatOS update process" "main"
 
 	# Run update functions with error handling
+	# Use set +e to prevent immediate exit on function failure
+	set +e
+
 	update_symlinks || exit_code=1
 	ensure_sudo_command_whitelisting || exit_code=1
 	ensure_service_permission || exit_code=1
@@ -155,9 +158,12 @@ main() {
 	symlink_extensions || exit_code=1
 	update_beacon_fw || exit_code=1
 
+	# Re-enable exit on error for cleanup
+	set -e
+
 	# Create log summary and complete
 	create_log_summary "ratos-update.sh" "$START_TIME"
-	log_script_complete "ratos-update.sh" $exit_code
+	log_script_complete "ratos-update.sh" "$exit_code"
 
 	if [[ $exit_code -ne 0 ]]; then
 		log_error "RatOS update completed with errors. Check the log file: $RATOS_LOG_FILE" "main" "UPDATE_FAILED"
@@ -167,7 +173,7 @@ main() {
 		echo "RatOS update completed successfully"
 	fi
 
-	exit $exit_code
+	exit "$exit_code"
 }
 
 # Run main function

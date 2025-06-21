@@ -237,20 +237,21 @@ export const updateLogs = (program: Command) => {
 			try {
 				const env = loadEnvironment();
 				const logPath = `${env.RATOS_DATA_DIR}/logs/ratos-update.log`;
-				
+
 				if (!existsSync(logPath)) {
 					return renderError(`Log file not found: ${logPath}`, { exitCode: 1 });
 				}
-				
+
 				const entries = await parseLogFile(logPath);
 				if (entries.length === 0) {
 					return renderError('No log entries found', { exitCode: 1 });
 				}
-				
-				const summary = generateSummary(entries);
+
+				const summary = generateSummary(entries, 0, true);
 				render(<LogSummaryComponent summary={summary} />);
-				
+
 			} catch (error) {
+				getLogger().error('Failed to read update logs', { error: error instanceof Error ? error.message : String(error) });
 				return renderError(
 					`Failed to read update logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
 					{ exitCode: 1 }
@@ -269,37 +270,42 @@ export const updateLogs = (program: Command) => {
 			try {
 				const env = loadEnvironment();
 				const logPath = `${env.RATOS_DATA_DIR}/logs/ratos-update.log`;
-				
+
 				if (!existsSync(logPath)) {
 					return renderError(`Log file not found: ${logPath}`, { exitCode: 1 });
 				}
-				
+
 				let entries = await parseLogFile(logPath);
 				if (entries.length === 0) {
 					return renderError('No log entries found', { exitCode: 1 });
 				}
-				
+
 				// Apply filters
 				const levelMap: Record<string, number> = {
 					trace: 10, debug: 20, info: 30, warn: 40, error: 50, fatal: 60
 				};
-				
+
 				const minLevel = levelMap[options.level.toLowerCase()] || 30;
 				entries = filterBySeverity(entries, minLevel);
-				
+
 				if (options.context) {
 					entries = filterByContext(entries, options.context);
 				}
-				
+
 				// Limit number of entries
 				const maxLines = parseInt(options.lines, 10);
+				if (isNaN(maxLines) || maxLines <= 0) {
+					return renderError('Invalid number of lines specified', { exitCode: 1 });
+				}
+
 				if (entries.length > maxLines) {
 					entries = entries.slice(-maxLines);
 				}
-				
+
 				render(<LogEntriesComponent entries={entries} showDetails={options.details} />);
-				
+
 			} catch (error) {
+				getLogger().error('Failed to read update logs', { error: error instanceof Error ? error.message : String(error) });
 				return renderError(
 					`Failed to read update logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
 					{ exitCode: 1 }

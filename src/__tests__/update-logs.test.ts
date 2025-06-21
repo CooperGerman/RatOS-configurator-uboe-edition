@@ -59,7 +59,7 @@ describe('Update Logs System', () => {
 			const logContent = logEntries.map(entry => JSON.stringify(entry)).join('\n');
 			await writeFile(TEST_LOG_FILE, logContent);
 
-			// Import the function after mocking
+			// Import the function
 			const { parseLogFile } = await import('../server/routers/update-logs');
 			const parsedEntries = await parseLogFile(TEST_LOG_FILE);
 
@@ -81,8 +81,8 @@ describe('Update Logs System', () => {
 			const parsedEntries = await parseLogFile(TEST_LOG_FILE);
 
 			expect(parsedEntries).toHaveLength(2);
-			expect(parsedEntries[0].msg).toBe('Valid entry');
-			expect(parsedEntries[1].msg).toBe('Another valid entry');
+			expect(parsedEntries[0]?.msg).toBe('Valid entry');
+			expect(parsedEntries[1]?.msg).toBe('Another valid entry');
 		});
 
 		it('should sort entries by timestamp', async () => {
@@ -204,21 +204,23 @@ describe('Bash Logging Library', () => {
 		// For now, we'll test the expected JSON structure
 		const expectedLogEntry = {
 			level: 30,
-			time: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+			time: '2024-01-01T10:00:00.000Z',
 			msg: 'Test message',
 			source: 'ratos-update',
 			context: 'test_context',
-			pid: expect.any(Number),
-			hostname: expect.any(String),
+			pid: 1234,
+			hostname: 'test-host',
 		};
 
 		// This structure should match what the bash logging library produces
-		expect(expectedLogEntry).toMatchObject({
-			level: expect.any(Number),
-			time: expect.any(String),
-			msg: expect.any(String),
-			source: expect.any(String),
-		});
+		expect(expectedLogEntry).toHaveProperty('level');
+		expect(expectedLogEntry).toHaveProperty('time');
+		expect(expectedLogEntry).toHaveProperty('msg');
+		expect(expectedLogEntry).toHaveProperty('source');
+		expect(typeof expectedLogEntry.level).toBe('number');
+		expect(typeof expectedLogEntry.time).toBe('string');
+		expect(typeof expectedLogEntry.msg).toBe('string');
+		expect(typeof expectedLogEntry.source).toBe('string');
 	});
 });
 

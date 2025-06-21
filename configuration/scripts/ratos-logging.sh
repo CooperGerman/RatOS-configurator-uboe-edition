@@ -43,7 +43,7 @@ get_process_info() {
 rotate_log_if_needed() {
     if [[ -f "$RATOS_LOG_FILE" ]] && [[ $(stat -f%z "$RATOS_LOG_FILE" 2>/dev/null || stat -c%s "$RATOS_LOG_FILE" 2>/dev/null || echo 0) -gt $RATOS_LOG_MAX_SIZE ]]; then
         # Rotate existing backups
-        for ((i=$RATOS_LOG_BACKUP_COUNT; i>=1; i--)); do
+        for ((i=RATOS_LOG_BACKUP_COUNT; i>=1; i--)); do
             if [[ -f "${RATOS_LOG_FILE}.$i" ]]; then
                 if [[ $i -eq $RATOS_LOG_BACKUP_COUNT ]]; then
                     rm -f "${RATOS_LOG_FILE}.$i"
@@ -52,10 +52,10 @@ rotate_log_if_needed() {
                 fi
             fi
         done
-        
+
         # Move current log to .1
         mv "$RATOS_LOG_FILE" "${RATOS_LOG_FILE}.1"
-        
+
         # Create new log file
         touch "$RATOS_LOG_FILE"
         chmod 664 "$RATOS_LOG_FILE"
@@ -79,11 +79,15 @@ log_message() {
     rotate_log_if_needed
     
     # Build JSON log entry
-    local timestamp=$(get_timestamp)
-    local process_info=$(get_process_info)
-    
+    local timestamp
+    local process_info
+    local escaped_message
+
+    timestamp=$(get_timestamp)
+    process_info=$(get_process_info)
+
     # Escape message for JSON
-    local escaped_message=$(echo "$message" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ')
+    escaped_message=$(echo "$message" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ')
     
     # Build context JSON
     local context_json=""
@@ -98,7 +102,8 @@ log_message() {
     fi
     
     # Create log entry
-    local log_entry="{\"level\":$level_value,\"time\":\"$timestamp\",\"msg\":\"$escaped_message\",\"source\":\"ratos-update\"$context_json$error_code_json,$(echo "$process_info" | sed 's/^{//;s/}$//')}"
+    local log_entry
+    log_entry="{\"level\":$level_value,\"time\":\"$timestamp\",\"msg\":\"$escaped_message\",\"source\":\"ratos-update\"$context_json$error_code_json,$(echo "$process_info" | sed 's/^{//;s/}$//')}"
     
     # Write to log file
     echo "$log_entry" >> "$RATOS_LOG_FILE"
@@ -163,9 +168,10 @@ execute_with_logging() {
 # Function to set up error trapping
 setup_error_trap() {
     local context="$1"
-    
-    set -eE  # Exit on error, inherit ERR trap
-    
+
+    # Enable error trapping but be more selective about exit behavior
+    set -E  # Inherit ERR trap to functions and subshells
+
     trap 'handle_error $? $LINENO "$context"' ERR
 }
 
@@ -183,12 +189,12 @@ handle_error() {
         log_error "Stack trace:" "$context" "SCRIPT_ERROR"
         while caller $frame; do
             ((frame++))
-        done 2>&1 | while read line; do
+        done 2>&1 | while read -r line; do
             log_error "  $line" "$context" "SCRIPT_ERROR"
         done
     fi
-    
-    exit $exit_code
+
+    exit "$exit_code"
 }
 
 # Function to log script start
@@ -223,9 +229,13 @@ create_log_summary() {
     local end_time="${3:-$(get_timestamp)}"
     
     # Count log entries by level for this session
-    local error_count=$(grep -c '"level":50' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
-    local warn_count=$(grep -c '"level":40' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
-    local info_count=$(grep -c '"level":30' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
+    local error_count
+    local warn_count
+    local info_count
+
+    error_count=$(grep -c '"level":50' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
+    warn_count=$(grep -c '"level":40' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
+    info_count=$(grep -c '"level":30' "$RATOS_LOG_FILE" 2>/dev/null || echo 0)
     
     log_info "Log summary for $script_name:" "script_lifecycle" "SCRIPT_SUMMARY"
     log_info "  Errors: $error_count, Warnings: $warn_count, Info: $info_count" "script_lifecycle" "SCRIPT_SUMMARY"

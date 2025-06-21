@@ -53,7 +53,7 @@ const LOG_LEVEL_MAP: Record<string, number> = {
 };
 
 // Parse log file and extract entries
-async function parseLogFile(logPath: string): Promise<LogEntry[]> {
+export async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 	try {
 		const content = await readFile(logPath, 'utf-8');
 		const lines = content.trim().split('\n').filter(line => line.trim());
@@ -78,7 +78,7 @@ async function parseLogFile(logPath: string): Promise<LogEntry[]> {
 }
 
 // Generate summary from log entries
-function generateSummary(entries: LogEntry[], logFileSize: number, logFileExists: boolean): LogSummary {
+export function generateSummary(entries: LogEntry[], logFileSize: number, logFileExists: boolean): LogSummary {
 	const summary: LogSummary = {
 		totalEntries: entries.length,
 		errorCount: 0,
@@ -140,12 +140,12 @@ function generateSummary(entries: LogEntry[], logFileSize: number, logFileExists
 }
 
 // Filter entries by severity level
-function filterBySeverity(entries: LogEntry[], minLevel: number): LogEntry[] {
+export function filterBySeverity(entries: LogEntry[], minLevel: number): LogEntry[] {
 	return entries.filter(entry => entry.level >= minLevel);
 }
 
 // Filter entries by context
-function filterByContext(entries: LogEntry[], context: string): LogEntry[] {
+export function filterByContext(entries: LogEntry[], context: string): LogEntry[] {
 	return entries.filter(entry => entry.context === context);
 }
 
