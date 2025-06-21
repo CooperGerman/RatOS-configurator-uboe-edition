@@ -10,6 +10,7 @@ if [ ! -f "$SCRIPT_DIR/ratos-common.sh" ]; then
   echo "ERROR: ratos-common.sh not found in $SCRIPT_DIR"
   exit 1
 fi
+# shellcheck disable=SC1091
 source "$SCRIPT_DIR"/ratos-common.sh
 
 # Constants
