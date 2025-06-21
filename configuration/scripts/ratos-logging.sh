@@ -5,7 +5,13 @@
 
 # Load environment
 SCRIPT_DIR=$( cd -- "$( dirname -- "$(realpath -- "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
-source "$SCRIPT_DIR/environment.sh"
+# shellcheck source=configuration/scripts/environment.sh
+if [[ -f "$SCRIPT_DIR/environment.sh" ]]; then
+    source "$SCRIPT_DIR/environment.sh"
+else
+    echo "Error: Cannot find environment.sh in $SCRIPT_DIR" >&2
+    exit 1
+fi
 
 # Default log configuration
 RATOS_LOG_LEVEL=${RATOS_LOG_LEVEL:-"info"}
@@ -196,7 +202,7 @@ handle_error() {
     if declare -f caller > /dev/null; then
         local frame=0
         log_error "Stack trace:" "$context" "SCRIPT_ERROR"
-        while caller $frame; do
+        while caller "$frame"; do
             ((frame++))
         done 2>&1 | while read -r line; do
             log_error "  $line" "$context" "SCRIPT_ERROR"
