@@ -327,10 +327,10 @@ importers:
         specifier: ^7.8.1
         version: 7.8.1
       scichart:
-        specifier: '=3.5.762'
+        specifier: ^3.5.762
         version: 3.5.762
       scichart-react:
-        specifier: '=0.1.13'
+        specifier: ^0.1.13
         version: 0.1.13(react@18.2.0)(scichart@3.5.762)
       screenfull:
         specifier: ^6.0.2
