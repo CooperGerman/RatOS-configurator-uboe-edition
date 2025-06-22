@@ -312,6 +312,7 @@ validate_script() {
     local script="$1"
     local results_file="$2"
     local errors_file="$3"
+    local output_dir="$4"
 
     # Make paths relative to validation directory for cleaner output
     local display_path="${script#"$VALIDATION_DIRECTORY"/}"
@@ -319,25 +320,33 @@ validate_script() {
         display_path="$script"  # Keep absolute path if not under validation directory
     fi
 
-    if [[ "$QUIET" != true ]]; then
-        echo "🔍 Checking syntax of: $display_path"
-    fi
+    # Create a unique output file for this validation to avoid intermingled output
+    local script_hash
+    script_hash=$(echo "$script" | sha256sum | cut -d' ' -f1)
+    local output_file="$output_dir/validation_$script_hash.out"
 
-    if bash -n "$script" 2>/dev/null; then
+    # Capture all output for this script validation
+    {
         if [[ "$QUIET" != true ]]; then
-            echo "✅ $display_path - syntax OK"
+            echo "🔍 Checking syntax of: $display_path"
         fi
-        echo "$script:OK" >> "$results_file"
-    else
-        echo "❌ $display_path - syntax ERROR:"
-        bash -n "$script" 2>&1 | sed 's/^/    /'
-        echo "$script:ERROR" >> "$results_file"
-        echo "$script" >> "$errors_file"
-    fi
 
-    if [[ "$QUIET" != true ]]; then
-        echo
-    fi
+        if bash -n "$script" 2>/dev/null; then
+            if [[ "$QUIET" != true ]]; then
+                echo "✅ $display_path - syntax OK"
+            fi
+            echo "$script:OK" >> "$results_file"
+        else
+            echo "❌ $display_path - syntax ERROR:"
+            bash -n "$script" 2>&1 | sed 's/^/    /'
+            echo "$script:ERROR" >> "$results_file"
+            echo "$script" >> "$errors_file"
+        fi
+
+        if [[ "$QUIET" != true ]]; then
+            echo
+        fi
+    } > "$output_file"
 }
 
 # Main validation function
@@ -362,11 +371,13 @@ validate_bash_scripts() {
         echo
     fi
 
-    # Create temporary files for results
+    # Create temporary files and directory for results
     local validation_results
     local validation_errors
+    local output_dir
     validation_results=$(mktemp)
     validation_errors=$(mktemp)
+    output_dir=$(mktemp -d)
 
     # Note: Cleanup will be handled manually to avoid trap interference with exit codes
 
@@ -381,7 +392,19 @@ validate_bash_scripts() {
     fi
 
     # Run validation in parallel using xargs
-    printf '%s\n' "${bash_files[@]}" | xargs -I {} -P "$MAX_PARALLEL" bash -c 'validate_script "$@"' _ {} "$validation_results" "$validation_errors"
+    printf '%s\n' "${bash_files[@]}" | xargs -I {} -P "$MAX_PARALLEL" bash -c 'validate_script "$@"' _ {} "$validation_results" "$validation_errors" "$output_dir"
+
+    # Display collected output in order to avoid intermingled messages
+    if [[ "$QUIET" != true ]]; then
+        for script in "${bash_files[@]}"; do
+            local script_hash
+            script_hash=$(echo "$script" | sha256sum | cut -d' ' -f1)
+            local output_file="$output_dir/validation_$script_hash.out"
+            if [[ -f "$output_file" ]]; then
+                cat "$output_file"
+            fi
+        done
+    fi
 
     # Read results and count failures
     local failed_count=0
@@ -392,8 +415,9 @@ validate_bash_scripts() {
     # Report final results
     if [[ "$failed_count" -eq 0 ]]; then
         log_success "All bash scripts passed syntax validation!"
-        # Cleanup temporary files
+        # Cleanup temporary files and directory
         rm -f "$validation_results" "$validation_errors"
+        rm -rf "$output_dir"
         return 0
     else
         log_error "$failed_count script(s) failed syntax validation:"
@@ -405,8 +429,9 @@ validate_bash_scripts() {
         fi
         echo
         log_error "Please fix the syntax errors in the above scripts before proceeding."
-        # Cleanup temporary files
+        # Cleanup temporary files and directory
         rm -f "$validation_results" "$validation_errors"
+        rm -rf "$output_dir"
         return 1
     fi
 }
