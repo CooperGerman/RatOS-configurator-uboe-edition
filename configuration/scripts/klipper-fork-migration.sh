@@ -241,6 +241,41 @@ checkout_target_branch()
     local temp_branch=""
     local created_temp_branch=false
 
+    # Local cleanup function for temporary branches
+    # shellcheck disable=SC2317  # Function is called by EXIT trap
+    cleanup_temp_branch() {
+        local exit_code=$?
+        # Only cleanup on error exits (non-zero), not on successful completion
+        if [ "$exit_code" -ne 0 ] && [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
+            log_info "Cleaning up temporary migration branch due to error: $temp_branch" "checkout_branch"
+            if git branch -D "$temp_branch" >/dev/null 2>&1; then
+                log_info "Successfully cleaned up temporary branch: $temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"
+            else
+                log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
+            fi
+        fi
+    }
+
+    # Set up local EXIT trap for cleanup
+    trap cleanup_temp_branch EXIT
+
+    # Local cleanup function for temporary branches
+    cleanup_temp_branch() {
+        local exit_code=$?
+        # Only cleanup on error exits (non-zero), not on successful completion
+        if [ $exit_code -ne 0 ] && [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
+            log_info "Cleaning up temporary migration branch due to error: $temp_branch" "checkout_branch"
+            if git branch -D "$temp_branch" >/dev/null 2>&1; then
+                log_info "Successfully cleaned up temporary branch: $temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"
+            else
+                log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
+            fi
+        fi
+    }
+
+    # Set up local EXIT trap for cleanup
+    trap cleanup_temp_branch EXIT
+
     # Check if we're in detached HEAD state
     if ! git symbolic-ref HEAD >/dev/null 2>&1; then
         log_info "Repository is in detached HEAD state." "checkout_branch"
@@ -269,7 +304,7 @@ checkout_target_branch()
         fi
     fi
 
-    # Clean up temporary branch if we created one
+    # Clean up temporary branch if we created one (successful completion)
     if [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
         log_info "Cleaning up temporary migration branch: $temp_branch" "checkout_branch"
         if execute_with_logging git branch -D "$temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"; then
@@ -278,6 +313,9 @@ checkout_target_branch()
             log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
         fi
     fi
+
+    # Clear the EXIT trap since we're completing successfully
+    trap - EXIT
 
     log_info "Successfully checked out branch '$TARGET_BRANCH'." "checkout_branch"
     return 0
@@ -420,7 +458,7 @@ create_log_summary "klipper-fork-migration.sh" "$START_TIME"
 log_script_complete "klipper-fork-migration.sh" "$code"
 
 if [ $code -ne 0 ]; then
-    log_error "Klipper repository migration failed (exit code $code)!" "main" "MIGRATION_FAILED"
+    log_error "Klipper repository migration failed (exit code $code)!" "main" "KLIPPER_MIGRATION_FAILED"
     exit $code
 fi
 
