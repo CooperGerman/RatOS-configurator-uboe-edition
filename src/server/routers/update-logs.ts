@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { readFile, stat, writeFile } from 'fs/promises';
+import { readFile, stat } from 'fs/promises';
 import { existsSync } from 'fs';
 import { publicProcedure, router } from '@/server/trpc';
 import { getLogger } from '@/server/helpers/logger';
@@ -42,6 +42,14 @@ const LogSummarySchema = z.object({
 
 const LogQuerySchema = z.object({
 	lines: z.number().min(1).max(1000).default(50),
+	level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+	context: z.string().optional(),
+	showDetails: z.boolean().default(false),
+});
+
+const PaginatedLogQuerySchema = z.object({
+	cursor: z.number().default(0),
+	limit: z.number().min(1).max(100).default(50),
 	level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 	context: z.string().optional(),
 	showDetails: z.boolean().default(false),
@@ -221,7 +229,7 @@ export const updateLogsRouter = router({
 		};
 	}),
 
-	errors: publicProcedure.input(z.object({ showDetails: z.boolean().default(false) })).query(async ({ input }) => {
+	errors: publicProcedure.input(z.object({ showDetails: z.boolean().default(false) })).query(async () => {
 		const logPath = getLogFilePath();
 
 		if (!existsSync(logPath)) {
@@ -258,6 +266,84 @@ export const updateLogsRouter = router({
 
 		return Array.from(contexts).sort();
 	}),
+
+	// Paginated procedures for infinite scrolling
+	entriesPaginated: publicProcedure.input(PaginatedLogQuerySchema).query(async ({ input }) => {
+		const logPath = getLogFilePath();
+
+		if (!existsSync(logPath)) {
+			return {
+				entries: [],
+				hasNextPage: false,
+				nextCursor: 0,
+				totalCount: 0,
+			};
+		}
+
+		// Use the NDJSON readObjects function with pagination support
+		const result = await readObjects(logPath, LogEntrySchema, undefined, input.cursor, input.limit);
+
+		// Filter entries to only include those from ratos-update source
+		let entries = result.result.filter((entry) => entry.source === 'ratos-update');
+
+		// Apply filters
+		const minLevel = LOG_LEVEL_MAP[input.level];
+		entries = filterBySeverity(entries, minLevel);
+
+		if (input.context) {
+			entries = filterByContext(entries, input.context);
+		}
+
+		// Sort entries by time (oldest first for pagination)
+		entries = entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+		return {
+			entries,
+			hasNextPage: result.hasNextPage,
+			nextCursor: result.cursor,
+			totalCount: entries.length,
+		};
+	}),
+
+	errorsPaginated: publicProcedure
+		.input(z.object({
+			cursor: z.number().default(0),
+			limit: z.number().min(1).max(100).default(50),
+			showDetails: z.boolean().default(false)
+		}))
+		.query(async ({ input }) => {
+			const logPath = getLogFilePath();
+
+			if (!existsSync(logPath)) {
+				return {
+					entries: [],
+					hasNextPage: false,
+					nextCursor: 0,
+					totalCount: 0,
+					hasErrors: false,
+				};
+			}
+
+			// Use the NDJSON readObjects function with pagination support
+			const result = await readObjects(logPath, LogEntrySchema, undefined, input.cursor, input.limit);
+
+			// Filter entries to only include those from ratos-update source
+			let entries = result.result.filter((entry) => entry.source === 'ratos-update');
+
+			// Filter to only errors and warnings (level 40 and above)
+			entries = filterBySeverity(entries, 40);
+
+			// Sort entries by time (oldest first for pagination)
+			entries = entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+			return {
+				entries,
+				hasNextPage: result.hasNextPage,
+				nextCursor: result.cursor,
+				totalCount: entries.length,
+				hasErrors: entries.length > 0,
+			};
+		}),
 
 	clear: publicProcedure.mutation(async () => {
 		// Note: This now operates on the main log file, so we cannot clear it entirely.

@@ -1,18 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense, useMemo, useRef, useEffect } from 'react';
 import { trpc } from '@/utils/trpc';
 import { twMerge } from 'tailwind-merge';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/common/button';
 import { Spinner } from '@/components/common/spinner';
 import { ErrorMessage } from '@/components/common/error-message';
-import { Badge } from '@/components/common/badge';
+import { Badge, badgeBorderColorStyle } from '@/components/common/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { AlertCircle, CheckCircle, Clock, Download, RefreshCw, Trash2, FileText, Eye, EyeOff } from 'lucide-react';
+
+import {
+	AlertCircle,
+	CheckCircle,
+	Clock,
+	Download,
+	RefreshCw,
+	Trash2,
+	FileText,
+	Eye,
+	EyeOff,
+	FileClock,
+	FileCode,
+	FileJson,
+} from 'lucide-react';
 import { formatBytes } from '@/helpers/util';
+import { Modal } from '@/components/common/modal';
+import { AnimatedContainer } from '@/components/common/animated-container';
 
 interface LogEntry {
 	level: number;
@@ -51,7 +67,7 @@ const LOG_LEVELS: Record<number, { name: string; color: string; bgColor: string;
 		name: 'DEBUG',
 		color: 'text-cyan-700 dark:text-cyan-400',
 		bgColor: 'bg-cyan-50 dark:bg-cyan-400/10',
-		badgeColor: 'cyan',
+		badgeColor: 'sky',
 	},
 	30: {
 		name: 'INFO',
@@ -227,16 +243,45 @@ const LogSummaryHeader: React.FC<{ summary: LogSummary; onRefresh: () => void; o
 						<div className="border-white/5 px-4 py-6 @screen-sm:border-l @screen-sm:px-6 @screen-lg:px-8">
 							<p className="text-sm font-medium leading-6 text-white">Actions</p>
 							<div className="mt-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => {
-										window.open('/configure/api/update-logs/download', '_blank');
-									}}
+								<Modal
+									onClick={() => (window.location.href = '/configure/api/debug-zip')}
+									title="This archive may contain sensitive information"
+									wide={true}
+									body="Please inspect the contents of the zip before posting it publically. Make sure you use Moonraker Secrets if configuring moonraker for third party services."
+									content={
+										<AnimatedContainer>
+											<h3 className="mb-1 font-medium tracking-tight">The following files will be zipped</h3>
+											<ul className="grid gap-2 pb-2 text-muted-foreground">
+												<Suspense fallback={<Spinner />}>
+													{trpc.debugFileList.useSuspenseQuery()[0].map((file) => {
+														return (
+															<li key={file.path} className="flex items-center gap-2 text-sm">
+																{(file.name.endsWith('.log') || file.name.split('.').slice(-2)[0] === 'log') && (
+																	<FileClock className="h-4 w-4 flex-shrink-0 text-zinc-100/40" aria-hidden="true" />
+																)}
+																{file.name.endsWith('.cfg') && (
+																	<FileCode className="h-4 w-4 flex-shrink-0 text-zinc-100/40" aria-hidden="true" />
+																)}
+																{file.name.endsWith('.json') && (
+																	<FileJson className="h-4 w-4 flex-shrink-0 text-zinc-100/40" aria-hidden="true" />
+																)}
+																<span>
+																	{file.orgPath.replace('/home/pi', '~')} ({formatBytes(file.size)})
+																</span>
+															</li>
+														);
+													})}
+												</Suspense>
+											</ul>
+										</AnimatedContainer>
+									}
+									buttonLabel="I understand"
 								>
-									<Download className="mr-1 h-4 w-4" />
-									Download
-								</Button>
+									<Button variant="outline" size="sm">
+										<Download className="mr-1 h-4 w-4" />
+										Download Debug Info
+									</Button>
+								</Modal>
 							</div>
 						</div>
 					</div>
@@ -265,18 +310,21 @@ const LogEntryComponent: React.FC<{ entry: LogEntry; showDetails: boolean }> = (
 		badgeColor: 'gray',
 	};
 	const timestamp = new Date(entry.time).toLocaleString();
+	const borderStyle = badgeBorderColorStyle({ color: level.badgeColor as any });
 
 	return (
-		<div className={`rounded-lg border p-3 ${level.bgColor} border-border`}>
+		<div className={twMerge('rounded-lg border p-3', level.bgColor, borderStyle)}>
 			<div className="flex items-start justify-between gap-2">
 				<div className="min-w-0 flex-1">
-					<div className="mb-1 flex items-center gap-2">
-						<Badge color={level.badgeColor as any} size="sm">
-							{level.name}
-						</Badge>
-						<span className="text-xs text-muted-foreground">{timestamp}</span>
+					<div className="mb-1 flex items-center justify-between gap-2">
+						<div className="flex items-center gap-2">
+							<Badge color={level.badgeColor as any} size="sm">
+								{level.name}
+							</Badge>
+							<span className="text-xs text-muted-foreground">{timestamp}</span>
+						</div>
 						{entry.context && showDetails && (
-							<Badge color="gray" className="text-xs">
+							<Badge color="gray" size="sm">
 								{entry.context}
 							</Badge>
 						)}
@@ -299,9 +347,250 @@ const LogEntryComponent: React.FC<{ entry: LogEntry; showDetails: boolean }> = (
 	);
 };
 
+// Virtualized log list component with infinite scrolling
+interface VirtualizedLogListProps {
+	entries: LogEntry[];
+	isLoading: boolean;
+	error: any;
+	hasNextPage: boolean;
+	isFetchingNextPage: boolean;
+	fetchNextPage: () => void;
+	showDetails: boolean;
+	showOnlyErrors: boolean;
+	logLevel: string;
+	setLogLevel: (level: string) => void;
+	selectedContext: string;
+	setSelectedContext: (context: string) => void;
+	setShowDetails: (show: boolean) => void;
+	contexts: string[];
+}
+
+const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
+	entries,
+	isLoading,
+	error,
+	hasNextPage,
+	isFetchingNextPage,
+	fetchNextPage,
+	showDetails,
+	showOnlyErrors,
+	logLevel,
+	setLogLevel,
+	selectedContext,
+	setSelectedContext,
+	setShowDetails,
+	contexts,
+}) => {
+	const parentRef = useRef<HTMLDivElement>(null);
+
+	const virtualizer = useVirtualizer({
+		count: hasNextPage ? entries.length + 1 : entries.length,
+		getScrollElement: () => parentRef.current,
+		estimateSize: () => 120, // Estimated height of each log entry
+		overscan: 5,
+	});
+
+	// Load more items when scrolling near the end
+	const virtualItems = virtualizer.getVirtualItems();
+
+	useEffect(() => {
+		const [lastItem] = [...virtualItems].reverse();
+
+		if (!lastItem) {
+			return;
+		}
+
+		if (lastItem.index >= entries.length - 1 && hasNextPage && !isFetchingNextPage) {
+			fetchNextPage();
+		}
+	}, [hasNextPage, fetchNextPage, entries.length, isFetchingNextPage, virtualItems]);
+
+	return (
+		<div className="px-4 @screen-sm:px-6 @screen-lg:px-8">
+			{!showOnlyErrors && (
+				<div className="mb-4 grid grid-cols-1 gap-4 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-3">
+					<div className="space-y-2">
+						<Label htmlFor="log-level">Log Level</Label>
+						<Select value={logLevel} onValueChange={setLogLevel}>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="trace">Trace</SelectItem>
+								<SelectItem value="debug">Debug</SelectItem>
+								<SelectItem value="info">Info</SelectItem>
+								<SelectItem value="warn">Warning</SelectItem>
+								<SelectItem value="error">Error</SelectItem>
+								<SelectItem value="fatal">Fatal</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="context">Context Filter</Label>
+						<Select
+							value={selectedContext || 'all'}
+							onValueChange={(value) => setSelectedContext(value === 'all' ? '' : value)}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="All contexts" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All contexts</SelectItem>
+								{contexts.map((context) => (
+									<SelectItem key={context} value={context}>
+										{context}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="show-details">Show Details</Label>
+						<div className="flex items-center space-x-2">
+							<Switch id="show-details" checked={showDetails} onCheckedChange={setShowDetails} />
+							<Label htmlFor="show-details" className="text-sm">
+								{showDetails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+							</Label>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{isLoading && entries.length === 0 ? (
+				<div className="flex items-center justify-center p-8">
+					<Spinner />
+				</div>
+			) : error ? (
+				<ErrorMessage title="Failed to load log entries">{error.message}</ErrorMessage>
+			) : entries.length === 0 ? (
+				<div className="py-8 text-center text-muted-foreground">
+					<FileText className="mx-auto mb-2 h-12 w-12 opacity-50" />
+					<p>No log entries found</p>
+					{showOnlyErrors && <p className="text-sm">No errors or warnings in the logs</p>}
+				</div>
+			) : (
+				<>
+					<div className="mb-2 text-sm text-muted-foreground">
+						Showing {entries.length} entries
+						{showOnlyErrors && ' (errors and warnings only)'}
+						{hasNextPage && ' (scroll for more)'}
+					</div>
+					<div
+						ref={parentRef}
+						className="h-[600px] overflow-auto rounded-lg border border-border bg-muted/10"
+						style={{
+							contain: 'strict',
+						}}
+					>
+						<div
+							style={{
+								height: `${virtualizer.getTotalSize()}px`,
+								width: '100%',
+								position: 'relative',
+							}}
+						>
+							{virtualizer.getVirtualItems().map((virtualItem) => {
+								const isLoaderRow = virtualItem.index > entries.length - 1;
+								const entry = entries[virtualItem.index];
+
+								return (
+									<div
+										key={virtualItem.index}
+										style={{
+											position: 'absolute',
+											top: 0,
+											left: 0,
+											width: '100%',
+											height: `${virtualItem.size}px`,
+											transform: `translateY(${virtualItem.start}px)`,
+										}}
+									>
+										{isLoaderRow ? (
+											hasNextPage ? (
+												<div className="flex items-center justify-center p-4">
+													<Spinner />
+													<span className="ml-2 text-sm text-muted-foreground">Loading more entries...</span>
+												</div>
+											) : (
+												<div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+													No more entries to load
+												</div>
+											)
+										) : (
+											<div className="p-2">
+												<LogEntryComponent entry={entry} showDetails={showDetails} />
+											</div>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				</>
+			)}
+		</div>
+	);
+};
+
+// Hook for managing infinite scroll data
+const useInfiniteLogEntries = (
+	showOnlyErrors: boolean,
+	logLevel: string,
+	selectedContext: string,
+	showDetails: boolean,
+) => {
+	const entriesQuery = trpc['update-logs'].entriesPaginated.useInfiniteQuery(
+		{
+			level: logLevel as any,
+			context: selectedContext || undefined,
+			showDetails,
+			limit: 50,
+		},
+		{
+			enabled: !showOnlyErrors,
+			getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.nextCursor : undefined),
+			retry: 3,
+			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+			staleTime: 10000, // 10 seconds
+		},
+	);
+
+	const errorsQuery = trpc['update-logs'].errorsPaginated.useInfiniteQuery(
+		{
+			showDetails,
+			limit: 50,
+		},
+		{
+			enabled: showOnlyErrors,
+			getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.nextCursor : undefined),
+			retry: 3,
+			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+			staleTime: 10000, // 10 seconds
+		},
+	);
+
+	const currentQuery = showOnlyErrors ? errorsQuery : entriesQuery;
+
+	// Flatten all pages into a single array of entries
+	const allEntries = useMemo(() => {
+		return currentQuery.data?.pages.flatMap((page) => page.entries) ?? [];
+	}, [currentQuery.data]);
+
+	return {
+		entries: allEntries,
+		isLoading: currentQuery.isLoading,
+		error: currentQuery.error,
+		hasNextPage: currentQuery.hasNextPage,
+		isFetchingNextPage: currentQuery.isFetchingNextPage,
+		fetchNextPage: currentQuery.fetchNextPage,
+		refetch: currentQuery.refetch,
+	};
+};
+
 export const UpdateLogsViewer: React.FC = () => {
 	const [logLevel, setLogLevel] = useState<string>('info');
-	const [maxLines, setMaxLines] = useState<number>(50);
 	const [selectedContext, setSelectedContext] = useState<string>('');
 	const [showDetails, setShowDetails] = useState<boolean>(false);
 	const [showOnlyErrors, setShowOnlyErrors] = useState<boolean>(false);
@@ -317,37 +606,19 @@ export const UpdateLogsViewer: React.FC = () => {
 		staleTime: 60000, // 1 minute
 	});
 
-	const entriesQuery = trpc['update-logs'].entries.useQuery(
-		{
-			lines: maxLines,
-			level: logLevel as any,
-			context: selectedContext || undefined,
-			showDetails,
-		},
-		{
-			enabled: !showOnlyErrors,
-			retry: 3,
-			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-			staleTime: 10000, // 10 seconds
-		},
-	);
-
-	const errorsQuery = trpc['update-logs'].errors.useQuery(
-		{
-			showDetails,
-		},
-		{
-			enabled: showOnlyErrors,
-			retry: 3,
-			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-			staleTime: 10000, // 10 seconds
-		},
-	);
+	const {
+		entries,
+		isLoading: entriesLoading,
+		error: entriesError,
+		hasNextPage,
+		isFetchingNextPage,
+		fetchNextPage,
+		refetch: refetchEntries,
+	} = useInfiniteLogEntries(showOnlyErrors, logLevel, selectedContext, showDetails);
 
 	const handleRefresh = () => {
 		summaryQuery.refetch();
-		entriesQuery.refetch();
-		errorsQuery.refetch();
+		refetchEntries();
 		contextsQuery.refetch();
 	};
 
@@ -369,8 +640,6 @@ export const UpdateLogsViewer: React.FC = () => {
 
 	const summary = summaryQuery.data;
 	const contexts = contextsQuery.data || [];
-	const currentQuery = showOnlyErrors ? errorsQuery : entriesQuery;
-	const entries = currentQuery.data?.entries || [];
 
 	return (
 		<main className="@container">
@@ -402,96 +671,22 @@ export const UpdateLogsViewer: React.FC = () => {
 							</div>
 						</div>
 
-						<div className="mt-6 px-4 @screen-sm:px-6 @screen-lg:px-8">
-							{!showOnlyErrors && (
-								<div className="mb-4 grid grid-cols-1 gap-4 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-4">
-									<div className="space-y-2">
-										<Label htmlFor="log-level">Log Level</Label>
-										<Select value={logLevel} onValueChange={setLogLevel}>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="trace">Trace</SelectItem>
-												<SelectItem value="debug">Debug</SelectItem>
-												<SelectItem value="info">Info</SelectItem>
-												<SelectItem value="warn">Warning</SelectItem>
-												<SelectItem value="error">Error</SelectItem>
-												<SelectItem value="fatal">Fatal</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="max-lines">Max Lines</Label>
-										<Input
-											id="max-lines"
-											type="number"
-											min="10"
-											max="1000"
-											value={maxLines}
-											onChange={(e) => setMaxLines(parseInt(e.target.value) || 50)}
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="context">Context Filter</Label>
-										<Select
-											value={selectedContext || 'all'}
-											onValueChange={(value) => setSelectedContext(value === 'all' ? '' : value)}
-										>
-											<SelectTrigger>
-												<SelectValue placeholder="All contexts" />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="all">All contexts</SelectItem>
-												{contexts.map((context) => (
-													<SelectItem key={context} value={context}>
-														{context}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="show-details">Show Details</Label>
-										<div className="flex items-center space-x-2">
-											<Switch id="show-details" checked={showDetails} onCheckedChange={setShowDetails} />
-											<Label htmlFor="show-details" className="text-sm">
-												{showDetails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-											</Label>
-										</div>
-									</div>
-								</div>
-							)}
-
-							<div className="space-y-3">
-								{currentQuery.isLoading ? (
-									<div className="flex items-center justify-center p-8">
-										<Spinner />
-									</div>
-								) : currentQuery.error ? (
-									<ErrorMessage title="Failed to load log entries">{currentQuery.error.message}</ErrorMessage>
-								) : entries.length === 0 ? (
-									<div className="py-8 text-center text-muted-foreground">
-										<FileText className="mx-auto mb-2 h-12 w-12 opacity-50" />
-										<p>No log entries found</p>
-										{showOnlyErrors && <p className="text-sm">No errors or warnings in the logs</p>}
-									</div>
-								) : (
-									<>
-										<div className="mb-2 text-sm text-muted-foreground">
-											Showing {entries.length} entries
-											{showOnlyErrors && ' (errors and warnings only)'}
-										</div>
-										{entries.map((entry, index) => (
-											<LogEntryComponent key={`${entry.time}-${index}`} entry={entry} showDetails={showDetails} />
-										))}
-									</>
-								)}
-							</div>
-						</div>
+						<VirtualizedLogList
+							entries={entries}
+							isLoading={entriesLoading}
+							error={entriesError}
+							hasNextPage={hasNextPage ?? false}
+							isFetchingNextPage={isFetchingNextPage ?? false}
+							fetchNextPage={fetchNextPage}
+							showDetails={showDetails}
+							showOnlyErrors={showOnlyErrors}
+							logLevel={logLevel}
+							setLogLevel={setLogLevel}
+							selectedContext={selectedContext}
+							setSelectedContext={setSelectedContext}
+							setShowDetails={setShowDetails}
+							contexts={contexts}
+						/>
 					</div>
 				</div>
 			)}

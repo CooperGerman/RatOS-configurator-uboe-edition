@@ -1,5 +1,5 @@
-import { UpdateLogsViewer } from '@/components/update-logs/update-logs-viewer';
-import { UpdateLogsErrorBoundary } from '@/components/update-logs/update-logs-error-boundary';
+import { UpdateLogsViewer } from '@/app/update-logs/_components/update-logs-viewer';
+import { UpdateLogsErrorBoundary } from '@/app/update-logs/_components/update-logs-error-boundary';
 
 export default function UpdateLogsPage() {
 	return (
