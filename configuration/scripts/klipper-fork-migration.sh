@@ -169,11 +169,12 @@ handle_existing_remote()
         return 1
     }
 
-    # Check if ratos-fork remote already exists
-    if git remote get-url "$RATOS_FORK_REMOTE" >/dev/null 2>&1; then
-        local existing_url
-        existing_url=$(git remote get-url "$RATOS_FORK_REMOTE")
+    # Cache the remote URL to avoid multiple git subprocess calls
+    local existing_url
+    existing_url=$(git remote get-url "$RATOS_FORK_REMOTE" 2>/dev/null)
 
+    # Check if ratos-fork remote already exists
+    if [ -n "$existing_url" ]; then
         if [ "$existing_url" != "$RATOS_FORK_URL" ]; then
             log_warn "Remote '$RATOS_FORK_REMOTE' exists but points to different URL:" "handle_remote" "REMOTE_URL_MISMATCH"
             log_warn "  Current: $existing_url" "handle_remote" "REMOTE_URL_MISMATCH"
