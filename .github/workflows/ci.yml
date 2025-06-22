@@ -109,13 +109,13 @@ jobs:
             bash_files+=("$file")
           done < <(find . -name "*.sh" -type f -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "./.augment/*" -print0)
 
-          # Add files with bash shebangs (excluding .sh files already found)
+          # Add files without file extension with bash shebangs (excluding .sh files already found)
           while IFS= read -r -d '' file; do
             # Skip if it's already a .sh file
             if [[ "$file" != *.sh ]]; then
               bash_files+=("$file")
             fi
-          done < <(find . -path "*/node_modules/*" -prune -o -type f -not -path "*/.git/*" -not -path "./.augment/*" -exec grep -q "^#!/bin/bash\|^#!/usr/bin/env bash" {} \; -print0 2>/dev/null)
+          done < <(find . -path "*/node_modules/*" -prune -o -type f -not -name "*.*" -not -path "*/.git/*" -not -path "./.augment/*" -exec grep -q "^#!/bin/bash\|^#!/usr/bin/env bash" {} \; -print0 2>/dev/null)
 
           if [ ${#bash_files[@]} -eq 0 ]; then
             echo "ℹ️  No bash scripts found in the repository - skipping bash syntax validation"
