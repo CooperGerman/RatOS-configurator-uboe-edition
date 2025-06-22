@@ -78,6 +78,7 @@ log_success() {
     echo -e "${GREEN}✅ $1${NC}"
 }
 
+# shellcheck disable=SC2317  # Function may be used conditionally or in future features
 log_warning() {
     echo -e "${YELLOW}⚠️  $1${NC}"
 }
@@ -306,6 +307,7 @@ discover_bash_scripts() {
 }
 
 # Validation function for individual scripts (used by xargs)
+# shellcheck disable=SC2317  # Function is called indirectly via xargs and export -f
 validate_script() {
     local script="$1"
     local results_file="$2"
