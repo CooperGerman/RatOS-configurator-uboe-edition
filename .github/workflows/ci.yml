@@ -96,6 +96,60 @@ jobs:
           repository: Arksine/moonraker
           path: "moonraker"
 
+      - name: Bash Syntax Check
+        run: |
+          echo "🔍 Finding bash scripts in the repository..."
+
+          # Find all .sh files and files with bash shebangs
+          bash_files=()
+
+          # Add all .sh files
+          while IFS= read -r -d '' file; do
+            bash_files+=("$file")
+          done < <(find . -name "*.sh" -type f -not -path "./src/node_modules/*" -not -path "./.git/*" -not -path "./.augment/*" -print0)
+
+          # Add files with bash shebangs (excluding .sh files already found)
+          while IFS= read -r -d '' file; do
+            # Skip if it's already a .sh file
+            if [[ "$file" != *.sh ]]; then
+              bash_files+=("$file")
+            fi
+          done < <(find . -type f -not -path "./src/node_modules/*" -not -path "./.git/*" -not -path "./.augment/*" -exec grep -l "^#!/bin/bash\|^#!/usr/bin/env bash" {} \; -print0 2>/dev/null)
+
+          if [ ${#bash_files[@]} -eq 0 ]; then
+            echo "❌ No bash scripts found in the repository"
+            exit 1
+          fi
+
+          echo "📋 Found ${#bash_files[@]} bash script(s) to validate:"
+          printf '  - %s\n' "${bash_files[@]}"
+          echo
+
+          # Validate syntax of each script
+          failed_scripts=()
+          for script in "${bash_files[@]}"; do
+            echo "🔍 Checking syntax of: $script"
+            if bash -n "$script" 2>/dev/null; then
+              echo "✅ $script - syntax OK"
+            else
+              echo "❌ $script - syntax ERROR:"
+              bash -n "$script" 2>&1 | sed 's/^/    /'
+              failed_scripts+=("$script")
+            fi
+            echo
+          done
+
+          # Report results
+          if [ ${#failed_scripts[@]} -eq 0 ]; then
+            echo "🎉 All bash scripts passed syntax validation!"
+          else
+            echo "💥 ${#failed_scripts[@]} script(s) failed syntax validation:"
+            printf '  - %s\n' "${failed_scripts[@]}"
+            echo
+            echo "Please fix the syntax errors in the above scripts before merging."
+            exit 1
+          fi
+
       - name: Lint
         working-directory: ratos-configurator/src
         run: pnpm run lint:ci
