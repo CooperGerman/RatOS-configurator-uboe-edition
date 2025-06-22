@@ -42,17 +42,40 @@ source "$SCRIPT_DIR"/ratos-common.sh
 
 # Validate required environment variables
 if [ -z "${KLIPPER_DIR:-}" ]; then
-    log_fatal "KLIPPER_DIR environment variable is not set" "script_init" "ENV_VAR_MISSING"
+    log_fatal "KLIPPER_DIR environment variable is not set. This should be defined in ~/.ratos.env.system" "script_init" "ENV_VAR_MISSING"
     exit 1
 fi
 
 if [ -z "${RATOS_USERNAME:-}" ]; then
-    log_fatal "RATOS_USERNAME environment variable is not set" "script_init" "ENV_VAR_MISSING"
+    log_fatal "RATOS_USERNAME environment variable is not set. This should be defined in ~/.ratos.env.system" "script_init" "ENV_VAR_MISSING"
     exit 1
 fi
 
 if [ -z "${RATOS_USERGROUP:-}" ]; then
-    log_fatal "RATOS_USERGROUP environment variable is not set" "script_init" "ENV_VAR_MISSING"
+    log_fatal "RATOS_USERGROUP environment variable is not set. This should be defined in ~/.ratos.env.system" "script_init" "ENV_VAR_MISSING"
+    exit 1
+fi
+
+# Additional validation for KLIPPER_DIR path existence and accessibility
+if [ ! -d "$KLIPPER_DIR" ]; then
+    log_fatal "KLIPPER_DIR path does not exist: $KLIPPER_DIR" "script_init" "KLIPPER_DIR_NOT_FOUND"
+    exit 1
+fi
+
+if [ ! -r "$KLIPPER_DIR" ] || [ ! -x "$KLIPPER_DIR" ]; then
+    log_fatal "KLIPPER_DIR path is not accessible: $KLIPPER_DIR" "script_init" "KLIPPER_DIR_ACCESS_FAILED"
+    exit 1
+fi
+
+# Validate that RATOS_USERNAME exists on the system
+if ! id "$RATOS_USERNAME" >/dev/null 2>&1; then
+    log_fatal "RATOS_USERNAME user does not exist on system: $RATOS_USERNAME" "script_init" "USER_NOT_FOUND"
+    exit 1
+fi
+
+# Validate that RATOS_USERGROUP exists on the system
+if ! getent group "$RATOS_USERGROUP" >/dev/null 2>&1; then
+    log_fatal "RATOS_USERGROUP group does not exist on system: $RATOS_USERGROUP" "script_init" "GROUP_NOT_FOUND"
     exit 1
 fi
 
