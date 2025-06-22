@@ -133,7 +133,111 @@ readonly OFFICIAL_KLIPPER_URL="https://github.com/Klipper3d/klipper.git"
 readonly RATOS_FORK_URL="https://github.com/Rat-OS/klipper.git"
 readonly RATOS_FORK_REMOTE="ratos-fork"
 readonly TARGET_BRANCH="topic/first-layer-experimental"
-readonly TARGET_COMMIT="1c96f096fdeea8e2e79237b679ed6fa944fbae5e"
+readonly MOONRAKER_CONF_PATH="$SCRIPT_DIR/../moonraker.conf"
+
+# extract_target_commit_from_moonraker() - Dynamically extracts klipper pinned_commit from moonraker.conf
+#
+# Parses the moonraker.conf file to locate the [update_manager klipper] section and extract
+# the pinned_commit value. This ensures the migration script always uses the correct target
+# commit that matches the current moonraker configuration.
+#
+# CONFIGURATION FILE FORMAT:
+#   [update_manager klipper]
+#   channel: dev
+#   pinned_commit: <commit_hash>
+#
+# RETURN CODES:
+#   0 - Success: Target commit extracted successfully
+#   1 - File error: moonraker.conf file not found or not readable
+#   2 - Parse error: klipper section or pinned_commit not found
+#   3 - Validation error: extracted commit hash is invalid format
+#
+# OUTPUT:
+#   Prints the extracted commit hash to stdout on success
+#
+extract_target_commit_from_moonraker()
+{
+    log_info "Extracting target commit from moonraker.conf..." "extract_commit"
+
+    # Check if moonraker.conf exists and is readable
+    if [ ! -f "$MOONRAKER_CONF_PATH" ]; then
+        log_error "moonraker.conf not found at: $MOONRAKER_CONF_PATH" "extract_commit" "MOONRAKER_CONF_NOT_FOUND"
+        return 1
+    fi
+
+    if [ ! -r "$MOONRAKER_CONF_PATH" ]; then
+        log_error "moonraker.conf is not readable: $MOONRAKER_CONF_PATH" "extract_commit" "MOONRAKER_CONF_NOT_READABLE"
+        return 1
+    fi
+
+    log_info "Reading moonraker.conf from: $MOONRAKER_CONF_PATH" "extract_commit"
+
+    # Parse the moonraker.conf file to extract pinned_commit from [update_manager klipper] section
+    # Use awk for robust parsing that handles various formatting styles
+    local extracted_commit
+    extracted_commit=$(awk '
+        BEGIN {
+            in_klipper_section = 0
+            pinned_commit = ""
+        }
+
+        # Match section headers and track if we are in the klipper update_manager section
+        /^\[update_manager klipper\]/ {
+            in_klipper_section = 1
+            next
+        }
+
+        # Reset section tracking when we encounter a new section
+        /^\[/ && !/^\[update_manager klipper\]/ {
+            in_klipper_section = 0
+            next
+        }
+
+        # Extract pinned_commit when in the correct section
+        in_klipper_section && /^pinned_commit:/ {
+            # Remove "pinned_commit:" prefix and trim whitespace
+            gsub(/^pinned_commit:[ \t]*/, "")
+            gsub(/[ \t]*$/, "")
+            pinned_commit = $0
+        }
+
+        END {
+            if (pinned_commit != "") {
+                print pinned_commit
+            }
+        }
+    ' "$MOONRAKER_CONF_PATH")
+
+    # Check if we successfully extracted a commit hash
+    if [ -z "$extracted_commit" ]; then
+        log_error "Could not find pinned_commit in [update_manager klipper] section" "extract_commit" "KLIPPER_PINNED_COMMIT_NOT_FOUND"
+        log_error "Please ensure moonraker.conf contains a valid [update_manager klipper] section with pinned_commit field" "extract_commit" "KLIPPER_PINNED_COMMIT_NOT_FOUND"
+        return 2
+    fi
+
+    # Validate commit hash format (40-character hexadecimal string)
+    if ! echo "$extracted_commit" | grep -qE '^[a-fA-F0-9]{40}$'; then
+        log_error "Invalid commit hash format: $extracted_commit" "extract_commit" "INVALID_COMMIT_HASH_FORMAT"
+        log_error "Expected 40-character hexadecimal string" "extract_commit" "INVALID_COMMIT_HASH_FORMAT"
+        return 3
+    fi
+
+    log_info "Successfully extracted target commit: $extracted_commit" "extract_commit"
+    echo "$extracted_commit"
+    return 0
+}
+
+# Extract TARGET_COMMIT dynamically from moonraker.conf
+TARGET_COMMIT=$(extract_target_commit_from_moonraker)
+extract_result=$?
+
+if [ $extract_result -ne 0 ]; then
+    log_fatal "Failed to extract target commit from moonraker.conf (exit code $extract_result)" "script_init" "TARGET_COMMIT_EXTRACTION_FAILED"
+    exit 1
+fi
+
+# Make TARGET_COMMIT readonly after successful extraction
+readonly TARGET_COMMIT
 
 # check_klipper_repository() - Validates repository state and determines migration requirements
 #
