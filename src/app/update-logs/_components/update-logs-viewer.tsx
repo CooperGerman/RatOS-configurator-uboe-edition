@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense, useMemo, useEffect, useRef } from 'react';
+import React, { useState, Suspense, useMemo, useEffect, useRef, useCallback } from 'react';
 import { trpc } from '@/utils/trpc';
 import { twMerge } from 'tailwind-merge';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
@@ -394,10 +394,11 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 
 	const virtualizer = useWindowVirtualizer({
 		count: hasNextPage ? entries.length + 1 : entries.length,
-		estimateSize: () => (showDetails ? 120 : 80), // Dynamic estimation based on details visibility
+		estimateSize: useCallback(() => (showDetails ? 120 : 80), [showDetails]), // Dynamic estimation based on details visibility
 		overscan: 5,
 		scrollMargin: containerRef.current?.offsetTop ?? 0,
 		paddingEnd: (containerRef.current?.offsetParent as HTMLElement)?.offsetTop ?? 0,
+		getItemKey: useCallback((index: number) => `${index}-${showDetails}`, [showDetails]), // Include showDetails in key to force re-render
 	});
 
 	// Load more items when scrolling near the end
@@ -415,9 +416,17 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 		}
 	}, [hasNextPage, fetchNextPage, entries.length, isFetchingNextPage, virtualItems]);
 
-	// Force virtualizer to recalculate when showDetails changes
+	// Force complete recalculation when showDetails changes
 	useEffect(() => {
+		// Force complete remeasurement by invalidating all cached sizes
 		virtualizer.measure();
+
+		// Additional remeasurement after DOM updates
+		const timeoutId = setTimeout(() => {
+			virtualizer.measure();
+		}, 0);
+
+		return () => clearTimeout(timeoutId);
 	}, [showDetails, virtualizer]);
 
 	return (
@@ -562,13 +571,14 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 
 							return (
 								<div
-									key={virtualItem.index}
+									key={`${virtualItem.index}-${showDetails}`}
+									data-index={virtualItem.index}
+									ref={virtualizer.measureElement}
 									style={{
 										position: 'absolute',
 										top: 0,
 										left: 0,
 										width: '100%',
-										height: `${virtualItem.size}px`,
 										transform: `translateY(${virtualItem.start - virtualizer.options.scrollMargin}px)`,
 									}}
 								>
