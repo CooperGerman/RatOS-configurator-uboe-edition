@@ -138,45 +138,45 @@ symlink_extensions()
 
 ensure_klipper_fork_migration()
 {
-	report_status "Checking if Klipper fork migration is needed..."
+	log_info "Checking if Klipper fork migration is needed..." "ensure_klipper_migration"
 
 	if [ ! -d "$KLIPPER_DIR" ]; then
-		report_status "Klipper directory not found, skipping migration check."
+		log_info "Klipper directory not found, skipping migration check." "ensure_klipper_migration"
 		return 0
 	fi
 
 	if [ ! -d "$KLIPPER_DIR/.git" ]; then
-		report_status "Klipper directory is not a git repository, skipping migration check."
+		log_info "Klipper directory is not a git repository, skipping migration check." "ensure_klipper_migration"
 		return 0
 	fi
 
 	cd "$KLIPPER_DIR" || {
-		report_status "Cannot change to Klipper directory, skipping migration check."
+		log_warn "Cannot change to Klipper directory, skipping migration check." "ensure_klipper_migration" "KLIPPER_DIR_ACCESS_FAILED"
 		return 0
 	}
 
 	# Check if current origin is the official Klipper repository
 	local current_origin
 	if ! current_origin=$(git remote get-url origin 2>/dev/null); then
-		report_status "Cannot get origin URL from Klipper repository, skipping migration check."
+		log_warn "Cannot get origin URL from Klipper repository, skipping migration check." "ensure_klipper_migration" "GIT_REMOTE_URL_FAILED"
 		return 0
 	fi
 
 	# Support both HTTPS and SSH formats for official Klipper repository
 	if [[ "$current_origin" != "https://github.com/Klipper3d/klipper.git" ]] && [[ "$current_origin" != "git@github.com:Klipper3d/klipper.git" ]]; then
-		report_status "Klipper repository is not using the official source, migration not needed."
+		log_info "Klipper repository is not using the official source, migration not needed." "ensure_klipper_migration"
 		return 0
 	fi
 
-	report_status "Klipper repository migration needed, running migration script..."
+	log_info "Klipper repository migration needed, running migration script..." "ensure_klipper_migration"
 	"$SCRIPT_DIR"/klipper-fork-migration.sh
-	code=$?
+	local code=$?
 	if [ $code -ne 0 ]; then
-		echo "ERROR: Klipper fork migration failed (exit code $code)!"
+		log_error "Klipper fork migration failed (exit code $code)!" "ensure_klipper_migration" "KLIPPER_MIGRATION_FAILED"
 		return $code
 	fi
 
-	echo "Klipper fork migration completed successfully!"
+	log_info "Klipper fork migration completed successfully!" "ensure_klipper_migration"
 	return 0
 }
 
