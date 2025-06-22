@@ -33,12 +33,34 @@ fi
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR"/ratos-common.sh
 
-# Constants
-OFFICIAL_KLIPPER_URL="https://github.com/Klipper3d/klipper.git"
-RATOS_FORK_URL="https://github.com/Rat-OS/klipper.git"
-RATOS_FORK_REMOTE="ratos-fork"
-TARGET_BRANCH="topic/first-layer-experimental"
-TARGET_COMMIT="1c96f096fdeea8e2e79237b679ed6fa944fbae5e"
+# Required environment variables (sourced from ratos-common.sh -> environment.sh):
+# - KLIPPER_DIR: Path to the Klipper installation directory
+# - RATOS_USERNAME: RatOS system user for file ownership
+# - RATOS_USERGROUP: RatOS system group for file ownership
+# These variables are loaded from ~/.ratos.env.system or ~/.ratos.env
+
+# Validate required environment variables
+if [ -z "${KLIPPER_DIR:-}" ]; then
+    log_fatal "KLIPPER_DIR environment variable is not set" "script_init" "ENV_VAR_MISSING"
+    exit 1
+fi
+
+if [ -z "${RATOS_USERNAME:-}" ]; then
+    log_fatal "RATOS_USERNAME environment variable is not set" "script_init" "ENV_VAR_MISSING"
+    exit 1
+fi
+
+if [ -z "${RATOS_USERGROUP:-}" ]; then
+    log_fatal "RATOS_USERGROUP environment variable is not set" "script_init" "ENV_VAR_MISSING"
+    exit 1
+fi
+
+# Migration constants (readonly to prevent accidental modification)
+readonly OFFICIAL_KLIPPER_URL="https://github.com/Klipper3d/klipper.git"
+readonly RATOS_FORK_URL="https://github.com/Rat-OS/klipper.git"
+readonly RATOS_FORK_REMOTE="ratos-fork"
+readonly TARGET_BRANCH="topic/first-layer-experimental"
+readonly TARGET_COMMIT="1c96f096fdeea8e2e79237b679ed6fa944fbae5e"
 
 check_klipper_repository()
 {
@@ -360,7 +382,7 @@ create_log_summary "klipper-fork-migration.sh" "$START_TIME"
 log_script_complete "klipper-fork-migration.sh" "$code"
 
 if [ $code -ne 0 ]; then
-    log_error "Klipper repository migration failed (exit code $code)!" "main" "KLIPPER_MIGRATION_FAILED"
+    log_error "Klipper repository migration failed (exit code $code)!" "main" "MIGRATION_FAILED"
     exit $code
 fi
 

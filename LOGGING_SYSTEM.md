@@ -195,6 +195,8 @@ Standardized error codes help identify common issues:
 - `GIT_CHECKOUT_FAILED`: Failed to checkout branch
 - `GIT_CHECKOUT_REMOTE_FAILED`: Failed to checkout remote branch
 - `GIT_TEMP_BRANCH_FAILED`: Failed to create temporary branch
+- `GIT_TEMP_BRANCH_CLEANUP`: Temporary branch cleanup operation
+- `GIT_TEMP_BRANCH_CLEANUP_FAILED`: Failed to clean up temporary branch
 - `GIT_COMMIT_NOT_FOUND`: Target commit not found
 - `GIT_RESET_FAILED`: Failed to reset to target commit
 - `GIT_UPSTREAM_SET_FAILED`: Failed to set upstream tracking
@@ -205,13 +207,14 @@ Standardized error codes help identify common issues:
 - `CHECKOUT_FAILED`: Checkout operation failed
 - `RESET_FAILED`: Reset operation failed
 - `OWNERSHIP_FAILED`: Ownership fix failed
-- `MIGRATION_FAILED`: Migration process failed
 
 ### System Error Codes:
 - `FILE_NOT_FOUND`: Required file not found
 - `PERMISSION_DENIED`: Insufficient permissions
 - `NETWORK_ERROR`: Network connectivity issue
 - `DISK_FULL`: Insufficient disk space
+- `ENV_VAR_MISSING`: Required environment variable not set
+- `ENV_VAR_MISSING`: Required environment variable not set
 
 ## Error Handling and Retry Logic
 
