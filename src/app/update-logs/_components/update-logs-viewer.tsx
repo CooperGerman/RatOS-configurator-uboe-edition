@@ -418,46 +418,47 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 	return (
 		<div className="px-4 @screen-sm:px-6 @screen-lg:px-8">
 			<div className="mb-4 grid grid-cols-1 gap-4 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-4">
-				{!showOnlyErrors && (
-					<div className="space-y-2">
-						<Label htmlFor="log-level">Log Level</Label>
-						<Select value={logLevel} onValueChange={setLogLevel}>
-							<SelectTrigger>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="trace">Trace</SelectItem>
-								<SelectItem value="debug">Debug</SelectItem>
-								<SelectItem value="info">Info</SelectItem>
-								<SelectItem value="warn">Warning</SelectItem>
-								<SelectItem value="error">Error</SelectItem>
-								<SelectItem value="fatal">Fatal</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-				)}
+				<div className="space-y-2">
+					<Label htmlFor="log-level" className={showOnlyErrors ? 'text-muted-foreground' : ''}>
+						Log Level
+					</Label>
+					<Select value={logLevel} onValueChange={setLogLevel} disabled={showOnlyErrors}>
+						<SelectTrigger className={showOnlyErrors ? 'cursor-not-allowed opacity-50' : ''}>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="trace">Trace</SelectItem>
+							<SelectItem value="debug">Debug</SelectItem>
+							<SelectItem value="info">Info</SelectItem>
+							<SelectItem value="warn">Warning</SelectItem>
+							<SelectItem value="error">Error</SelectItem>
+							<SelectItem value="fatal">Fatal</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
 
-				{!showOnlyErrors && (
-					<div className="space-y-2">
-						<Label htmlFor="context">Context Filter</Label>
-						<Select
-							value={selectedContext || 'all'}
-							onValueChange={(value) => setSelectedContext(value === 'all' ? '' : value)}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder="All contexts" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All contexts</SelectItem>
-								{contexts.map((context) => (
-									<SelectItem key={context} value={context}>
-										{context}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-				)}
+				<div className="space-y-2">
+					<Label htmlFor="context" className={showOnlyErrors ? 'text-muted-foreground' : ''}>
+						Context Filter
+					</Label>
+					<Select
+						value={selectedContext || 'all'}
+						onValueChange={(value) => setSelectedContext(value === 'all' ? '' : value)}
+						disabled={showOnlyErrors}
+					>
+						<SelectTrigger className={showOnlyErrors ? 'cursor-not-allowed opacity-50' : ''}>
+							<SelectValue placeholder="All contexts" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All contexts</SelectItem>
+							{contexts.map((context) => (
+								<SelectItem key={context} value={context}>
+									{context}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
 
 				<div className="space-y-2">
 					<Label>Sort Order</Label>
