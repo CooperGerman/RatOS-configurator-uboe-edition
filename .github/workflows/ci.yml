@@ -115,7 +115,7 @@ jobs:
             if [[ "$file" != *.sh ]]; then
               bash_files+=("$file")
             fi
-          done < <(find . -type f -not -path "*/node_modules/*" -not -path "./.git/*" -not -path "./.augment/*" -exec grep -l "^#!/bin/bash\|^#!/usr/bin/env bash" {} \; -print0 2>/dev/null)
+          done < <(find . -path "*/node_modules/*" -prune -o -type f -not -path "./.git/*" -not -path "./.augment/*" -exec grep -q "^#!/bin/bash\|^#!/usr/bin/env bash" {} \; -print0 2>/dev/null)
 
           if [ ${#bash_files[@]} -eq 0 ]; then
             echo "❌ No bash scripts found in the repository"
