@@ -50,9 +50,10 @@ escape_json() {
     printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g; s/\x08/\\b/g'
 }
 
-# Get current timestamp in ISO format
+# Get current timestamp as Unix timestamp in milliseconds (Pino format)
 get_timestamp() {
-    date -u +"%Y-%m-%dT%H:%M:%S.%3NZ"
+    # Get current time in milliseconds since epoch
+    date +%s%3N
 }
 
 # Get process info
@@ -135,7 +136,7 @@ log_message() {
     local log_entry
     local pid_hostname
     pid_hostname="\"pid\":$$,\"hostname\":\"$(hostname)\""
-    log_entry="{\"level\":$level_value,\"time\":\"$timestamp\",\"msg\":\"$escaped_message\",\"source\":\"ratos-update\"$context_json$error_code_json,$pid_hostname}"
+    log_entry="{\"level\":$level_value,\"time\":$timestamp,\"msg\":\"$escaped_message\",\"source\":\"ratos-update\"$context_json$error_code_json,$pid_hostname}"
     
     # Write to log file
     echo "$log_entry" >> "$RATOS_LOG_FILE"
