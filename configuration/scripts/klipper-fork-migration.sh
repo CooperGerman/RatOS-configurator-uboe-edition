@@ -361,6 +361,69 @@ fix_klipper_ownership()
     return 0
 }
 
+# migrate_klipper_repository() - Main migration orchestration function
+#
+# This function coordinates the complete Klipper repository migration process from the
+# original Klipper repository to the RatOS fork. It performs all necessary validation,
+# setup, and migration steps in a specific order to ensure a safe and reliable migration.
+#
+# RETURN CODES:
+#   0 - Success: Migration completed successfully or was not needed
+#   2 - Fatal repository check error: Repository validation failed critically
+#       - Repository is not a Git repository
+#       - Repository directory is inaccessible
+#       - Other critical repository state issues
+#   3 - Uncommitted changes error: Repository has uncommitted changes that prevent migration
+#       - Staged changes exist in the repository
+#       - Modified files exist in the working directory
+#       - User must commit or stash changes before migration
+#   4 - Remote setup error: Failed to configure the RatOS fork remote
+#       - Unable to add new remote
+#       - Failed to update existing remote URL
+#       - Git remote operations failed
+#   5 - Fetch error: Failed to fetch from the RatOS fork remote
+#       - Network connectivity issues
+#       - Remote repository is inaccessible
+#       - Authentication problems
+#       - All retry attempts exhausted
+#   6 - Checkout error: Failed to checkout the target branch
+#       - Target branch doesn't exist on remote
+#       - Git checkout operations failed
+#       - Repository is in an inconsistent state
+#   7 - Reset error: Failed to reset to the target commit
+#       - Target commit doesn't exist
+#       - Git reset operations failed
+#       - Unable to set upstream tracking
+#   8 - Ownership error: Failed to fix file ownership
+#       - Insufficient permissions to change ownership
+#       - Invalid user or group specified
+#       - File system errors during ownership change
+#
+# DEPENDENCIES:
+#   - check_klipper_repository(): Validates repository state
+#   - check_uncommitted_changes(): Ensures clean working directory
+#   - handle_existing_remote(): Configures RatOS fork remote
+#   - fetch_ratos_fork(): Downloads latest changes from RatOS fork
+#   - checkout_target_branch(): Switches to target branch
+#   - reset_to_target_commit(): Resets to specific commit
+#   - fix_klipper_ownership(): Ensures proper file ownership
+#
+# ENVIRONMENT VARIABLES REQUIRED:
+#   - KLIPPER_DIR: Path to Klipper installation directory
+#   - TARGET_BRANCH: Branch name to migrate to
+#   - TARGET_COMMIT: Specific commit hash to reset to
+#   - RATOS_FORK_REMOTE: Name of the RatOS fork remote
+#   - RATOS_FORK_URL: URL of the RatOS fork repository
+#   - RATOS_USERNAME: System username for ownership
+#   - RATOS_USERGROUP: System group for ownership
+#
+# USAGE:
+#   migrate_klipper_repository
+#   exit_code=$?
+#   if [ $exit_code -ne 0 ]; then
+#       echo "Migration failed with exit code: $exit_code"
+#   fi
+#
 migrate_klipper_repository()
 {
     log_info "Starting Klipper repository migration to RatOS fork..." "migrate_repository"
