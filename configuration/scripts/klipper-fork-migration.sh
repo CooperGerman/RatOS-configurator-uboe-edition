@@ -237,16 +237,20 @@ checkout_target_branch()
         return 1
     }
 
+    # Track if we created a temporary branch for cleanup
+    local temp_branch=""
+    local created_temp_branch=false
+
     # Check if we're in detached HEAD state
     if ! git symbolic-ref HEAD >/dev/null 2>&1; then
         log_info "Repository is in detached HEAD state." "checkout_branch"
         log_info "Creating and checking out a temporary branch..." "checkout_branch"
-        local temp_branch
         temp_branch="temp-migration-$(date +%s)-$$"
         if ! execute_with_logging git checkout -b "$temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_FAILED"; then
             log_error "Failed to create temporary branch" "checkout_branch" "GIT_TEMP_BRANCH_FAILED"
             return 1
         fi
+        created_temp_branch=true
     fi
 
     # Check if target branch already exists locally
@@ -262,6 +266,16 @@ checkout_target_branch()
             log_error "Failed to checkout branch '$TARGET_BRANCH' from RatOS fork" "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"
             log_error "Please ensure the branch exists on the remote repository." "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"
             return 1
+        fi
+    fi
+
+    # Clean up temporary branch if we created one
+    if [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
+        log_info "Cleaning up temporary migration branch: $temp_branch" "checkout_branch"
+        if execute_with_logging git branch -D "$temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"; then
+            log_info "Successfully cleaned up temporary branch: $temp_branch" "checkout_branch"
+        else
+            log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
         fi
     fi
 
