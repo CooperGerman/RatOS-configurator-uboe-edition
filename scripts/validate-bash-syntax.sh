@@ -347,6 +347,10 @@ validate_script() {
             echo
         fi
     } > "$output_file"
+
+    # Immediately display the results for real-time feedback
+    # This provides responsive user experience while maintaining organized output per script
+    cat "$output_file"
 }
 
 # Main validation function
@@ -392,19 +396,8 @@ validate_bash_scripts() {
     fi
 
     # Run validation in parallel using xargs
+    # Each validate_script() call will immediately display its results for real-time feedback
     printf '%s\n' "${bash_files[@]}" | xargs -I {} -P "$MAX_PARALLEL" bash -c 'validate_script "$@"' _ {} "$validation_results" "$validation_errors" "$output_dir"
-
-    # Display collected output in order to avoid intermingled messages
-    if [[ "$QUIET" != true ]]; then
-        for script in "${bash_files[@]}"; do
-            local script_hash
-            script_hash=$(echo "$script" | sha256sum | cut -d' ' -f1)
-            local output_file="$output_dir/validation_$script_hash.out"
-            if [[ -f "$output_file" ]]; then
-                cat "$output_file"
-            fi
-        done
-    fi
 
     # Read results and count failures
     local failed_count=0
