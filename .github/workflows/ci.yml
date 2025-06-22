@@ -127,30 +127,70 @@ jobs:
           printf '  - %s\n' "${bash_files[@]}"
           echo
 
-          # Validate syntax of each script
-          failed_scripts=()
-          for script in "${bash_files[@]}"; do
+          # Create a temporary file to store validation results
+          validation_results=$(mktemp)
+          validation_errors=$(mktemp)
+
+          # Function to validate a single script (will be used by xargs)
+          validate_script() {
+            local script="$1"
+            local results_file="$2"
+            local errors_file="$3"
+
             echo "🔍 Checking syntax of: $script"
             if bash -n "$script" 2>/dev/null; then
               echo "✅ $script - syntax OK"
+              echo "$script:OK" >> "$results_file"
             else
               echo "❌ $script - syntax ERROR:"
               bash -n "$script" 2>&1 | sed 's/^/    /'
-              failed_scripts+=("$script")
+              echo "$script:ERROR" >> "$results_file"
+              echo "$script" >> "$errors_file"
             fi
             echo
-          done
+          }
+
+          # Export the function so xargs can use it
+          export -f validate_script
+
+          # Determine optimal parallelism (use number of CPU cores, max 8 to avoid overwhelming GitHub Actions)
+          max_parallel=$(nproc)
+          if [ "$max_parallel" -gt 8 ]; then
+            max_parallel=8
+          fi
+
+          echo "🚀 Running validation in parallel (max $max_parallel processes)..."
+          echo
+
+          # Run validation in parallel using xargs
+          printf '%s\n' "${bash_files[@]}" | xargs -I {} -P "$max_parallel" bash -c 'validate_script "$@"' _ {} "$validation_results" "$validation_errors"
+
+          # Read results and count failures
+          failed_count=0
+          if [ -f "$validation_errors" ]; then
+            failed_count=$(wc -l < "$validation_errors" 2>/dev/null || echo 0)
+          fi
 
           # Report results
-          if [ ${#failed_scripts[@]} -eq 0 ]; then
+          if [ "$failed_count" -eq 0 ]; then
             echo "🎉 All bash scripts passed syntax validation!"
           else
-            echo "💥 ${#failed_scripts[@]} script(s) failed syntax validation:"
-            printf '  - %s\n' "${failed_scripts[@]}"
+            echo "💥 $failed_count script(s) failed syntax validation:"
+            if [ -f "$validation_errors" ]; then
+              while IFS= read -r failed_script; do
+                echo "  - $failed_script"
+              done < "$validation_errors"
+            fi
             echo
             echo "Please fix the syntax errors in the above scripts before merging."
+
+            # Cleanup temporary files
+            rm -f "$validation_results" "$validation_errors"
             exit 1
           fi
+
+          # Cleanup temporary files
+          rm -f "$validation_results" "$validation_errors"
 
       - name: Lint
         working-directory: ratos-configurator/src
