@@ -136,47 +136,37 @@ symlink_extensions()
 }
 
 
+# ensure_klipper_fork_migration() - Ensures Klipper repository is migrated to RatOS fork
+#
+# This function delegates all repository state validation and migration logic to the
+# dedicated klipper-fork-migration.sh script, which provides comprehensive handling of:
+# - Official Klipper repositories (migration needed)
+# - RatOS fork repositories at correct state (migration not needed)
+# - RatOS fork repositories at incorrect state (migration needed)
+# - Unsupported repository sources (fatal error)
+# - All edge cases including detached HEAD, uncommitted changes, etc.
+#
+# RETURN CODES:
+#   0 - Success: Migration completed successfully or was not needed
+#   1+ - Error: Migration failed (specific error codes from migration script)
+#
 ensure_klipper_fork_migration()
 {
-	log_info "Checking if Klipper fork migration is needed..." "ensure_klipper_migration"
+	log_info "Ensuring Klipper repository is properly configured..." "ensure_klipper_migration"
 
-	if [ ! -d "$KLIPPER_DIR" ]; then
-		log_info "Klipper directory not found, skipping migration check." "ensure_klipper_migration"
-		return 0
-	fi
-
-	if [ ! -d "$KLIPPER_DIR/.git" ]; then
-		log_info "Klipper directory is not a git repository, skipping migration check." "ensure_klipper_migration"
-		return 0
-	fi
-
-	cd "$KLIPPER_DIR" || {
-		log_warn "Cannot change to Klipper directory, skipping migration check." "ensure_klipper_migration" "KLIPPER_DIR_ACCESS_FAILED"
-		return 0
-	}
-
-	# Check if current origin is the official Klipper repository
-	local current_origin
-	if ! current_origin=$(git remote get-url origin 2>/dev/null); then
-		log_warn "Cannot get origin URL from Klipper repository, skipping migration check." "ensure_klipper_migration" "GIT_REMOTE_URL_FAILED"
-		return 0
-	fi
-
-	# Support both HTTPS and SSH formats for official Klipper repository
-	if [[ "$current_origin" != "https://github.com/Klipper3d/klipper.git" ]] && [[ "$current_origin" != "git@github.com:Klipper3d/klipper.git" ]]; then
-		log_info "Klipper repository is not using the official source, migration not needed." "ensure_klipper_migration"
-		return 0
-	fi
-
-	log_info "Klipper repository migration needed, running migration script..." "ensure_klipper_migration"
-	"$SCRIPT_DIR"/klipper-fork-migration.sh
-	local code=$?
-	if [ $code -ne 0 ]; then
+	# Delegate all repository validation and migration logic to the dedicated script
+	# The migration script handles all scenarios comprehensively:
+	# - Repository state validation with 4 distinct scenarios
+	# - Graceful skipping when migration is not needed
+	# - Comprehensive error handling and edge case management
+	# - Consistent logging and error reporting
+	if ! "$SCRIPT_DIR"/klipper-fork-migration.sh; then
+		local code=$?
 		log_error "Klipper fork migration failed (exit code $code)!" "ensure_klipper_migration" "KLIPPER_MIGRATION_FAILED"
 		return $code
 	fi
 
-	log_info "Klipper fork migration completed successfully!" "ensure_klipper_migration"
+	log_info "Klipper repository configuration verified successfully!" "ensure_klipper_migration"
 	return 0
 }
 
