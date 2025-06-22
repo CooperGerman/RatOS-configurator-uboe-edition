@@ -360,7 +360,7 @@ create_log_summary "klipper-fork-migration.sh" "$START_TIME"
 log_script_complete "klipper-fork-migration.sh" "$code"
 
 if [ $code -ne 0 ]; then
-    log_error "Klipper repository migration failed (exit code $code)!" "main" "MIGRATION_FAILED"
+    log_error "Klipper repository migration failed (exit code $code)!" "main" "KLIPPER_MIGRATION_FAILED"
     exit $code
 fi
 
