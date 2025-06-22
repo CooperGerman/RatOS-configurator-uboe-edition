@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -247,23 +247,6 @@ checkout_target_branch()
         local exit_code=$?
         # Only cleanup on error exits (non-zero), not on successful completion
         if [ "$exit_code" -ne 0 ] && [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
-            log_info "Cleaning up temporary migration branch due to error: $temp_branch" "checkout_branch"
-            if git branch -D "$temp_branch" >/dev/null 2>&1; then
-                log_info "Successfully cleaned up temporary branch: $temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"
-            else
-                log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
-            fi
-        fi
-    }
-
-    # Set up local EXIT trap for cleanup
-    trap cleanup_temp_branch EXIT
-
-    # Local cleanup function for temporary branches
-    cleanup_temp_branch() {
-        local exit_code=$?
-        # Only cleanup on error exits (non-zero), not on successful completion
-        if [ $exit_code -ne 0 ] && [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
             log_info "Cleaning up temporary migration branch due to error: $temp_branch" "checkout_branch"
             if git branch -D "$temp_branch" >/dev/null 2>&1; then
                 log_info "Successfully cleaned up temporary branch: $temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"
