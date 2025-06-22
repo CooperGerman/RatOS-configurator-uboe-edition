@@ -271,6 +271,8 @@ export const updateLogsRouter = router({
 
 	// Paginated procedures for infinite scrolling
 	entriesPaginated: publicProcedure.input(PaginatedLogQuerySchema).query(async ({ input }) => {
+		// Todo: fix proper reverse pagination.
+
 		const logPath = getLogFilePath();
 
 		if (!existsSync(logPath)) {
