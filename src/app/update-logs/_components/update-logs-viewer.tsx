@@ -475,50 +475,48 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 						{showOnlyErrors && ' (errors and warnings only)'}
 						{hasNextPage && ' (scroll for more)'}
 					</div>
-					<div className="rounded-lg border border-border bg-muted/10">
-						<div
-							style={{
-								height: `${virtualizer.getTotalSize()}px`,
-								width: '100%',
-								position: 'relative',
-							}}
-						>
-							{virtualizer.getVirtualItems().map((virtualItem) => {
-								const isLoaderRow = virtualItem.index > entries.length - 1;
-								const entry = entries[virtualItem.index];
+					<div
+						style={{
+							height: `${virtualizer.getTotalSize()}px`,
+							width: '100%',
+							position: 'relative',
+						}}
+					>
+						{virtualizer.getVirtualItems().map((virtualItem) => {
+							const isLoaderRow = virtualItem.index > entries.length - 1;
+							const entry = entries[virtualItem.index];
 
-								return (
-									<div
-										key={virtualItem.index}
-										style={{
-											position: 'absolute',
-											top: 0,
-											left: 0,
-											width: '100%',
-											height: `${virtualItem.size}px`,
-											transform: `translateY(${virtualItem.start}px)`,
-										}}
-									>
-										{isLoaderRow ? (
-											hasNextPage ? (
-												<div className="flex items-center justify-center p-4">
-													<Spinner />
-													<span className="ml-2 text-sm text-muted-foreground">Loading more entries...</span>
-												</div>
-											) : (
-												<div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
-													No more entries to load
-												</div>
-											)
-										) : (
-											<div className="p-2">
-												<LogEntryComponent entry={entry} showDetails={showDetails} />
+							return (
+								<div
+									key={virtualItem.index}
+									style={{
+										position: 'absolute',
+										top: 0,
+										left: 0,
+										width: '100%',
+										height: `${virtualItem.size}px`,
+										transform: `translateY(${virtualItem.start}px)`,
+									}}
+								>
+									{isLoaderRow ? (
+										hasNextPage ? (
+											<div className="flex items-center justify-center p-4">
+												<Spinner />
+												<span className="ml-2 text-sm text-muted-foreground">Loading more entries...</span>
 											</div>
-										)}
-									</div>
-								);
-							})}
-						</div>
+										) : (
+											<div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+												No more entries to load
+											</div>
+										)
+									) : (
+										<div className="p-2">
+											<LogEntryComponent entry={entry} showDetails={showDetails} />
+										</div>
+									)}
+								</div>
+							);
+						})}
 					</div>
 				</>
 			)}
