@@ -2,7 +2,22 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "$(realpath -- "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
+# Portable script directory resolution with fallbacks
+if command -v realpath >/dev/null 2>&1; then
+    # Primary method: use realpath when available (preferred for accuracy)
+    SCRIPT_DIR=$( cd -- "$( dirname -- "$(realpath -- "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
+elif command -v readlink >/dev/null 2>&1; then
+    # Fallback method: use readlink -f as backup option
+    SCRIPT_DIR=$( cd -- "$( dirname -- "$(readlink -f "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
+else
+    # Ultimate fallback: use basic dirname approach for maximum compatibility
+    # Note: This may not resolve symlinks, but provides basic functionality
+    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    if [ -z "$SCRIPT_DIR" ]; then
+        echo "ERROR: Unable to determine script directory. Neither realpath nor readlink is available and basic dirname failed." >&2
+        exit 1
+    fi
+fi
 
 # Source logging library first
 # shellcheck source=configuration/scripts/ratos-logging.sh
