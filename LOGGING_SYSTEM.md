@@ -180,6 +180,33 @@ Standardized error codes help identify common issues:
 - `EXTENSION_SYMLINK_FAILED`: Extension symlinking failed
 - `OWNERSHIP_CHANGE_FAILED`: File ownership change failed
 
+### Klipper Migration Error Codes:
+- `KLIPPER_DIR_NOT_FOUND`: Klipper directory not found
+- `KLIPPER_NOT_GIT_REPO`: Klipper directory is not a git repository
+- `KLIPPER_DIR_ACCESS_FAILED`: Cannot access Klipper directory
+- `KLIPPER_STAGED_CHANGES`: Uncommitted staged changes prevent migration
+- `KLIPPER_UNCOMMITTED_CHANGES`: Uncommitted changes prevent migration
+- `KLIPPER_MIGRATION_FAILED`: General Klipper migration failure
+- `GIT_REMOTE_URL_FAILED`: Failed to get git remote URL
+- `GIT_REMOTE_ADD_FAILED`: Failed to add git remote
+- `GIT_REMOTE_UPDATE_FAILED`: Failed to update git remote URL
+- `GIT_FETCH_FAILED`: Failed to fetch from remote repository
+- `GIT_FETCH_RETRY`: Fetch retry attempt
+- `GIT_CHECKOUT_FAILED`: Failed to checkout branch
+- `GIT_CHECKOUT_REMOTE_FAILED`: Failed to checkout remote branch
+- `GIT_TEMP_BRANCH_FAILED`: Failed to create temporary branch
+- `GIT_COMMIT_NOT_FOUND`: Target commit not found
+- `GIT_RESET_FAILED`: Failed to reset to target commit
+- `GIT_UPSTREAM_SET_FAILED`: Failed to set upstream tracking
+- `REMOTE_URL_MISMATCH`: Remote URL doesn't match expected value
+- `REPOSITORY_CHECK_FAILED`: Repository check failed
+- `REMOTE_SETUP_FAILED`: Remote setup failed
+- `FETCH_FAILED`: Fetch operation failed
+- `CHECKOUT_FAILED`: Checkout operation failed
+- `RESET_FAILED`: Reset operation failed
+- `OWNERSHIP_FAILED`: Ownership fix failed
+- `MIGRATION_FAILED`: Migration process failed
+
 ### System Error Codes:
 - `FILE_NOT_FOUND`: Required file not found
 - `PERMISSION_DENIED`: Insufficient permissions
