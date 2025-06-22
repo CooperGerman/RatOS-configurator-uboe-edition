@@ -101,6 +101,32 @@ readonly RATOS_FORK_REMOTE="ratos-fork"
 readonly TARGET_BRANCH="topic/first-layer-experimental"
 readonly TARGET_COMMIT="1c96f096fdeea8e2e79237b679ed6fa944fbae5e"
 
+# check_klipper_repository() - Validates repository state and determines migration requirements
+#
+# Implements strict repository state validation with comprehensive edge case handling.
+# Only supported repository configurations are allowed to proceed with migration.
+#
+# REPOSITORY STATE LOGIC:
+#   1. Official Klipper Source → Proceed with Migration
+#      - Repository origin points to any official Klipper URL format
+#      - Return 0 to indicate migration is needed
+#   2. RatOS Fork at Correct Commit → Skip Migration Gracefully
+#      - Repository origin points to RatOS fork URL
+#      - Current HEAD points to the pinned commit AND current branch is expected branch
+#      - Return 1 to indicate migration not needed (safe skip)
+#   3. RatOS Fork at Different Commit → Proceed with Migration
+#      - Repository origin points to RatOS fork URL
+#      - Current HEAD does NOT point to pinned commit OR current branch is not expected
+#      - Return 0 to indicate migration is needed to reset to correct state
+#   4. Any Other Remote/Source → Fatal Error
+#      - Repository origin points to unsupported URL
+#      - Return 2 (fatal error) with appropriate error logging
+#
+# RETURN CODES:
+#   0 - Migration needed: Repository requires migration to RatOS fork
+#   1 - Migration not needed: Repository is already at correct RatOS fork state
+#   2 - Fatal error: Repository validation failed or unsupported configuration
+#
 check_klipper_repository()
 {
     log_info "Checking Klipper repository configuration..." "check_repository"
@@ -115,20 +141,14 @@ check_klipper_repository()
         return 2  # Fatal error
     fi
 
-    cd "$KLIPPER_DIR" || {
-        log_error "Cannot change to Klipper directory" "check_repository" "KLIPPER_DIR_ACCESS_FAILED"
-        return 2  # Fatal error
-    }
-
-    # Check if current origin is the official Klipper repository
+    # Get current origin URL
     local current_origin
-    if ! current_origin=$(git remote get-url origin 2>/dev/null); then
+    if ! current_origin=$(git -C "$KLIPPER_DIR" remote get-url origin 2>/dev/null); then
         log_error "Cannot get origin URL from Klipper repository" "check_repository" "GIT_REMOTE_URL_FAILED"
         return 2  # Fatal error
     fi
 
-    # Check if current origin is the official Klipper repository (support multiple URL formats)
-    local is_official_repo=false
+    log_info "Repository origin URL: $current_origin" "check_repository"
 
     # Define all valid official Klipper repository URL formats
     local official_urls=(
@@ -138,7 +158,8 @@ check_klipper_repository()
         "git://github.com/Klipper3d/klipper.git"            # Git protocol
     )
 
-    # Check if current origin matches any official URL format
+    # Check if current origin is official Klipper repository
+    local is_official_repo=false
     for official_url in "${official_urls[@]}"; do
         if [[ "$current_origin" == "$official_url" ]]; then
             is_official_repo=true
@@ -146,14 +167,59 @@ check_klipper_repository()
         fi
     done
 
-    if [[ "$is_official_repo" != true ]]; then
-        log_info "Klipper repository is not using the official source ($current_origin)" "check_repository"
-        log_info "Migration not needed." "check_repository"
-        return 1  # Skip migration
+    if [[ "$is_official_repo" == true ]]; then
+        # Case 1: Official Klipper Source → Proceed with Migration
+        log_info "Repository is using official Klipper source, migration needed." "check_repository"
+        return 0
     fi
 
-    log_info "Klipper repository is using official source, migration needed." "check_repository"
-    return 0
+    # Check if current origin is RatOS fork
+    if [[ "$current_origin" == "$RATOS_FORK_URL" ]]; then
+        log_info "Repository is using RatOS fork, checking current state..." "check_repository"
+
+        # Get current HEAD commit
+        local current_commit
+        if ! current_commit=$(git -C "$KLIPPER_DIR" rev-parse HEAD 2>/dev/null); then
+            log_error "Cannot get current HEAD commit from repository" "check_repository" "GIT_HEAD_FAILED"
+            return 2  # Fatal error
+        fi
+
+        # Get current branch (handle detached HEAD state)
+        local current_branch
+        current_branch=$(git -C "$KLIPPER_DIR" branch --show-current 2>/dev/null || echo "")
+
+        log_info "Current commit: $current_commit" "check_repository"
+        log_info "Current branch: ${current_branch:-"(detached HEAD)"}" "check_repository"
+        log_info "Expected commit: $TARGET_COMMIT" "check_repository"
+        log_info "Expected branch: $TARGET_BRANCH" "check_repository"
+
+        # Check if repository is at correct commit and branch
+        if [[ "$current_commit" == "$TARGET_COMMIT" ]] && [[ "$current_branch" == "$TARGET_BRANCH" ]]; then
+            # Case 2: RatOS Fork at Correct Commit → Skip Migration Gracefully
+            log_info "Repository is already at correct RatOS fork state (commit $TARGET_COMMIT on branch $TARGET_BRANCH)" "check_repository"
+            log_info "Migration not needed." "check_repository"
+            return 1  # Skip migration
+        else
+            # Case 3: RatOS Fork at Different Commit → Proceed with Migration
+            log_info "Repository is using RatOS fork but not at correct state:" "check_repository"
+            if [[ "$current_commit" != "$TARGET_COMMIT" ]]; then
+                log_info "  - Current commit ($current_commit) differs from expected ($TARGET_COMMIT)" "check_repository"
+            fi
+            if [[ "$current_branch" != "$TARGET_BRANCH" ]]; then
+                log_info "  - Current branch (${current_branch:-"detached HEAD"}) differs from expected ($TARGET_BRANCH)" "check_repository"
+            fi
+            log_info "Migration needed to reset to correct state." "check_repository"
+            return 0
+        fi
+    fi
+
+    # Case 4: Any Other Remote/Source → Fatal Error
+    log_error "Repository is using an unsupported remote source. Only official Klipper or RatOS fork repositories are supported." "check_repository" "UNSUPPORTED_REPOSITORY_SOURCE"
+    log_error "Current origin URL: $current_origin" "check_repository" "UNSUPPORTED_REPOSITORY_SOURCE"
+    log_error "Supported sources:" "check_repository" "UNSUPPORTED_REPOSITORY_SOURCE"
+    log_error "  - Official Klipper: ${official_urls[*]}" "check_repository" "UNSUPPORTED_REPOSITORY_SOURCE"
+    log_error "  - RatOS Fork: $RATOS_FORK_URL" "check_repository" "UNSUPPORTED_REPOSITORY_SOURCE"
+    return 2  # Fatal error
 }
 
 # check_uncommitted_changes() - Validates repository working directory state
