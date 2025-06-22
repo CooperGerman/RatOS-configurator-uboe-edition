@@ -23,8 +23,10 @@ const UpdateLogsErrorFallback: React.FC<UpdateLogsErrorFallbackProps> = ({ error
 			<div className="space-y-4 text-center">
 				<AlertTriangle className="mx-auto h-12 w-12 text-red-500" />
 				<div>
-					<h2 className="mb-2 text-xl font-semibold text-red-700">Update Logs Error</h2>
-					<ErrorMessage title="Failed to load update logs">{error.message}</ErrorMessage>
+					<h2 className="mb-2 text-xl font-semibold text-red-400">Update Logs Error</h2>
+					<ErrorMessage className="text-left" title="Failed to load update logs">
+						{error.message}
+					</ErrorMessage>
 				</div>
 
 				<div className="flex flex-col justify-center gap-3 sm:flex-row">

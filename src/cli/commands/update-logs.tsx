@@ -8,10 +8,13 @@ import { getLogger } from '@/cli/logger';
 import { loadEnvironment, renderError } from '@/cli/util';
 import { z } from 'zod';
 
-// Schema for parsing log entries
+// Schema for parsing log entries (matching server schema)
 const LogEntrySchema = z.object({
 	level: z.number(),
-	time: z.string(),
+	time: z.number().transform((val) => {
+		// Convert Unix timestamp (milliseconds) to ISO string for consistent handling
+		return new Date(val).toISOString();
+	}),
 	msg: z.string(),
 	source: z.string().optional(),
 	context: z.string().optional(),

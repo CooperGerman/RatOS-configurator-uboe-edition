@@ -3,7 +3,7 @@ import { loadEnvironment, resetEnvironment } from '@/server/helpers/utils';
 export const setup = () => {
 	// Set NODE_ENV to test if not already set
 	if (!process.env.NODE_ENV) {
-		process.env.NODE_ENV = 'test';
+		(process.env as any).NODE_ENV = 'test';
 	}
 
 	// Reset environment loading state to ensure fresh load

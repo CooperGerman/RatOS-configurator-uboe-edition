@@ -49,7 +49,7 @@ describe('Update Logs System', () => {
 			const logEntries = [
 				{
 					level: 30,
-					time: '2024-01-01T10:00:00.000Z',
+					time: new Date('2024-01-01T10:00:00.000Z').getTime(),
 					msg: 'Starting update process',
 					source: 'ratos-update',
 					context: 'main',
@@ -58,7 +58,7 @@ describe('Update Logs System', () => {
 				},
 				{
 					level: 50,
-					time: '2024-01-01T10:01:00.000Z',
+					time: new Date('2024-01-01T10:01:00.000Z').getTime(),
 					msg: 'Failed to update symlinks',
 					source: 'ratos-update',
 					context: 'update_symlinks',
@@ -80,10 +80,10 @@ describe('Update Logs System', () => {
 
 		it('should skip invalid JSON lines and filter by source', async () => {
 			const logContent = [
-				'{"level":30,"time":"2024-01-01T10:00:00.000Z","msg":"Valid entry","source":"ratos-update"}',
+				`{"level":30,"time":${new Date('2024-01-01T10:00:00.000Z').getTime()},"msg":"Valid entry","source":"ratos-update"}`,
 				'Invalid JSON line',
-				'{"level":50,"time":"2024-01-01T10:01:00.000Z","msg":"Another valid entry","source":"ratos-update"}',
-				'{"level":30,"time":"2024-01-01T10:02:00.000Z","msg":"Different source","source":"other-service"}',
+				`{"level":50,"time":${new Date('2024-01-01T10:01:00.000Z').getTime()},"msg":"Another valid entry","source":"ratos-update"}`,
+				`{"level":30,"time":${new Date('2024-01-01T10:02:00.000Z').getTime()},"msg":"Different source","source":"other-service"}`,
 			].join('\n');
 
 			await writeFile(TEST_LOG_FILE, logContent);
@@ -99,19 +99,19 @@ describe('Update Logs System', () => {
 			const logEntries = [
 				{
 					level: 30,
-					time: '2024-01-01T10:02:00.000Z',
+					time: new Date('2024-01-01T10:02:00.000Z').getTime(),
 					msg: 'Second entry',
 					source: 'ratos-update',
 				},
 				{
 					level: 30,
-					time: '2024-01-01T10:01:00.000Z',
+					time: new Date('2024-01-01T10:01:00.000Z').getTime(),
 					msg: 'First entry',
 					source: 'ratos-update',
 				},
 				{
 					level: 30,
-					time: '2024-01-01T10:03:00.000Z',
+					time: new Date('2024-01-01T10:03:00.000Z').getTime(),
 					msg: 'Third entry',
 					source: 'ratos-update',
 				},
@@ -318,21 +318,21 @@ describe('CLI Commands Integration', () => {
 		const sampleLogs = [
 			{
 				level: 30,
-				time: '2024-01-01T10:00:00.000Z',
+				time: new Date('2024-01-01T10:00:00.000Z').getTime(),
 				msg: 'Test info message',
 				source: 'ratos-update',
 				context: 'main',
 			},
 			{
 				level: 50,
-				time: '2024-01-01T10:01:00.000Z',
+				time: new Date('2024-01-01T10:01:00.000Z').getTime(),
 				msg: 'Test error message',
 				source: 'ratos-update',
 				context: 'error_test',
 			},
 			{
 				level: 30,
-				time: '2024-01-01T10:02:00.000Z',
+				time: new Date('2024-01-01T10:02:00.000Z').getTime(),
 				msg: 'Different service log',
 				source: 'other-service',
 				context: 'main',
@@ -364,10 +364,10 @@ describe('CLI Commands Integration', () => {
 
 		// Should only include ratos-update entries
 		expect(entries).toHaveLength(2);
-		expect(entries.every(entry => entry.source === 'ratos-update')).toBe(true);
+		expect(entries.every((entry) => entry.source === 'ratos-update')).toBe(true);
 
 		// Should include both info and error messages
-		const messages = entries.map(entry => entry.msg);
+		const messages = entries.map((entry) => entry.msg);
 		expect(messages).toContain('Test info message');
 		expect(messages).toContain('Test error message');
 		expect(messages).not.toContain('Different service log');

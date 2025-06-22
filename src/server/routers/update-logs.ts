@@ -6,16 +6,23 @@ import { getLogger } from '@/server/helpers/logger';
 import { serverSchema } from '@/env/schema.mjs';
 import { readObjects } from '@/server/helpers/ndjson';
 
-// Schema for parsing log entries
-const LogEntrySchema = z.object({
+// Base Pino log entry schema (standard fields)
+const BasePinoLogSchema = z.object({
 	level: z.number(),
-	time: z.string(),
+	time: z.number().transform((val) => {
+		// Convert Unix timestamp (milliseconds) to ISO string for consistent handling
+		return new Date(val).toISOString();
+	}),
 	msg: z.string(),
+	pid: z.number().optional(),
+	hostname: z.string().optional(),
+});
+
+// Extended schema for RatOS update logs with additional fields
+const LogEntrySchema = BasePinoLogSchema.extend({
 	source: z.string().optional(),
 	context: z.string().optional(),
 	errorCode: z.string().optional(),
-	pid: z.number().optional(),
-	hostname: z.string().optional(),
 });
 
 const LogSummarySchema = z.object({
@@ -40,7 +47,7 @@ const LogQuerySchema = z.object({
 	showDetails: z.boolean().default(false),
 });
 
-type LogEntry = z.infer<typeof LogEntrySchema>;
+export type LogEntry = z.infer<typeof LogEntrySchema>;
 type LogSummary = z.infer<typeof LogSummarySchema>;
 
 // Log level mappings
@@ -278,6 +285,25 @@ export const updateLogsRouter = router({
 			};
 		} catch (error) {
 			throw new Error(`Failed to read log file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		}
+	}),
+
+	generateMockData: publicProcedure.mutation(async () => {
+		const logPath = getLogFilePath();
+
+		try {
+			// Import the mock data generator
+			const { generateMockLogs } = await import('@/scripts/generate-mock-update-logs');
+			await generateMockLogs();
+
+			return {
+				success: true,
+				message: 'Mock update logs generated successfully',
+				logPath,
+			};
+		} catch (error) {
+			getLogger().error(`Failed to generate mock logs: ${error instanceof Error ? error.message : 'Unknown error'}`);
+			throw new Error(`Failed to generate mock logs: ${error instanceof Error ? error.message : 'Unknown error'}`);
 		}
 	}),
 });
