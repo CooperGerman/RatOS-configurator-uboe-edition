@@ -2,11 +2,6 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-if [ "$EUID" -ne 0 ]; then
-  echo "ERROR: Please run as root"
-  exit 1
-fi
-
 SCRIPT_DIR=$( cd -- "$( dirname -- "$(realpath -- "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
 
 # Source logging library first
@@ -24,6 +19,12 @@ START_TIME=$(get_timestamp)
 
 # Log script start
 log_script_start "klipper-fork-migration.sh" "1.0.0"
+
+# Check if running as root (after logging is available)
+if [ "$EUID" -ne 0 ]; then
+  log_fatal "Please run as root" "script_init" "PERMISSION_DENIED"
+  exit 1
+fi
 
 # shellcheck source=configuration/scripts/ratos-common.sh
 if [ ! -f "$SCRIPT_DIR/ratos-common.sh" ]; then
