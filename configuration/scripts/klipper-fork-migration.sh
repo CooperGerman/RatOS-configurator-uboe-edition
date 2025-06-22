@@ -112,8 +112,26 @@ check_klipper_repository()
         return 2  # Fatal error
     fi
 
-    # Support both HTTPS and SSH formats
-    if [[ "$current_origin" != "$OFFICIAL_KLIPPER_URL" ]] && [[ "$current_origin" != "git@github.com:Klipper3d/klipper.git" ]]; then
+    # Check if current origin is the official Klipper repository (support multiple URL formats)
+    local is_official_repo=false
+
+    # Define all valid official Klipper repository URL formats
+    local official_urls=(
+        "$OFFICIAL_KLIPPER_URL"                              # HTTPS
+        "git@github.com:Klipper3d/klipper.git"              # SSH shorthand
+        "ssh://git@github.com/Klipper3d/klipper.git"        # SSH protocol
+        "git://github.com/Klipper3d/klipper.git"            # Git protocol
+    )
+
+    # Check if current origin matches any official URL format
+    for official_url in "${official_urls[@]}"; do
+        if [[ "$current_origin" == "$official_url" ]]; then
+            is_official_repo=true
+            break
+        fi
+    done
+
+    if [[ "$is_official_repo" != true ]]; then
         log_info "Klipper repository is not using the official source ($current_origin)" "check_repository"
         log_info "Migration not needed." "check_repository"
         return 1  # Skip migration
@@ -123,13 +141,23 @@ check_klipper_repository()
     return 0
 }
 
+# check_uncommitted_changes() - Validates repository working directory state
+#
+# Checks for staged and unstaged changes that would prevent safe migration.
+# Uses Git plumbing commands for reliable detection of repository state.
+#
+# RETURN CODES:
+#   0 - Success: No uncommitted changes found, migration can proceed
+#   2 - Directory access error: Cannot access Klipper directory
+#   3 - Uncommitted changes error: Staged or unstaged changes prevent migration
+#
 check_uncommitted_changes()
 {
     log_info "Checking for uncommitted changes..." "check_changes"
 
     cd "$KLIPPER_DIR" || {
         log_error "Cannot change to Klipper directory" "check_changes" "KLIPPER_DIR_ACCESS_FAILED"
-        return 1
+        return 2  # Directory access error
     }
 
     # Check for staged changes (index vs HEAD) using Git plumbing commands
@@ -141,7 +169,7 @@ check_uncommitted_changes()
         local staged_files
         staged_files=$(git diff-index --cached --name-only HEAD -- | tr '\n' ' ')
         log_error "Staged files: $staged_files" "check_changes" "KLIPPER_STAGED_CHANGES"
-        return 1
+        return 3  # Uncommitted changes error
     fi
 
     # Check for unstaged changes (working directory vs index) using Git plumbing commands
@@ -153,7 +181,7 @@ check_uncommitted_changes()
         local modified_files
         modified_files=$(git diff-index --name-only HEAD -- | tr '\n' ' ')
         log_error "Modified files: $modified_files" "check_changes" "KLIPPER_UNCOMMITTED_CHANGES"
-        return 1
+        return 3  # Uncommitted changes error
     fi
 
     log_info "No uncommitted changes found." "check_changes"
@@ -448,8 +476,13 @@ migrate_klipper_repository()
     local code
     check_uncommitted_changes
     code=$?
-    if [ $code -ne 0 ]; then
-        log_error "Uncommitted changes prevent migration (exit code $code)" "migrate_repository" "KLIPPER_UNCOMMITTED_CHANGES"
+    if [ $code -eq 2 ]; then
+        # Directory access error
+        log_error "Cannot access Klipper directory for uncommitted changes check" "migrate_repository" "KLIPPER_DIR_ACCESS_FAILED"
+        return 2
+    elif [ $code -eq 3 ]; then
+        # Uncommitted changes detected
+        log_error "Uncommitted changes prevent migration" "migrate_repository" "KLIPPER_UNCOMMITTED_CHANGES"
         return 3
     fi
 
