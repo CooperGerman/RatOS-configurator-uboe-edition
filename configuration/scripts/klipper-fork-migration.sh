@@ -108,24 +108,48 @@ check_uncommitted_changes()
         return 1
     }
 
-    # Check for staged changes
-    if ! git diff --cached --quiet; then
-        log_error "There are staged changes in the Klipper repository." "check_changes" "KLIPPER_STAGED_CHANGES"
-        log_error "Please commit or stash these changes before running migration." "check_changes" "KLIPPER_STAGED_CHANGES"
-        local staged_files
-        staged_files=$(git diff --cached --name-only)
-        log_error "Staged files: $staged_files" "check_changes" "KLIPPER_STAGED_CHANGES"
-        return 1
-    fi
+    # Use git status --porcelain to check for both staged and unstaged changes in one operation
+    # --untracked-files=no ignores untracked files (matching previous behavior)
+    local status_output
+    status_output=$(git status --porcelain --untracked-files=no)
 
-    # Check for unstaged changes (ignoring untracked files)
-    if ! git diff --quiet; then
-        log_error "There are uncommitted changes in the Klipper repository." "check_changes" "KLIPPER_UNCOMMITTED_CHANGES"
-        log_error "Please commit or stash these changes before running migration." "check_changes" "KLIPPER_UNCOMMITTED_CHANGES"
-        local modified_files
-        modified_files=$(git diff --name-only)
-        log_error "Modified files: $modified_files" "check_changes" "KLIPPER_UNCOMMITTED_CHANGES"
-        return 1
+    if [ -n "$status_output" ]; then
+        # Parse the status output to categorize changes
+        local staged_files=""
+        local modified_files=""
+
+        while IFS= read -r line; do
+            if [ -n "$line" ]; then
+                local status_code="${line:0:2}"
+                local file_path="${line:3}"
+
+                # Check if file has staged changes (first character is not space)
+                if [[ "${status_code:0:1}" != " " ]]; then
+                    staged_files="${staged_files}${file_path}\n"
+                fi
+
+                # Check if file has unstaged changes (second character is not space)
+                if [[ "${status_code:1:1}" != " " ]]; then
+                    modified_files="${modified_files}${file_path}\n"
+                fi
+            fi
+        done <<< "$status_output"
+
+        # Report staged changes if any
+        if [ -n "$staged_files" ]; then
+            log_error "There are staged changes in the Klipper repository." "check_changes" "KLIPPER_STAGED_CHANGES"
+            log_error "Please commit or stash these changes before running migration." "check_changes" "KLIPPER_STAGED_CHANGES"
+            log_error "Staged files: $(echo -e "$staged_files" | tr '\n' ' ')" "check_changes" "KLIPPER_STAGED_CHANGES"
+            return 1
+        fi
+
+        # Report unstaged changes if any
+        if [ -n "$modified_files" ]; then
+            log_error "There are uncommitted changes in the Klipper repository." "check_changes" "KLIPPER_UNCOMMITTED_CHANGES"
+            log_error "Please commit or stash these changes before running migration." "check_changes" "KLIPPER_UNCOMMITTED_CHANGES"
+            log_error "Modified files: $(echo -e "$modified_files" | tr '\n' ' ')" "check_changes" "KLIPPER_UNCOMMITTED_CHANGES"
+            return 1
+        fi
     fi
 
     log_info "No uncommitted changes found." "check_changes"
