@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense, useMemo, useRef, useEffect } from 'react';
+import React, { useState, Suspense, useMemo, useEffect } from 'react';
 import { trpc } from '@/utils/trpc';
 import { twMerge } from 'tailwind-merge';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -381,11 +381,9 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 	setShowDetails,
 	contexts,
 }) => {
-	const parentRef = useRef<HTMLDivElement>(null);
-
 	const virtualizer = useVirtualizer({
 		count: hasNextPage ? entries.length + 1 : entries.length,
-		getScrollElement: () => parentRef.current,
+		getScrollElement: () => null, // Use window scrolling
 		estimateSize: () => 120, // Estimated height of each log entry
 		overscan: 5,
 	});
@@ -477,13 +475,7 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 						{showOnlyErrors && ' (errors and warnings only)'}
 						{hasNextPage && ' (scroll for more)'}
 					</div>
-					<div
-						ref={parentRef}
-						className="h-[600px] overflow-auto rounded-lg border border-border bg-muted/10"
-						style={{
-							contain: 'strict',
-						}}
-					>
+					<div className="rounded-lg border border-border bg-muted/10">
 						<div
 							style={{
 								height: `${virtualizer.getTotalSize()}px`,
