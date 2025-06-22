@@ -53,6 +53,8 @@ const PaginatedLogQuerySchema = z.object({
 	level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 	context: z.string().optional(),
 	showDetails: z.boolean().default(false),
+	sortBy: z.enum(['time']).default('time'),
+	sortDirection: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export type LogEntry = z.infer<typeof LogEntrySchema>;
@@ -280,8 +282,8 @@ export const updateLogsRouter = router({
 			};
 		}
 
-		// Use the NDJSON readObjects function with pagination support
-		const result = await readObjects(logPath, LogEntrySchema, undefined, input.cursor, input.limit);
+		// Read all entries to enable proper server-side sorting
+		const result = await readObjects(logPath, LogEntrySchema, undefined, 0, Infinity);
 
 		// Filter entries to only include those from ratos-update source
 		let entries = result.result.filter((entry) => entry.source === 'ratos-update');
@@ -294,23 +296,44 @@ export const updateLogsRouter = router({
 			entries = filterByContext(entries, input.context);
 		}
 
-		// Sort entries by time (oldest first for pagination)
-		entries = entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+		// Apply server-side sorting
+		entries = entries.sort((a, b) => {
+			const timeA = new Date(a.time).getTime();
+			const timeB = new Date(b.time).getTime();
+
+			if (input.sortDirection === 'desc') {
+				return timeB - timeA; // newest first
+			} else {
+				return timeA - timeB; // oldest first
+			}
+		});
+
+		// Apply manual pagination to the sorted results
+		const totalCount = entries.length;
+		const startIndex = input.cursor;
+		const endIndex = Math.min(startIndex + input.limit, totalCount);
+		const paginatedEntries = entries.slice(startIndex, endIndex);
+		const hasNextPage = endIndex < totalCount;
+		const nextCursor = hasNextPage ? endIndex : startIndex;
 
 		return {
-			entries,
-			hasNextPage: result.hasNextPage,
-			nextCursor: result.cursor,
-			totalCount: entries.length,
+			entries: paginatedEntries,
+			hasNextPage,
+			nextCursor,
+			totalCount,
 		};
 	}),
 
 	errorsPaginated: publicProcedure
-		.input(z.object({
-			cursor: z.number().default(0),
-			limit: z.number().min(1).max(100).default(50),
-			showDetails: z.boolean().default(false)
-		}))
+		.input(
+			z.object({
+				cursor: z.number().default(0),
+				limit: z.number().min(1).max(100).default(50),
+				showDetails: z.boolean().default(false),
+				sortBy: z.enum(['time']).default('time'),
+				sortDirection: z.enum(['asc', 'desc']).default('desc'),
+			}),
+		)
 		.query(async ({ input }) => {
 			const logPath = getLogFilePath();
 
@@ -324,8 +347,8 @@ export const updateLogsRouter = router({
 				};
 			}
 
-			// Use the NDJSON readObjects function with pagination support
-			const result = await readObjects(logPath, LogEntrySchema, undefined, input.cursor, input.limit);
+			// Read all entries to enable proper server-side sorting
+			const result = await readObjects(logPath, LogEntrySchema, undefined, 0, Infinity);
 
 			// Filter entries to only include those from ratos-update source
 			let entries = result.result.filter((entry) => entry.source === 'ratos-update');
@@ -333,14 +356,31 @@ export const updateLogsRouter = router({
 			// Filter to only errors and warnings (level 40 and above)
 			entries = filterBySeverity(entries, 40);
 
-			// Sort entries by time (oldest first for pagination)
-			entries = entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+			// Apply server-side sorting
+			entries = entries.sort((a, b) => {
+				const timeA = new Date(a.time).getTime();
+				const timeB = new Date(b.time).getTime();
+
+				if (input.sortDirection === 'desc') {
+					return timeB - timeA; // newest first
+				} else {
+					return timeA - timeB; // oldest first
+				}
+			});
+
+			// Apply manual pagination to the sorted results
+			const totalCount = entries.length;
+			const startIndex = input.cursor;
+			const endIndex = Math.min(startIndex + input.limit, totalCount);
+			const paginatedEntries = entries.slice(startIndex, endIndex);
+			const hasNextPage = endIndex < totalCount;
+			const nextCursor = hasNextPage ? endIndex : startIndex;
 
 			return {
-				entries,
-				hasNextPage: result.hasNextPage,
-				nextCursor: result.cursor,
-				totalCount: entries.length,
+				entries: paginatedEntries,
+				hasNextPage,
+				nextCursor,
+				totalCount,
 				hasErrors: entries.length > 0,
 			};
 		}),

@@ -1,19 +1,21 @@
 'use client';
 
-import React, { useState, Suspense, useMemo, useEffect } from 'react';
+import React, { useState, Suspense, useMemo, useEffect, useRef } from 'react';
 import { trpc } from '@/utils/trpc';
 import { twMerge } from 'tailwind-merge';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/common/button';
 import { Spinner } from '@/components/common/spinner';
 import { ErrorMessage } from '@/components/common/error-message';
 import { Badge, badgeBorderColorStyle } from '@/components/common/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+
 import { Label } from '@/components/ui/label';
 
 import {
 	AlertCircle,
+	ArrowDown,
+	ArrowUp,
 	CheckCircle,
 	Clock,
 	Download,
@@ -362,6 +364,9 @@ interface VirtualizedLogListProps {
 	selectedContext: string;
 	setSelectedContext: (context: string) => void;
 	setShowDetails: (show: boolean) => void;
+	setShowOnlyErrors: (show: boolean) => void;
+	sortDirection: 'desc' | 'asc';
+	setSortDirection: (direction: 'desc' | 'asc') => void;
 	contexts: string[];
 }
 
@@ -379,13 +384,20 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 	selectedContext,
 	setSelectedContext,
 	setShowDetails,
+	setShowOnlyErrors,
+	sortDirection,
+	setSortDirection,
 	contexts,
 }) => {
-	const virtualizer = useVirtualizer({
+	// Create a ref for the container to calculate scroll margins
+	const containerRef = useRef<HTMLDivElement>(null);
+
+	const virtualizer = useWindowVirtualizer({
 		count: hasNextPage ? entries.length + 1 : entries.length,
-		getScrollElement: () => null, // Use window scrolling
-		estimateSize: () => 120, // Estimated height of each log entry
+		estimateSize: () => 80, // Reduced estimated height for tighter spacing
 		overscan: 5,
+		scrollMargin: containerRef.current?.offsetTop ?? 0,
+		paddingEnd: (containerRef.current?.offsetParent as HTMLElement)?.offsetTop ?? 0,
 	});
 
 	// Load more items when scrolling near the end
@@ -405,8 +417,8 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 
 	return (
 		<div className="px-4 @screen-sm:px-6 @screen-lg:px-8">
-			{!showOnlyErrors && (
-				<div className="mb-4 grid grid-cols-1 gap-4 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-3">
+			<div className="mb-4 grid grid-cols-1 gap-4 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-4">
+				{!showOnlyErrors && (
 					<div className="space-y-2">
 						<Label htmlFor="log-level">Log Level</Label>
 						<Select value={logLevel} onValueChange={setLogLevel}>
@@ -423,7 +435,9 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 							</SelectContent>
 						</Select>
 					</div>
+				)}
 
+				{!showOnlyErrors && (
 					<div className="space-y-2">
 						<Label htmlFor="context">Context Filter</Label>
 						<Select
@@ -443,18 +457,72 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 							</SelectContent>
 						</Select>
 					</div>
+				)}
 
+				<div className="space-y-2">
+					<Label>Sort Order</Label>
+					<Button
+						variant={sortDirection === 'desc' ? 'primary' : 'outline'}
+						size="default"
+						onClick={() => setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc')}
+						className="w-full justify-start"
+					>
+						{sortDirection === 'desc' ? (
+							<>
+								<ArrowDown className="mr-2 h-4 w-4" />
+								Newest First
+							</>
+						) : (
+							<>
+								<ArrowUp className="mr-2 h-4 w-4" />
+								Oldest First
+							</>
+						)}
+					</Button>
+				</div>
+
+				<div className="space-y-2">
+					<Label>View Options</Label>
 					<div className="space-y-2">
-						<Label htmlFor="show-details">Show Details</Label>
-						<div className="flex items-center space-x-2">
-							<Switch id="show-details" checked={showDetails} onCheckedChange={setShowDetails} />
-							<Label htmlFor="show-details" className="text-sm">
-								{showDetails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-							</Label>
-						</div>
+						<Button
+							variant={showOnlyErrors ? 'primary' : 'outline'}
+							size="default"
+							onClick={() => setShowOnlyErrors(!showOnlyErrors)}
+							className="w-full justify-start"
+						>
+							{showOnlyErrors ? (
+								<>
+									<Eye className="mr-2 h-4 w-4" />
+									Show All
+								</>
+							) : (
+								<>
+									<AlertCircle className="mr-2 h-4 w-4" />
+									Errors Only
+								</>
+							)}
+						</Button>
+						<Button
+							variant={showDetails ? 'primary' : 'outline'}
+							size="default"
+							onClick={() => setShowDetails(!showDetails)}
+							className="w-full justify-start"
+						>
+							{showDetails ? (
+								<>
+									<EyeOff className="mr-2 h-4 w-4" />
+									Hide Details
+								</>
+							) : (
+								<>
+									<Eye className="mr-2 h-4 w-4" />
+									Show Details
+								</>
+							)}
+						</Button>
 					</div>
 				</div>
-			)}
+			</div>
 
 			{isLoading && entries.length === 0 ? (
 				<div className="flex items-center justify-center p-8">
@@ -476,6 +544,7 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 						{hasNextPage && ' (scroll for more)'}
 					</div>
 					<div
+						ref={containerRef}
 						style={{
 							height: `${virtualizer.getTotalSize()}px`,
 							width: '100%',
@@ -495,7 +564,7 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 										left: 0,
 										width: '100%',
 										height: `${virtualItem.size}px`,
-										transform: `translateY(${virtualItem.start}px)`,
+										transform: `translateY(${virtualItem.start - virtualizer.options.scrollMargin}px)`,
 									}}
 								>
 									{isLoaderRow ? (
@@ -510,7 +579,7 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 											</div>
 										)
 									) : (
-										<div className="p-2">
+										<div className="mb-2">
 											<LogEntryComponent entry={entry} showDetails={showDetails} />
 										</div>
 									)}
@@ -530,6 +599,7 @@ const useInfiniteLogEntries = (
 	logLevel: string,
 	selectedContext: string,
 	showDetails: boolean,
+	sortDirection: 'desc' | 'asc',
 ) => {
 	const entriesQuery = trpc['update-logs'].entriesPaginated.useInfiniteQuery(
 		{
@@ -537,6 +607,8 @@ const useInfiniteLogEntries = (
 			context: selectedContext || undefined,
 			showDetails,
 			limit: 50,
+			sortBy: 'time',
+			sortDirection,
 		},
 		{
 			enabled: !showOnlyErrors,
@@ -551,6 +623,8 @@ const useInfiniteLogEntries = (
 		{
 			showDetails,
 			limit: 50,
+			sortBy: 'time',
+			sortDirection,
 		},
 		{
 			enabled: showOnlyErrors,
@@ -563,7 +637,7 @@ const useInfiniteLogEntries = (
 
 	const currentQuery = showOnlyErrors ? errorsQuery : entriesQuery;
 
-	// Flatten all pages into a single array of entries
+	// Flatten all pages into a single array of entries - no client-side sorting needed
 	const allEntries = useMemo(() => {
 		return currentQuery.data?.pages.flatMap((page) => page.entries) ?? [];
 	}, [currentQuery.data]);
@@ -584,6 +658,7 @@ export const UpdateLogsViewer: React.FC = () => {
 	const [selectedContext, setSelectedContext] = useState<string>('');
 	const [showDetails, setShowDetails] = useState<boolean>(false);
 	const [showOnlyErrors, setShowOnlyErrors] = useState<boolean>(false);
+	const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>('desc'); // newest first by default
 
 	const summaryQuery = trpc['update-logs'].summary.useQuery(undefined, {
 		retry: 3,
@@ -604,7 +679,7 @@ export const UpdateLogsViewer: React.FC = () => {
 		isFetchingNextPage,
 		fetchNextPage,
 		refetch: refetchEntries,
-	} = useInfiniteLogEntries(showOnlyErrors, logLevel, selectedContext, showDetails);
+	} = useInfiniteLogEntries(showOnlyErrors, logLevel, selectedContext, showDetails, sortDirection);
 
 	const handleRefresh = () => {
 		summaryQuery.refetch();
@@ -638,27 +713,8 @@ export const UpdateLogsViewer: React.FC = () => {
 			{summary.logFileExists && (
 				<div className="border-t border-white/10 pt-11">
 					<div className="mx-auto max-w-7xl">
-						<div className="flex items-center justify-between px-4 @screen-sm:px-6 @screen-lg:px-8">
+						<div className="mb-6 px-4 @screen-sm:px-6 @screen-lg:px-8">
 							<h2 className="text-base font-semibold leading-7 text-white">Log Entries</h2>
-							<div className="flex items-center gap-2">
-								<Button
-									variant={showOnlyErrors ? 'primary' : 'outline'}
-									size="default"
-									onClick={() => setShowOnlyErrors(!showOnlyErrors)}
-								>
-									{showOnlyErrors ? (
-										<>
-											<Eye className="mr-1 h-4 w-4" />
-											Show All
-										</>
-									) : (
-										<>
-											<AlertCircle className="mr-1 h-4 w-4" />
-											Errors Only
-										</>
-									)}
-								</Button>
-							</div>
 						</div>
 
 						<VirtualizedLogList
@@ -675,6 +731,9 @@ export const UpdateLogsViewer: React.FC = () => {
 							selectedContext={selectedContext}
 							setSelectedContext={setSelectedContext}
 							setShowDetails={setShowDetails}
+							setShowOnlyErrors={setShowOnlyErrors}
+							sortDirection={sortDirection}
+							setSortDirection={setSortDirection}
 							contexts={contexts}
 						/>
 					</div>
