@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, Suspense, useMemo, useEffect, useRef } from 'react';
 import { trpc } from '@/utils/trpc';
 import { twMerge } from 'tailwind-merge';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
@@ -394,11 +394,10 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 
 	const virtualizer = useWindowVirtualizer({
 		count: hasNextPage ? entries.length + 1 : entries.length,
-		estimateSize: useCallback(() => (showDetails ? 120 : 80), [showDetails]), // Dynamic estimation based on details visibility
+		estimateSize: () => (showDetails ? 120 : 80), // Dynamic estimation based on details visibility
 		overscan: 5,
 		scrollMargin: containerRef.current?.offsetTop ?? 0,
 		paddingEnd: (containerRef.current?.offsetParent as HTMLElement)?.offsetTop ?? 0,
-		getItemKey: useCallback((index: number) => `${index}-${showDetails}`, [showDetails]), // Include showDetails in key to force re-render
 	});
 
 	// Load more items when scrolling near the end
@@ -415,19 +414,6 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 			fetchNextPage();
 		}
 	}, [hasNextPage, fetchNextPage, entries.length, isFetchingNextPage, virtualItems]);
-
-	// Force complete recalculation when showDetails changes
-	useEffect(() => {
-		// Force complete remeasurement by invalidating all cached sizes
-		virtualizer.measure();
-
-		// Additional remeasurement after DOM updates
-		const timeoutId = setTimeout(() => {
-			virtualizer.measure();
-		}, 0);
-
-		return () => clearTimeout(timeoutId);
-	}, [showDetails, virtualizer]);
 
 	return (
 		<div className="px-4 @screen-sm:px-6 @screen-lg:px-8">
@@ -558,6 +544,7 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 						{hasNextPage && ' (scroll for more)'}
 					</div>
 					<div
+						key={`virtualizer-${showDetails}`}
 						ref={containerRef}
 						style={{
 							height: `${virtualizer.getTotalSize()}px`,
@@ -571,7 +558,7 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 
 							return (
 								<div
-									key={`${virtualItem.index}-${showDetails}`}
+									key={virtualItem.index}
 									data-index={virtualItem.index}
 									ref={virtualizer.measureElement}
 									style={{
