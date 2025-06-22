@@ -315,7 +315,7 @@ const LogEntryComponent: React.FC<{ entry: LogEntry; showDetails: boolean }> = (
 	const borderStyle = badgeBorderColorStyle({ color: level.badgeColor as any });
 
 	return (
-		<div className={twMerge('rounded-lg border p-3', level.bgColor, borderStyle)}>
+		<div className={twMerge('min-h-[60px] rounded-lg border p-3', level.bgColor, borderStyle)}>
 			<div className="flex items-start justify-between gap-2">
 				<div className="min-w-0 flex-1">
 					<div className="mb-1 flex items-center justify-between gap-2">
@@ -394,7 +394,7 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 
 	const virtualizer = useWindowVirtualizer({
 		count: hasNextPage ? entries.length + 1 : entries.length,
-		estimateSize: () => 80, // Reduced estimated height for tighter spacing
+		estimateSize: () => (showDetails ? 120 : 80), // Dynamic estimation based on details visibility
 		overscan: 5,
 		scrollMargin: containerRef.current?.offsetTop ?? 0,
 		paddingEnd: (containerRef.current?.offsetParent as HTMLElement)?.offsetTop ?? 0,
@@ -414,6 +414,11 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 			fetchNextPage();
 		}
 	}, [hasNextPage, fetchNextPage, entries.length, isFetchingNextPage, virtualItems]);
+
+	// Force virtualizer to recalculate when showDetails changes
+	useEffect(() => {
+		virtualizer.measure();
+	}, [showDetails, virtualizer]);
 
 	return (
 		<div className="px-4 @screen-sm:px-6 @screen-lg:px-8">
