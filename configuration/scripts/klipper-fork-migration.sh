@@ -6,15 +6,16 @@ IFS=$'\n\t'
 if command -v realpath >/dev/null 2>&1; then
     # Primary method: use realpath when available (preferred for accuracy)
     SCRIPT_DIR=$( cd -- "$( dirname -- "$(realpath -- "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
-elif command -v readlink >/dev/null 2>&1; then
-    # Fallback method: use readlink -f as backup option
+elif command -v readlink >/dev/null 2>&1 && readlink -f /dev/null >/dev/null 2>&1; then
+    # Fallback method: use readlink -f if available and functional (test with /dev/null)
+    # Note: macOS and BSD systems may have readlink but without -f flag support
     SCRIPT_DIR=$( cd -- "$( dirname -- "$(readlink -f "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
 else
     # Ultimate fallback: use basic dirname approach for maximum compatibility
     # Note: This may not resolve symlinks, but provides basic functionality
     SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
     if [ -z "$SCRIPT_DIR" ]; then
-        echo "ERROR: Unable to determine script directory. Neither realpath nor readlink is available and basic dirname failed." >&2
+        echo "ERROR: Unable to determine script directory. Neither realpath nor functional readlink -f is available and basic dirname failed." >&2
         exit 1
     fi
 fi
@@ -55,44 +56,77 @@ source "$SCRIPT_DIR"/ratos-common.sh
 # - RATOS_USERGROUP: RatOS system group for file ownership
 # These variables are loaded from ~/.ratos.env.system or ~/.ratos.env
 
-# Validate required environment variables
-if [ -z "${KLIPPER_DIR:-}" ]; then
-    log_fatal "KLIPPER_DIR environment variable is not set. This should be defined in ~/.ratos.env.system" "script_init" "ENV_VAR_MISSING"
-    exit 1
-fi
+# validate_required_env_var() - Reusable helper function for environment variable validation
+#
+# Validates that required environment variables are set and optionally performs additional
+# validation checks based on the validation type specified.
+#
+# PARAMETERS:
+#   $1 - var_name: Name of the environment variable to validate
+#   $2 - validation_type: Type of additional validation to perform
+#        - "basic": Only check if variable is set (default)
+#        - "directory": Check if path exists and is accessible
+#        - "user": Check if user exists on the system
+#        - "group": Check if group exists on the system
+#
+# RETURN CODES:
+#   0 - Success: Variable is set and passes validation
+#   1 - Failure: Variable validation failed (script will exit)
+#
+validate_required_env_var() {
+    local var_name="$1"
+    local validation_type="${2:-basic}"
 
-if [ -z "${RATOS_USERNAME:-}" ]; then
-    log_fatal "RATOS_USERNAME environment variable is not set. This should be defined in ~/.ratos.env.system" "script_init" "ENV_VAR_MISSING"
-    exit 1
-fi
+    # Get the variable value using indirect expansion
+    local var_value
+    eval "var_value=\${${var_name}:-}"
 
-if [ -z "${RATOS_USERGROUP:-}" ]; then
-    log_fatal "RATOS_USERGROUP environment variable is not set. This should be defined in ~/.ratos.env.system" "script_init" "ENV_VAR_MISSING"
-    exit 1
-fi
+    # Check if variable is set
+    if [ -z "$var_value" ]; then
+        log_fatal "$var_name environment variable is not set. This should be defined in ~/.ratos.env.system" "script_init" "ENV_VAR_MISSING"
+        exit 1
+    fi
 
-# Additional validation for KLIPPER_DIR path existence and accessibility
-if [ ! -d "$KLIPPER_DIR" ]; then
-    log_fatal "KLIPPER_DIR path does not exist: $KLIPPER_DIR" "script_init" "KLIPPER_DIR_NOT_FOUND"
-    exit 1
-fi
+    # Perform additional validation based on type
+    case "$validation_type" in
+        "directory")
+            if [ ! -d "$var_value" ]; then
+                log_fatal "$var_name path does not exist: $var_value" "script_init" "${var_name}_NOT_FOUND"
+                exit 1
+            fi
+            if [ ! -r "$var_value" ] || [ ! -x "$var_value" ]; then
+                log_fatal "$var_name path is not accessible: $var_value" "script_init" "${var_name}_ACCESS_FAILED"
+                exit 1
+            fi
+            ;;
+        "user")
+            if ! id "$var_value" >/dev/null 2>&1; then
+                log_fatal "$var_name user does not exist on system: $var_value" "script_init" "USER_NOT_FOUND"
+                exit 1
+            fi
+            ;;
+        "group")
+            if ! getent group "$var_value" >/dev/null 2>&1; then
+                log_fatal "$var_name group does not exist on system: $var_value" "script_init" "GROUP_NOT_FOUND"
+                exit 1
+            fi
+            ;;
+        "basic")
+            # No additional validation needed
+            ;;
+        *)
+            log_fatal "Invalid validation type '$validation_type' for $var_name" "script_init" "INVALID_VALIDATION_TYPE"
+            exit 1
+            ;;
+    esac
 
-if [ ! -r "$KLIPPER_DIR" ] || [ ! -x "$KLIPPER_DIR" ]; then
-    log_fatal "KLIPPER_DIR path is not accessible: $KLIPPER_DIR" "script_init" "KLIPPER_DIR_ACCESS_FAILED"
-    exit 1
-fi
+    return 0
+}
 
-# Validate that RATOS_USERNAME exists on the system
-if ! id "$RATOS_USERNAME" >/dev/null 2>&1; then
-    log_fatal "RATOS_USERNAME user does not exist on system: $RATOS_USERNAME" "script_init" "USER_NOT_FOUND"
-    exit 1
-fi
-
-# Validate that RATOS_USERGROUP exists on the system
-if ! getent group "$RATOS_USERGROUP" >/dev/null 2>&1; then
-    log_fatal "RATOS_USERGROUP group does not exist on system: $RATOS_USERGROUP" "script_init" "GROUP_NOT_FOUND"
-    exit 1
-fi
+# Validate required environment variables using helper function
+validate_required_env_var "KLIPPER_DIR" "directory"
+validate_required_env_var "RATOS_USERNAME" "user"
+validate_required_env_var "RATOS_USERGROUP" "group"
 
 # Migration constants (readonly to prevent accidental modification)
 readonly OFFICIAL_KLIPPER_URL="https://github.com/Klipper3d/klipper.git"
@@ -452,7 +486,7 @@ fix_klipper_ownership()
 {
     log_info "Ensuring Klipper directory ownership..." "fix_ownership"
 
-    if [ -n "$(find "$KLIPPER_DIR" \! -user "$RATOS_USERNAME" -o \! -group "$RATOS_USERGROUP" -quit)" ]; then
+    if [ -n "$(find "$KLIPPER_DIR" \( \! -user "$RATOS_USERNAME" -o \! -group "$RATOS_USERGROUP" \) -quit)" ]; then
         if execute_with_logging chown -R "$RATOS_USERNAME:$RATOS_USERGROUP" "$KLIPPER_DIR" "fix_ownership" "OWNERSHIP_CHANGE_FAILED"; then
             log_info "Klipper directory ownership has been set to $RATOS_USERNAME:$RATOS_USERGROUP." "fix_ownership"
         else
