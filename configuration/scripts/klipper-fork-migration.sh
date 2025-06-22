@@ -258,6 +258,10 @@ checkout_target_branch()
         fi
     }
 
+    # Set up function-level ERR trap for unexpected failures (signals, unhandled command failures)
+    # This provides additional safety beyond explicit cleanup calls on known error paths
+    trap 'cleanup_temp_branch_on_error' ERR
+
     # Check if we're in detached HEAD state
     if ! git symbolic-ref HEAD >/dev/null 2>&1; then
         log_info "Repository is in detached HEAD state." "checkout_branch"
@@ -298,6 +302,9 @@ checkout_target_branch()
             log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
         fi
     fi
+
+    # Clear the ERR trap since we're completing successfully
+    trap - ERR
 
     log_info "Successfully checked out branch '$TARGET_BRANCH'." "checkout_branch"
     return 0
