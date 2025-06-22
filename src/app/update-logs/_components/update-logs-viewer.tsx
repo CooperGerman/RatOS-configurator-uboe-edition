@@ -14,8 +14,6 @@ import { Label } from '@/components/ui/label';
 
 import {
 	AlertCircle,
-	ArrowDown,
-	ArrowUp,
 	CheckCircle,
 	Clock,
 	Download,
@@ -461,25 +459,16 @@ const VirtualizedLogList: React.FC<VirtualizedLogListProps> = ({
 				</div>
 
 				<div className="space-y-2">
-					<Label>Sort Order</Label>
-					<Button
-						variant={sortDirection === 'desc' ? 'primary' : 'outline'}
-						size="default"
-						onClick={() => setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc')}
-						className="w-full justify-start"
-					>
-						{sortDirection === 'desc' ? (
-							<>
-								<ArrowDown className="mr-2 h-4 w-4" />
-								Newest First
-							</>
-						) : (
-							<>
-								<ArrowUp className="mr-2 h-4 w-4" />
-								Oldest First
-							</>
-						)}
-					</Button>
+					<Label htmlFor="sort-order">Sort Order</Label>
+					<Select value={sortDirection} onValueChange={(value: 'desc' | 'asc') => setSortDirection(value)}>
+						<SelectTrigger>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="desc">Newest First</SelectItem>
+							<SelectItem value="asc">Oldest First</SelectItem>
+						</SelectContent>
+					</Select>
 				</div>
 
 				<div className="space-y-2">
