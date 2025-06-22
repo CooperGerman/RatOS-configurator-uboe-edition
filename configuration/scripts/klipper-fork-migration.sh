@@ -280,11 +280,6 @@ checkout_target_branch()
 {
     log_info "Checking out target branch..." "checkout_branch"
 
-    cd "$KLIPPER_DIR" || {
-        log_error "Cannot change to Klipper directory" "checkout_branch" "KLIPPER_DIR_ACCESS_FAILED"
-        return 1
-    }
-
     # Track if we created a temporary branch for cleanup
     local temp_branch=""
     local created_temp_branch=false
@@ -293,7 +288,7 @@ checkout_target_branch()
     cleanup_temp_branch_on_error() {
         if [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
             log_info "Cleaning up temporary migration branch due to error: $temp_branch" "checkout_branch"
-            if git branch -D "$temp_branch" >/dev/null 2>&1; then
+            if git -C "$KLIPPER_DIR" branch -D "$temp_branch" >/dev/null 2>&1; then
                 log_info "Successfully cleaned up temporary branch: $temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"
             else
                 log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
@@ -306,11 +301,11 @@ checkout_target_branch()
     trap 'cleanup_temp_branch_on_error' ERR
 
     # Check if we're in detached HEAD state
-    if ! git symbolic-ref HEAD >/dev/null 2>&1; then
+    if ! git -C "$KLIPPER_DIR" symbolic-ref HEAD >/dev/null 2>&1; then
         log_info "Repository is in detached HEAD state." "checkout_branch"
         log_info "Creating and checking out a temporary branch..." "checkout_branch"
         temp_branch="temp-migration-$(date +%s)-$$"
-        if ! execute_with_logging git checkout -b "$temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_FAILED"; then
+        if ! execute_with_logging git -C "$KLIPPER_DIR" checkout -b "$temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_FAILED"; then
             log_error "Failed to create temporary branch" "checkout_branch" "GIT_TEMP_BRANCH_FAILED"
             cleanup_temp_branch_on_error
             return 1
@@ -319,16 +314,16 @@ checkout_target_branch()
     fi
 
     # Check if target branch already exists locally
-    if git show-ref --verify --quiet "refs/heads/$TARGET_BRANCH"; then
+    if git -C "$KLIPPER_DIR" show-ref --verify --quiet "refs/heads/$TARGET_BRANCH"; then
         log_info "Local branch '$TARGET_BRANCH' already exists, switching to it..." "checkout_branch"
-        if ! execute_with_logging git checkout "$TARGET_BRANCH" "checkout_branch" "GIT_CHECKOUT_FAILED"; then
+        if ! execute_with_logging git -C "$KLIPPER_DIR" checkout "$TARGET_BRANCH" "checkout_branch" "GIT_CHECKOUT_FAILED"; then
             log_error "Failed to checkout existing branch '$TARGET_BRANCH'" "checkout_branch" "GIT_CHECKOUT_FAILED"
             cleanup_temp_branch_on_error
             return 1
         fi
     else
         log_info "Creating and checking out branch '$TARGET_BRANCH' from RatOS fork..." "checkout_branch"
-        if ! execute_with_logging git checkout -b "$TARGET_BRANCH" "$RATOS_FORK_REMOTE/$TARGET_BRANCH" "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"; then
+        if ! execute_with_logging git -C "$KLIPPER_DIR" checkout -b "$TARGET_BRANCH" "$RATOS_FORK_REMOTE/$TARGET_BRANCH" "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"; then
             log_error "Failed to checkout branch '$TARGET_BRANCH' from RatOS fork" "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"
             log_error "Please ensure the branch exists on the remote repository." "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"
             cleanup_temp_branch_on_error
@@ -339,7 +334,7 @@ checkout_target_branch()
     # Clean up temporary branch if we created one (successful completion)
     if [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
         log_info "Cleaning up temporary migration branch: $temp_branch" "checkout_branch"
-        if execute_with_logging git branch -D "$temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"; then
+        if execute_with_logging git -C "$KLIPPER_DIR" branch -D "$temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"; then
             log_info "Successfully cleaned up temporary branch: $temp_branch" "checkout_branch"
         else
             log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
