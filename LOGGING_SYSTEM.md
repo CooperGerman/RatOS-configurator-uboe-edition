@@ -214,6 +214,9 @@ Standardized error codes help identify common issues:
 - `NETWORK_ERROR`: Network connectivity issue
 - `DISK_FULL`: Insufficient disk space
 - `ENV_VAR_MISSING`: Required environment variable not set
+- `USER_NOT_FOUND`: Required system user account does not exist
+- `GROUP_NOT_FOUND`: Required system group does not exist
+- `OWNERSHIP_CHANGE_FAILED`: Failed to change file/directory ownership
 
 ## Error Handling and Retry Logic
 
