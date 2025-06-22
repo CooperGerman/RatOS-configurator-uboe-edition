@@ -97,6 +97,7 @@ jobs:
           path: "moonraker"
 
       - name: Bash Syntax Check
+        working-directory: ratos-configurator
         run: |
           echo "🔍 Finding bash scripts in the repository..."
 
@@ -106,7 +107,7 @@ jobs:
           # Add all .sh files
           while IFS= read -r -d '' file; do
             bash_files+=("$file")
-          done < <(find . -name "*.sh" -type f -not -path "./src/node_modules/*" -not -path "./.git/*" -not -path "./.augment/*" -print0)
+          done < <(find . -name "*.sh" -type f -not -path "*/node_modules/*" -not -path "./.git/*" -not -path "./.augment/*" -print0)
 
           # Add files with bash shebangs (excluding .sh files already found)
           while IFS= read -r -d '' file; do
@@ -114,7 +115,7 @@ jobs:
             if [[ "$file" != *.sh ]]; then
               bash_files+=("$file")
             fi
-          done < <(find . -type f -not -path "./src/node_modules/*" -not -path "./.git/*" -not -path "./.augment/*" -exec grep -l "^#!/bin/bash\|^#!/usr/bin/env bash" {} \; -print0 2>/dev/null)
+          done < <(find . -type f -not -path "*/node_modules/*" -not -path "./.git/*" -not -path "./.augment/*" -exec grep -l "^#!/bin/bash\|^#!/usr/bin/env bash" {} \; -print0 2>/dev/null)
 
           if [ ${#bash_files[@]} -eq 0 ]; then
             echo "❌ No bash scripts found in the repository"
