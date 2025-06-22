@@ -246,12 +246,9 @@ checkout_target_branch()
     local temp_branch=""
     local created_temp_branch=false
 
-    # Local cleanup function for temporary branches
-    # shellcheck disable=SC2317  # Function is called by EXIT trap
-    cleanup_temp_branch() {
-        local exit_code=$?
-        # Only cleanup on error exits (non-zero), not on successful completion
-        if [ "$exit_code" -ne 0 ] && [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
+    # Shared cleanup function for temporary branches (called on error paths)
+    cleanup_temp_branch_on_error() {
+        if [ "$created_temp_branch" = true ] && [ -n "$temp_branch" ]; then
             log_info "Cleaning up temporary migration branch due to error: $temp_branch" "checkout_branch"
             if git branch -D "$temp_branch" >/dev/null 2>&1; then
                 log_info "Successfully cleaned up temporary branch: $temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP"
@@ -261,9 +258,6 @@ checkout_target_branch()
         fi
     }
 
-    # Set up local EXIT trap for cleanup
-    trap cleanup_temp_branch EXIT
-
     # Check if we're in detached HEAD state
     if ! git symbolic-ref HEAD >/dev/null 2>&1; then
         log_info "Repository is in detached HEAD state." "checkout_branch"
@@ -271,6 +265,7 @@ checkout_target_branch()
         temp_branch="temp-migration-$(date +%s)-$$"
         if ! execute_with_logging git checkout -b "$temp_branch" "checkout_branch" "GIT_TEMP_BRANCH_FAILED"; then
             log_error "Failed to create temporary branch" "checkout_branch" "GIT_TEMP_BRANCH_FAILED"
+            cleanup_temp_branch_on_error
             return 1
         fi
         created_temp_branch=true
@@ -281,6 +276,7 @@ checkout_target_branch()
         log_info "Local branch '$TARGET_BRANCH' already exists, switching to it..." "checkout_branch"
         if ! execute_with_logging git checkout "$TARGET_BRANCH" "checkout_branch" "GIT_CHECKOUT_FAILED"; then
             log_error "Failed to checkout existing branch '$TARGET_BRANCH'" "checkout_branch" "GIT_CHECKOUT_FAILED"
+            cleanup_temp_branch_on_error
             return 1
         fi
     else
@@ -288,6 +284,7 @@ checkout_target_branch()
         if ! execute_with_logging git checkout -b "$TARGET_BRANCH" "$RATOS_FORK_REMOTE/$TARGET_BRANCH" "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"; then
             log_error "Failed to checkout branch '$TARGET_BRANCH' from RatOS fork" "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"
             log_error "Please ensure the branch exists on the remote repository." "checkout_branch" "GIT_CHECKOUT_REMOTE_FAILED"
+            cleanup_temp_branch_on_error
             return 1
         fi
     fi
@@ -301,9 +298,6 @@ checkout_target_branch()
             log_warn "Failed to clean up temporary branch: $temp_branch (this is not critical)" "checkout_branch" "GIT_TEMP_BRANCH_CLEANUP_FAILED"
         fi
     fi
-
-    # Clear the EXIT trap since we're completing successfully
-    trap - EXIT
 
     log_info "Successfully checked out branch '$TARGET_BRANCH'." "checkout_branch"
     return 0
