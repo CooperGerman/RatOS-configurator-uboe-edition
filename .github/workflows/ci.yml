@@ -96,6 +96,11 @@ jobs:
           repository: Arksine/moonraker
           path: "moonraker"
 
+      - name: Test RatOS Logging
+        working-directory: ratos-configurator
+        run: |
+          ./scripts/test-ratos-logging.sh
+
       - name: Lint
         working-directory: ratos-configurator/src
         run: pnpm run lint:ci
