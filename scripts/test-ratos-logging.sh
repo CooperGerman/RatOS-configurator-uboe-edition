@@ -66,7 +66,7 @@ setup_test_env() {
         exit 1
     fi
 
-    # shellcheck source=../configuration/scripts/ratos-logging.sh
+    # shellcheck source=configuration/scripts/ratos-logging.sh
     source "$logging_script"
     test_log_info "Test environment ready. Log file: $TEST_LOG_FILE"
 }
