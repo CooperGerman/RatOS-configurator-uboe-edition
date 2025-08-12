@@ -289,6 +289,44 @@ class BackgroundDisplayStatusProgressHandler:
 		
 		return self.reactor.monotonic() + self.display_status_update_interval
 
+class RunningAverage:
+	# A running average implementation that maintains a circular buffer of the last `size` values,
+	# and the current sum of the values in the buffer. Methods are provided to add a new value,
+	# get the current average, and reset the buffer. The mean is updated efficiently by subtracting the
+	# oldest value and adding the new value, rather than recalculating the mean from scratch.
+
+	def __init__(self, size):
+		if size <= 0:
+			raise ValueError("Size must be greater than 0")
+		self.size = size
+		self.buffer = np.zeros(size, dtype=np.float64)
+		self.index = 0
+		self.sum = 0.0
+		self.count = 0
+	
+	def get_average(self):
+		if self.count == 0:
+			return 0.0
+		return float(self.sum / self.count)
+	
+	def is_full(self):
+		return self.count == self.size
+
+	def add(self, value):
+		if self.count < self.size:
+			self.count += 1
+		else:
+			self.sum -= self.buffer[self.index]
+		self.buffer[self.index] = value
+		self.sum += value
+		self.index = (self.index + 1) % self.size
+		
+	def reset(self):
+		self.buffer.fill(0.0)
+		self.index = 0
+		self.sum = 0.0
+		self.count = 0
+
 class BeaconAdaptiveHeatSoak:
 	def __init__(self, config):
 		self.config = config
@@ -469,18 +507,28 @@ class BeaconAdaptiveHeatSoak:
 		# The following control values were determined experimentally, and should not be changed 
 		# without careful consideration and reference to the corpus of experimental data. Changing
 		# these values will also invalidate the threshold predictor training data.
-		target_hold_count = 150
+		moving_average_target_hold_count = 150
 		moving_average_size = 210
-		trend_checks = ((75, 675), (200, 675))
+		moving_average_trend_checks = ((75, 675), (200, 675))
 
-		hold_count = 0
+		# level_2_moving_average... is the moving average of the moving average
+		level_2_moving_average_target_hold_count = 150
+		level_2_moving_average_size = 400
+		level_2_moving_average_trend_checks = ((45, 675),)
 
-		# z_rate_history is a circular buffer of the last `moving_average_size` z-rates
-		z_rate_history = [0] * moving_average_size
+		moving_average_hold_count = 0
+		level_2_moving_average_hold_count = 0
+
+		z_rate_ra = RunningAverage(moving_average_size)
 		z_rate_count = 0
+
+		moving_average_ra = RunningAverage(level_2_moving_average_size)
 
 		moving_average_history = []
 		moving_average_history_times = []
+
+		level_2_moving_average_history = []
+		level_2_moving_average_history_times = []
 
 		gcmd.respond_info(f"Adaptive heat soak started, waiting for printer to reach thermal stability{params_msg}.\nCheck printer status for progress. Please wait...")
 
@@ -501,7 +549,11 @@ class BeaconAdaptiveHeatSoak:
 			ts = time.strftime("%Y%m%d_%H%M%S")
 			fn = f"/tmp/heat_soak_{ts}.csv"
 
-			logging.info(f"{self.name}: starting: threshold={threshold} ({threshold_origin}), est_t_to_first_ma={estimated_time_to_first_moving_average:.1f} hold_count={target_hold_count}, min_wait={minimum_wait}, max_wait={maximum_wait}, mas={moving_average_size}, trend_checks={trend_checks}, layer_quality={layer_quality}, maximum_first_layer_duration={maximum_first_layer_duration}, beacon_sampling_rate={beacon_sampling_rate:.1f}, z_rates_file={fn}")
+			logging.info(
+				f"{self.name}: starting: threshold={threshold} ({threshold_origin}), est_t_to_first_ma={estimated_time_to_first_moving_average:.1f},  min_wait={minimum_wait}, max_wait={maximum_wait}, "
+				f"layer_quality={layer_quality}, maximum_first_layer_duration={maximum_first_layer_duration}, beacon_sampling_rate={beacon_sampling_rate:.1f}, z_rates_file={fn}, "
+				f"ma_hold_count={moving_average_target_hold_count}, ma_size={moving_average_size}, ma_trend_checks={moving_average_trend_checks}, "
+				f"ma2_hold_count={level_2_moving_average_target_hold_count}, ma_size={level_2_moving_average_size}, ma_trend_checks={level_2_moving_average_trend_checks}")
 
 			with open(fn, "w") as z_rates_file:
 				z_rates_file.write("time,z_rate,z\n")
@@ -528,7 +580,7 @@ class BeaconAdaptiveHeatSoak:
 						time_zero = z_rate_result[0]
 
 					z_rates_file.write(f"{z_rate_result[0] - time_zero:.8e},{z_rate_result[1]:.8e},{z_rate_result[2]:.8e}\n")
-					z_rate_history[z_rate_count % moving_average_size] = z_rate_result[1]
+					z_rate_ra.add(z_rate_result[1])
 					z_rate_count += 1
 
 					# Throttle logging
@@ -536,13 +588,19 @@ class BeaconAdaptiveHeatSoak:
 
 					elapsed = self.reactor.monotonic() - start_time
 					moving_average = None
+					level_2_moving_average = None
 
-					if z_rate_count >= moving_average_size:
-						moving_average = np.mean(z_rate_history)
+					if z_rate_ra.is_full():
+						moving_average = z_rate_ra.get_average()
+						moving_average_ra.add(moving_average)
 						moving_average_history.append(moving_average)
 						moving_average_history_times.append(z_rate_result[0])
 
-					if moving_average is not None:
+						if moving_average_ra.is_full():
+							level_2_moving_average = moving_average_ra.get_average()
+							level_2_moving_average_history.append(level_2_moving_average)
+							level_2_moving_average_history_times.append(z_rate_result[0])
+					
 						if progress_start is None:
 							progress_handler.set_auto_rate(0)
 							progress_start = progress_handler.progress							
@@ -577,35 +635,53 @@ class BeaconAdaptiveHeatSoak:
 							# Hold at ~99%
 							progress_handler.set_auto_rate(0.0)
 
-						all_checks_passed = 'N/A'
+						moving_average_trend_checks_passed = 'N/A'
+						level_2_moving_average_trend_checks_passed = 'N/A'
 						min_wait_satisfied = 'N/A'
 
 						if abs(moving_average) <= threshold:
-							hold_count += 1
+							moving_average_hold_count += 1
 						else:
-							hold_count = 0
+							moving_average_hold_count = 0
 
-						if hold_count >= target_hold_count:
+						if moving_average_hold_count >= moving_average_target_hold_count:
 							# For increased robustness, we perform one or more linear trend checks. Typically this will
 							# include a trend fitted to a short history window, and a trend fitted to a longer history window.
 							# Together, these checks ensure that the Z-rate is not only stable but also not trending towards instability.
 							# In testing, this has been shown to reduce the risk of false positives.
-							all_checks_passed = all(
+							moving_average_trend_checks_passed = all(
 								self._check_trend_projection(
 									moving_average_history, moving_average_history_times,
 									trend_check[0], trend_check[1], threshold
-								) for trend_check in trend_checks)
+								) for trend_check in moving_average_trend_checks)
+							
+						if level_2_moving_average is not None:
+							if abs(level_2_moving_average) <= threshold:
+								level_2_moving_average_hold_count += 1
+							else:
+								level_2_moving_average_hold_count = 0
 
-							if all_checks_passed:
-								if elapsed < minimum_wait:
-									min_wait_satisfied = False
-								else:
-									msg = f"Adaptive heat soak completed in {self._format_seconds(elapsed)}."
-									gcmd.respond_info(msg)
-									return
+							if level_2_moving_average_hold_count >= level_2_moving_average_target_hold_count:
+								level_2_moving_average_trend_checks_passed = all(
+									self._check_trend_projection(
+										level_2_moving_average_history, level_2_moving_average_history_times,
+										trend_check[0], trend_check[1], threshold
+									) for trend_check in level_2_moving_average_trend_checks)
+
+						if moving_average_trend_checks_passed == True or level_2_moving_average_trend_checks_passed == True:
+							if elapsed < minimum_wait:
+								min_wait_satisfied = False
+							else:
+								msg = f"Adaptive heat soak completed in {self._format_seconds(elapsed)}."
+								gcmd.respond_info(msg)
+								return
 						
 						if should_log:
-							logging.info(f"{self.name}: elapsed={elapsed:.1f} s, progress={progress_handler.progress * 100.0:.2f}%, moving_average={moving_average:.2f} nm/s, hold_count={hold_count}/{target_hold_count}, all_checks_passed={all_checks_passed}, min_wait_satisfied={min_wait_satisfied}, threshold={threshold:.2f} nm/s")
+							logging.info(
+								f"{self.name}: elapsed={elapsed:.1f} s, progress={progress_handler.progress * 100.0:.2f}%, "
+								f"ma={moving_average:.2f} nm/s, ma_hold_count={moving_average_hold_count}/{moving_average_target_hold_count}, ma_trend_checks_passed={moving_average_trend_checks_passed}, "
+								f"ma2={float('inf') if level_2_moving_average is None else level_2_moving_average:.2f} nm/s, ma2_hold_count={level_2_moving_average_hold_count}/{level_2_moving_average_target_hold_count}, ma2_trend_checks_passed={level_2_moving_average_trend_checks}, "
+								f"min_wait_satisfied={min_wait_satisfied}, threshold={threshold:.2f} nm/s")
 					elif should_log:
 						logging.info(f"{self.name}: elapsed={elapsed:.1f} s, waiting for first moving average to be available...")
 		finally:
