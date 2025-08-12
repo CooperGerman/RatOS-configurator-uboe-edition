@@ -127,7 +127,7 @@ class ThresholdPredictor:
 		
 		gam.fit(X, y)
 		return gam
-	
+
 class BeaconZRateSession:
 	def __init__(self, config, beacon, samples_per_mean=1000, window_size=30, window_step=1):
 		self.config = config
@@ -208,12 +208,17 @@ class BeaconZRateSession:
 				break
 
 		# Fit a 1-degree polynomial (line) to the data
-		slope, _ = np.polyfit(self._times, self._mean_distances, 1)
+		slope, intersect = np.polyfit(self._times, self._mean_distances, 1)
+
+		mid_time = (self._times[0] + self._times[-1]) / 2.
+
+		# Get the z value at the mid time
+		mid_z = slope * mid_time + intersect
 
 		# Convert from millimeters to nanometers per second
 		slope_nm_per_sec = slope * 1e6
 
-		return (self._times[len(self._times) // 2], slope_nm_per_sec)
+		return (mid_time, slope_nm_per_sec, mid_z)
 
 class BackgroundDisplayStatusProgressHandler:
 	def __init__(
@@ -499,7 +504,7 @@ class BeaconAdaptiveHeatSoak:
 			logging.info(f"{self.name}: starting: threshold={threshold} ({threshold_origin}), est_t_to_first_ma={estimated_time_to_first_moving_average:.1f} hold_count={target_hold_count}, min_wait={minimum_wait}, max_wait={maximum_wait}, mas={moving_average_size}, trend_checks={trend_checks}, layer_quality={layer_quality}, maximum_first_layer_duration={maximum_first_layer_duration}, beacon_sampling_rate={beacon_sampling_rate:.1f}, z_rates_file={fn}")
 
 			with open(fn, "w") as z_rates_file:
-				z_rates_file.write("time,z_rate\n")
+				z_rates_file.write("time,z_rate,z\n")
 				time_zero = None
 				progress_start = None
 				progress_start_z_rate = None
@@ -522,7 +527,7 @@ class BeaconAdaptiveHeatSoak:
 					if time_zero is None:
 						time_zero = z_rate_result[0]
 
-					z_rates_file.write(f"{z_rate_result[0] - time_zero:.8e},{z_rate_result[1]:.8e}\n")
+					z_rates_file.write(f"{z_rate_result[0] - time_zero:.8e},{z_rate_result[1]:.8e},{z_rate_result[2]:.8e}\n")
 					z_rate_history[z_rate_count % moving_average_size] = z_rate_result[1]
 					z_rate_count += 1
 
@@ -624,7 +629,7 @@ class BeaconAdaptiveHeatSoak:
 		fullpath = f'/home/pi/printer_data/config/{filename}'
 
 		with open(fullpath, 'w') as f:
-			f.write("time,z_rate\n")
+			f.write("time,z_rate,z\n")
 			gcmd.respond_info(f'Capturing diagnostic Z-rates for {duration} seconds using V2 Z-rate calculation to file {fullpath}, please wait...')
 			start_time = self.reactor.monotonic()
 			z_rate_session = BeaconZRateSession(self.config, self.beacon)
@@ -645,7 +650,7 @@ class BeaconAdaptiveHeatSoak:
 				if time_zero is None:
 					time_zero = z_rate_result[0]
 
-				f.write(f"{z_rate_result[0] - time_zero:.8e},{z_rate_result[1]:.8e}\n")
+				f.write(f"{z_rate_result[0] - time_zero:.8e},{z_rate_result[1]:.8e},{z_rate_result[2]:.8e}\n")
 
 			gcmd.respond_info(f'Diagnostic data captured to {fullpath}')
 
