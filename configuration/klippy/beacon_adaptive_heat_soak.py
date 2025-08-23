@@ -69,9 +69,9 @@ class ThresholdPredictor:
 			raise LookupError("Prediction failed, no data available in the model.")
 		t = float(prediction[0])
 		
-		# Ensure a minimum threshold of 10.0. From experimental data, we observe that thresholds
+		# Ensure a minimum threshold of 12.5. From experimental data, we observe that thresholds
 		# below this number approach the noise floor of the system and are not useful.
-		t = max(t, 10.0)
+		t = max(t, 12.5)
 		return t
 		
 	def _load_training_data(self):
