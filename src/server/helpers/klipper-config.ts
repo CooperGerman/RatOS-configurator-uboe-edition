@@ -1120,6 +1120,7 @@ export const constructKlipperConfigHelpers = async (
 		renderFans() {
 			const result: string[] = [];
 			const multipleToolheadPartFans = utils.getToolheads().filter((th) => th.getPartFan()).length > 1;
+			const multipleToolheadHotendFans = utils.getToolheads().filter((th) => th.getHotendFan()).length > 1;
 			// Part fan
 			result.push(`# Part cooling fan`);
 			if (multipleToolheadPartFans) {
@@ -1139,10 +1140,13 @@ export const constructKlipperConfigHelpers = async (
 			// Hotend fan
 			result.push(``);
 			result.push(`# Hotend cooling fan`);
+			if (multipleToolheadHotendFans) {
+				result.push('# Multiple toolheads with hotend cooling fans configured');
+			}
 			result.push(
 				utils
 					.getToolheads()
-					.map((th) => th.renderHotendFan(config.controlboard))
+					.map((th) => th.renderHotendFan(multipleToolheadHotendFans, config.controlboard))
 					.join('\n'),
 			);
 			// Controller fan
