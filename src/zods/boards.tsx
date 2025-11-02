@@ -66,6 +66,7 @@ export const AllPins = {
 	e_diag_pin: z.string().optional(),
 	e_heater_pin: z.string().optional(),
 	e_sensor_pin: z.string().optional(),
+	e_power_draw_pin: z.string().optional(),
 	stepper_spi_mosi_pin: z.string().optional(),
 	stepper_spi_miso_pin: z.string().optional(),
 	stepper_spi_sclk_pin: z.string().optional(),
@@ -85,6 +86,8 @@ export const AllPins = {
 	'4p_toolhead_cooling_tach_pin': z.string().optional(),
 	'4p_controller_board_pin': z.string().optional(),
 	'4p_controller_board_tach_pin': z.string().optional(),
+	run_led_pin: z.string().optional(),
+	rgb_led_data_pin: z.string().optional(),
 };
 export const PinMap = z.object(AllPins);
 
