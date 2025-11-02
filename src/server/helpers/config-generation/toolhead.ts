@@ -196,7 +196,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		}
 		return false;
 	}
-	public renderToolboard(exportPinsFn?: RenderPinsFn) {
+	public renderToolboard(multipleToolheads: boolean = false, exportPinsFn?: RenderPinsFn) {
 		const pins = this.toolboardPins;
 		const toolboard = this.config.toolboard;
 		if (toolboard == null || pins == null) {
@@ -263,7 +263,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		if (toolboard.outputPins != null) {
 			toolboard.outputPins.forEach((pindef) => {
 				result.push(''); // Add a newline for readability.
-				result.push(`[output_pin ${pindef.name}]`);
+				result.push(`[output_pin ${pindef.name}${multipleToolheads ? `_${this.getShortToolName()}` : ''}]`);
 				result.push(`pin: ${this.isToolboardPinInverted(pindef.pin) ? '!' : ''}${this.getPinPrefix()}${pindef.pin}`);
 				result.push(`value: ${pindef.value}`);
 			});

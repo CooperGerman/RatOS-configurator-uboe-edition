@@ -435,10 +435,11 @@ export const constructKlipperConfigHelpers = async (
 ) => {
 	return {
 		renderToolboards() {
-			return utils
-				.getToolheads()
+			const toolheads = utils.getToolheads();
+			const multipleToolheads = toolheads.length > 1;
+			return toolheads
 				.map((th) => {
-					return th.renderToolboard(this.renderBoardPinAlias);
+					return th.renderToolboard(multipleToolheads, this.renderBoardPinAlias);
 				})
 				.join('\n');
 		},
