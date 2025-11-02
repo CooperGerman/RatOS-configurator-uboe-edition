@@ -279,8 +279,14 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 					return;
 				}
 				const section = toolboard.customSections[sectionName];
+				const isPerToolhead = section.isPerToolhead && multipleToolheads;
+				if (isPerToolhead && section.name == null) {
+					throw new Error(`Name is required in per-toolhead custom section "${sectionName}"`);
+				}
 				result.push(''); // Add a newline for readability.
-				result.push(`[${sectionName}${section.name ? ` ${section.name}` : ''}]`);
+				result.push(
+					`[${sectionName}${section.name ? ` ${section.name}${isPerToolhead ? `_${this.getShortToolName()}` : ''}` : ''}]`,
+				);
 				if (section.comments != null) {
 					section.comments.forEach((comment) => {
 						result.push(`# ${comment}`);
