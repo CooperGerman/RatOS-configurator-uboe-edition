@@ -37,7 +37,28 @@ describe('configuration', async () => {
 	const parsedHotends = await parseDirectory('hotends', Hotend);
 	const parsedExtruders = await parseDirectory('extruders', Extruder);
 	const parsedProbes = await parseDirectory('z-probe', Probe);
-	const parsedBoards = await getBoards();
+	let parsedBoards;
+	try {
+		parsedBoards = await getBoards();
+	} catch (err) {
+		// `getBoards()` wraps Zod errors inside a TRPCError (as the `cause`).
+		// The TRPCError.message includes the board name/path, which is useful
+		// context. Preserve that message and append the Zod validation details
+		// so the test output shows both where the failure occurred and why.
+		const cause = (err as any)?.cause;
+		if (cause && cause instanceof z.ZodError) {
+			const flat = cause.flatten();
+			const fieldDetails = Object.entries(flat.fieldErrors)
+				.map(([k, v]) => `${k}: ${v?.join(', ')}`)
+				.join('\n');
+			const baseMsg = (err as any)?.message || 'Invalid board definition';
+			throw new Error(baseMsg + '\n\nZod validation errors:\n' + fieldDetails);
+		} else if (cause) {
+			const baseMsg = (err as any)?.message || 'Invalid board definition';
+			throw new Error(baseMsg + '\n\nCause: ' + String(cause));
+		}
+		throw err;
+	}
 	const parsedPrinters = await getPrinters();
 	const scripts = (await promisify(fs.readdir)(path.join(environment.RATOS_CONFIGURATION_PATH, 'scripts'))).filter(
 		(f) => f.substring(f.length - 3) === '.sh',
