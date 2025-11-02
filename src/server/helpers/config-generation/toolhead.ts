@@ -221,7 +221,8 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		if (toolboard.ADXL345SPI != null) {
 			result.push(''); // Add a newline for readability.
 			result.push(`[adxl345 ${this.getToolboardName()}]`);
-			result.push(`axes_map: x, z, y # Assumes back-facing vertical toolboard mounting`);
+			const axesMap = toolboard.ADXL345SPI.axesMap ?? 'x, z, y # Assumes back-facing vertical toolboard mounting';
+			result.push(`axes_map: ${axesMap}`);
 			result.push(
 				`cs_pin: ${this.isToolboardPinInverted(toolboard.ADXL345SPI.cs_pin) ? '!' : ''}${this.getPinPrefix()}${toolboard.ADXL345SPI.cs_pin}`,
 			);
@@ -242,7 +243,8 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		if (toolboard.LIS2DW != null) {
 			result.push(''); // Add a newline for readability.
 			result.push(`[lis2dw ${this.getToolboardName()}]`);
-			result.push(`axes_map: x, z, y # Assumes back-facing vertical toolboard mounting`);
+			const axesMap = toolboard.LIS2DW.axesMap ?? 'x, z, y # Assumes back-facing vertical toolboard mounting';
+			result.push(`axes_map: ${axesMap}`);
 			result.push(
 				`cs_pin: ${this.isToolboardPinInverted(toolboard.LIS2DW.cs_pin) ? '!' : ''}${this.getPinPrefix()}${toolboard.LIS2DW.cs_pin}`,
 			);
@@ -266,6 +268,9 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 				result.push(`[output_pin ${pindef.name}${multipleToolheads ? `_${this.getShortToolName()}` : ''}]`);
 				result.push(`pin: ${this.isToolboardPinInverted(pindef.pin) ? '!' : ''}${this.getPinPrefix()}${pindef.pin}`);
 				result.push(`value: ${pindef.value}`);
+				if (pindef.shutdownValue) {
+					result.push(`shutdown_value: ${pindef.shutdownValue}`);
+				}
 			});
 		}
 		if (toolboard.customSections != null) {
@@ -311,6 +316,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		return result.join('\n');
 	}
 	public renderHotend(controlboard: Board) {
+		const toolboard = this.getToolboard();
 		let result: string[] = [];
 		let hotend = readInclude(`hotends/${this.getHotend().id}.cfg`);
 		hotend = stripCommentLines(hotend);
@@ -326,8 +332,15 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 			'sensor_pin',
 			`sensor_pin: ${this.getToolheadPin(this.getExtruderAxis(), '_sensor_pin')}`,
 		);
-		const altPullup = this.getToolboard()?.alternativePT1000Resistor ?? controlboard.alternativePT1000Resistor;
-		const stdPullup = this.getToolboard()?.thermistorPullup ?? controlboard.thermistorPullup;
+		// TODO: TG 2025-11-02: The logic of following two lines is perhaps wrong. If a toolboard is used, the UI provides no logic
+		// to allow the main controlboard to provide the hotend thermistor connection. It would seem that it's assumed that
+		// all toolboards provide hotend heater and thermistor connections, and these must be used. If that's the case,
+		// then the lines should read:
+		// const altPullup = toolboard ? toolboard.alternativePT1000Resistor : controlboard.alternativePT1000Resistor;
+		// const stdPullup = toolboard ? toolboard.thermistorPullup : controlboard.thermistorPullup;
+		// NB: not changing at this time to avoid possible regressions.
+		const altPullup = toolboard?.alternativePT1000Resistor ?? controlboard.alternativePT1000Resistor;
+		const stdPullup = toolboard?.thermistorPullup ?? controlboard.thermistorPullup;
 		const actualPullup = this.getThermistor() === 'PT1000' && altPullup != null ? altPullup : stdPullup;
 		if (hotend.split('\n').some((line) => line.trim().startsWith('pullup_resistor'))) {
 			hotend = replaceLinesStartingWith(hotend, 'pullup_resistor', `pullup_resistor: ${actualPullup}`);
@@ -355,6 +368,26 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 			`# ${this.getToolCommand()} ${this.getHotend().title} definition (from RatOS/hotends/${this.getHotend().id}.cfg)`,
 		);
 		result.push(hotend.trim());
+		const hotendHeater = toolboard ? toolboard.hotendHeater : controlboard.hotendHeater;
+		if (hotendHeater != null) {
+			result.push(''); // Add a newline for readability.
+			result.push(`# ${(toolboard ?? controlboard).name} hotend heater settings`);
+			result.push(`[${this.getExtruderAxis()}]`);
+			if (hotendHeater.maxPower != null) {
+				const vc = hotendHeater.maxPower;
+				if (vc.comment) {
+					result.push(`# ${vc.comment}`);
+				}
+				result.push(`max_power: ${vc.value}`);
+			}
+			if (hotendHeater.pwmCycleTime != null) {
+				const vc = hotendHeater.pwmCycleTime;
+				if (vc.comment) {
+					result.push(`# ${vc.comment}`);
+				}
+				result.push(`pwm_cycle_time: ${vc.value}`);
+			}
+		}
 		return result.join('\n');
 	}
 	public renderExtruder() {
@@ -373,6 +406,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		return result.join('\n');
 	}
 	public renderPartFan(multipleToolheadPartFans: boolean = false, controlboard: Board) {
+		const toolboard = this.getToolboard();
 		let result: string[] = [];
 		if (multipleToolheadPartFans) {
 			const fanName = `part_fan_${this.getShortToolName()}`;
@@ -380,29 +414,41 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		} else {
 			result.push(`[fan]`);
 		}
+		let board: Board | null = null;
 		switch (this.getPartFan().id) {
 			case '2pin':
+				board = controlboard;
 				this.requireControlboardPin('fan_part_cooling_pin');
 				result.push(`# 2-pin fan connected to 2-pin header on ${controlboard.name} - input voltage pwm`);
 				result.push(`pin: ${this.controlboardPins?.fan_part_cooling_pin}`);
+				if (controlboard.partCoolingFan?.inputVoltagePwmCycleTime != null) {
+					const vc = controlboard.partCoolingFan.inputVoltagePwmCycleTime;
+					if (vc.comment) {
+						result.push(`# ${vc.comment}`);
+					}
+					result.push(`cycle_time: ${vc.value}`);
+				}
 				break;
 			case '4pin':
+				board = controlboard;
 				this.requireControlboardPin('fan_part_cooling_pin');
 				result.push(`# 4-pin fan connected to 2-pin header on ${controlboard.name} - digital pwm`);
 				result.push(`pin: !${this.controlboardPins?.fan_part_cooling_pin}`);
 				result.push(`cycle_time:  0.00004`);
 				break;
 			case '4pin-dedicated':
+				board = controlboard;
 				this.requireControlboardPin('4p_fan_part_cooling_pin');
 				result.push(`# 4-pin fan connected to 4-pin header on ${controlboard.name} - digital pwm`);
 				result.push(`pin: ${this.controlboardPins?.['4p_fan_part_cooling_pin']}`);
 				result.push(`cycle_time:  0.00004`);
 				if (this.controlboardPins?.['4p_fan_part_cooling_tach_pin'] != null) {
 					result.push(`tachometer_pin: ^${this.controlboardPins?.['4p_fan_part_cooling_tach_pin']}`);
-					result.push(`tachometer_poll_interval: 0.0005`);
+					result.push('tachometer_poll_interval: 0.0005');
 				}
 				break;
 			case '2pin-toolboard':
+				board = toolboard;
 				this.requireToolboardPin('fan_part_cooling_pin');
 				result.push(
 					`# 2-pin fan connected to 2-pin header on T${this.getTool()} (${this.getToolboard()?.name}) - input voltage pwm`,
@@ -410,8 +456,16 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 				result.push(
 					`pin: ${this.isToolboardPinInverted(this.toolboardPins?.fan_part_cooling_pin) ? '!' : ''}${this.getPinPrefix()}${this.toolboardPins?.fan_part_cooling_pin}`,
 				);
+				if (toolboard?.partCoolingFan?.inputVoltagePwmCycleTime != null) {
+					const vc = toolboard.partCoolingFan.inputVoltagePwmCycleTime;
+					if (vc.comment) {
+						result.push(`# ${vc.comment}`);
+					}
+					result.push(`cycle_time: ${vc.value}`);
+				}
 				break;
 			case '4pin-toolboard':
+				board = toolboard;
 				this.requireToolboardPin('fan_part_cooling_pin');
 				result.push(
 					`# 4-pin fan connected to 2-pin header on T${this.getTool()} (${this.getToolboard()?.name}) - digital pwm`,
@@ -422,6 +476,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 				result.push(`cycle_time:  0.00004`);
 				break;
 			case '4pin-dedicated-toolboard':
+				board = toolboard;
 				this.requireToolboardPin('4p_fan_part_cooling_pin');
 				result.push(
 					`# 4-pin fan connected to 4-pin header on T${this.getTool()} (${this.getToolboard()?.name}) - digital pwm`,
@@ -434,42 +489,67 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 					result.push(
 						`tachometer_pin: ^${this.isToolboardPinInverted(this.toolboardPins?.['4p_fan_part_cooling_tach_pin']) ? '!' : ''}${this.getPinPrefix()}${this.toolboardPins?.['4p_fan_part_cooling_tach_pin']}`,
 					);
-					result.push(`tachometer_poll_interval: 0.0005`);
+					result.push('tachometer_poll_interval: 0.0005');
+				}
+				if (this.toolboardPins?.['4p_fan_part_cooling_enable_pin'] != null) {
+					result.push(
+						`enable_pin: ${this.isToolboardPinInverted(this.toolboardPins?.['4p_fan_part_cooling_enable_pin']) ? '!' : ''}${this.getPinPrefix()}${this.toolboardPins?.['4p_fan_part_cooling_enable_pin']}`,
+					);
 				}
 				break;
 			default:
 				throw new Error(`Unsupported part cooling fan option "${this.getHotendFan().title}"`);
 		}
+		if (board?.partCoolingFan?.maxPower != null) {
+			const vc = board.partCoolingFan.maxPower;
+			if (vc.comment) {
+				result.push(`# ${vc.comment}`);
+			}
+			result.push(`max_power: ${vc.value}`);
+		}
 		return result.join('\n');
 	}
 	public renderHotendFan(multipleToolheadHotendFans: boolean = false, controlboard: Board) {
+		const toolboard = this.getToolboard();
 		let result: string[] = [
 			`[heater_fan toolhead_cooling_fan${multipleToolheadHotendFans ? `_${this.getShortToolName()}` : ''}]`,
 			`heater: ${this.getExtruderAxis().toLocaleLowerCase()}`,
 		];
+		let board: Board | null = null;
 		switch (this.getHotendFan().id) {
 			case '2pin':
+				board = controlboard;
 				this.requireControlboardPin('fan_toolhead_cooling_pin');
 				result.push(`# 2-pin fan connected to 2-pin header on ${controlboard.name} - input voltage pwm`);
 				result.push(`pin: ${this.controlboardPins?.fan_toolhead_cooling_pin}`);
+				if (controlboard.toolheadCoolingFan?.inputVoltagePwmCycleTime != null) {
+					const vc = controlboard.toolheadCoolingFan.inputVoltagePwmCycleTime;
+					if (vc.comment) {
+						result.push(`# ${vc.comment}`);
+					}
+					result.push(`cycle_time: ${vc.value}`);
+				}
 				break;
 			case '4pin':
+				board = controlboard;
 				this.requireControlboardPin('fan_toolhead_cooling_pin');
 				result.push(`# 4-pin fan connected to 2-pin header on ${controlboard.name} - digital pwm`);
 				result.push(`pin: !${this.controlboardPins?.fan_toolhead_cooling_pin}`);
-				result.push(`cycle_time:  0.00004`);
+				result.push(`cycle_time: 0.00004`);
 				break;
 			case '4pin-dedicated':
+				board = controlboard;
 				this.requireControlboardPin('4p_toolhead_cooling_pin');
 				result.push(`# 4-pin fan connected to 4-pin header on ${controlboard.name} - digital pwm`);
 				result.push(`pin: ${this.controlboardPins?.['4p_toolhead_cooling_pin']}`);
-				result.push(`cycle_time:  0.00004`);
+				result.push(`cycle_time: 0.00004`);
 				if (this.controlboardPins?.['4p_toolhead_cooling_tach_pin'] != null) {
 					result.push(`tachometer_pin: ^${this.controlboardPins?.['4p_toolhead_cooling_tach_pin']}`);
-					result.push(`tachometer_poll_interval: 0.0005`);
+					result.push('tachometer_poll_interval: 0.0005');
 				}
 				break;
 			case '2pin-toolboard':
+				board = toolboard;
 				this.requireToolboardPin('fan_toolhead_cooling_pin');
 				result.push(
 					`# 2-pin fan connected to 2-pin header on T${this.getTool()} (${this.getToolboard()?.name}) - input voltage pwm`,
@@ -477,8 +557,16 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 				result.push(
 					`pin: ${this.isToolboardPinInverted(this.toolboardPins?.fan_toolhead_cooling_pin) ? '!' : ''}${this.getPinPrefix()}${this.toolboardPins?.fan_toolhead_cooling_pin}`,
 				);
+				if (toolboard?.toolheadCoolingFan?.inputVoltagePwmCycleTime != null) {
+					const vc = toolboard.toolheadCoolingFan.inputVoltagePwmCycleTime;
+					if (vc.comment) {
+						result.push(`# ${vc.comment}`);
+					}
+					result.push(`cycle_time: ${vc.value}`);
+				}
 				break;
 			case '4pin-toolboard':
+				board = toolboard;
 				this.requireToolboardPin('fan_toolhead_cooling_pin');
 				result.push(
 					`# 4-pin fan connected to 2-pin header on T${this.getTool()} (${this.getToolboard()?.name}) - digital pwm`,
@@ -486,9 +574,10 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 				result.push(
 					`pin: ${this.isToolboardPinInverted(this.toolboardPins?.fan_toolhead_cooling_pin) ? '' : '!'}${this.getPinPrefix()}${this.toolboardPins?.fan_toolhead_cooling_pin}`,
 				);
-				result.push(`cycle_time:  0.00004`);
+				result.push(`cycle_time: 0.00004`);
 				break;
 			case '4pin-dedicated-toolboard':
+				board = toolboard;
 				this.requireToolboardPin('4p_toolhead_cooling_pin');
 				result.push(
 					`# 4-pin fan connected to 4-pin header on T${this.getTool()} (${this.getToolboard()?.name}) - digital pwm`,
@@ -496,16 +585,23 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 				result.push(
 					`pin: ${this.isToolboardPinInverted(this.toolboardPins?.['4p_toolhead_cooling_pin']) ? '!' : ''}${this.getPinPrefix()}${this.toolboardPins?.['4p_toolhead_cooling_pin']}`,
 				);
-				result.push(`cycle_time:  0.00004`);
+				result.push(`cycle_time: 0.00004`);
 				if (this.toolboardPins?.['4p_toolhead_cooling_tach_pin'] != null) {
 					result.push(
 						`tachometer_pin: ^${this.isToolboardPinInverted(this.toolboardPins?.['4p_toolhead_cooling_tach_pin']) ? '!' : ''}${this.getPinPrefix()}${this.toolboardPins?.['4p_toolhead_cooling_tach_pin']}`,
 					);
-					result.push(`tachometer_poll_interval: 0.0005`);
+					result.push('tachometer_poll_interval: 0.0005');
 				}
 				break;
 			default:
 				throw new Error(`Unsupported hotend fan option "${this.getHotendFan().title}"`);
+		}
+		if (board?.toolheadCoolingFan?.maxPower != null) {
+			const vc = board.toolheadCoolingFan.maxPower;
+			if (vc.comment) {
+				result.push(`# ${vc.comment}`);
+			}
+			result.push(`max_power: ${vc.value}`);
 		}
 		return result.join('\n');
 	}

@@ -80,6 +80,7 @@ export const AllPins = {
 	heater_bed_sensor_pin: z.string().optional(),
 	'4p_fan_part_cooling_pin': z.string().optional(),
 	'4p_fan_part_cooling_tach_pin': z.string().optional(),
+	'4p_fan_part_cooling_enable_pin': z.string().optional(),
 	'4p_toolhead_cooling_pin': z.string().optional(),
 	'4p_toolhead_cooling_tach_pin': z.string().optional(),
 	'4p_controller_board_pin': z.string().optional(),
@@ -351,6 +352,7 @@ export const Board = z
 				z.string().regex(/^\S+$/),
 				z.object({
 					name: z.string().optional(),
+					isPerToolhead: z.boolean().default(true),
 					parameters: z.record(z.string().regex(/^\S+$/), z.string().or(z.number()).or(z.boolean())),
 					comments: z.array(z.string()).default([]),
 				}),
@@ -363,6 +365,7 @@ export const Board = z
 					pin: z.string(),
 					name: z.string(),
 					value: z.number().min(0).max(1),
+					shutdownValue: z.number().min(0).max(1).optional(),
 				}),
 			)
 			.optional(),
@@ -391,9 +394,28 @@ export const Board = z
 				}),
 			)
 			.optional(),
+		hotendHeater: z
+			.object({
+				maxPower: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+				pwmCycleTime: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+			})
+			.optional(),
+		toolheadCoolingFan: z
+			.object({
+				maxPower: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+				inputVoltagePwmCycleTime: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+			})
+			.optional(),
+		partCoolingFan: z
+			.object({
+				maxPower: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+				inputVoltagePwmCycleTime: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+			})
+			.optional(),
 		ADXL345SPI: z
 			.object({
 				cs_pin: z.string(),
+				axesMap: z.string().optional(),
 			})
 			.and(
 				z
@@ -416,6 +438,7 @@ export const Board = z
 		LIS2DW: z
 			.object({
 				cs_pin: z.string(),
+				axesMap: z.string().optional(),
 			})
 			.and(
 				z
@@ -442,7 +465,23 @@ export const Board = z
 			.object({ isToolboard: z.literal(true), motorSlots: z.undefined() })
 			.or(z.object({ motorSlots: motorSlots }))
 			.or(z.object({ isHost: z.literal(true), motorSlots: z.undefined() })),
-	);
+	)
+	.superRefine((board, ctx) => {
+		const customSections = board.customSections;
+		if (!customSections) return;
+		for (const [key, section] of Object.entries(customSections)) {
+			if (section?.isPerToolhead) {
+				const name = section.name;
+				if (typeof name !== 'string' || name.trim() === '') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `customSections.${key}.name is required when isPerToolhead is true`,
+						path: ['customSections', key, 'name'],
+					});
+				}
+			}
+		}
+	});
 
 export const BoardWithDetectionStatus = Board.and(
 	z.object({
