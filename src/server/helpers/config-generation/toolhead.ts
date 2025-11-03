@@ -214,7 +214,9 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		];
 		if (toolboard.hasMcuTempSensor) {
 			result.push(''); // Add a newline for readability.
-			result.push(`[temperature_sensor ${toolboard.name.replace(/\s/g, '_')}_${this.getToolCommand()}]`);
+			result.push(
+				`[temperature_sensor ${toolboard.name.replace(/\s/g, '_')}${multipleToolheads ? `_${this.getToolCommand()}` : ''}]`,
+			);
 			result.push(`sensor_type: temperature_mcu`);
 			result.push(`sensor_mcu: ${this.getToolboardName()}`);
 		}
