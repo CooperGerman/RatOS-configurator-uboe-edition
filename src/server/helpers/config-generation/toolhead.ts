@@ -520,6 +520,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		let result: string[] = [
 			`[heater_fan toolhead_cooling_fan${multipleToolheadHotendFans ? `_${this.getShortToolName()}` : ''}]`,
 			`heater: ${this.getExtruderAxis().toLocaleLowerCase()}`,
+			`shutdown_speed: 1`,
 		];
 		let board: Board | null = null;
 		switch (this.getHotendFan().id) {
