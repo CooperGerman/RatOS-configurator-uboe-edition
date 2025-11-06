@@ -28,6 +28,7 @@ import { PrinterToolheadsState } from '@/recoil/toolhead';
 import { defaultControllerFan } from '@/data/fans';
 import { moonrakerWriteEffect } from '@/components/sync-with-moonraker';
 import { getLogger } from '@/app/_helpers/logger';
+import { trpcClient } from '@/helpers/trpc';
 
 export const PerformanceModeState = atom<boolean | null | undefined>({
 	key: 'PerformanceMode',
@@ -67,6 +68,36 @@ export const ControllerFanState = atom<z.infer<typeof Fan> | null>({
 	effects: [
 		moonrakerWriteEffect(),
 		syncEffect({
+			read: async ({ read }) => {
+				const fanState = await read(ControllerFanState.key);
+				if (fanState != null) {
+					// If it's already a full object, return it
+					const parsedFan = Fan.safeParse(fanState);
+					if (parsedFan.success) {
+						return parsedFan.data;
+					}
+					// If it's just an ID string, deserialize it via the server
+					if (typeof fanState === 'string') {
+						try {
+							const controlboardState = await read('Controlboard');
+							const controlboardId =
+								typeof controlboardState === 'object' && controlboardState != null && 'id' in controlboardState
+									? (controlboardState as any).id
+									: null;
+							const fanOptions = await trpcClient.printer.controllerFanOptions.query({
+								config: { controlboard: controlboardId },
+							});
+							const fan = fanOptions.find((f) => f.id === fanState);
+							if (fan != null) {
+								return fan;
+							}
+						} catch (error) {
+							getLogger().error('RecoilSync: failed to deserialize controller fan!', error, fanState);
+						}
+					}
+				}
+				return defaultControllerFan;
+			},
 			refine: getRefineCheckerForZodSchema(Fan.nullable()),
 		}),
 	],

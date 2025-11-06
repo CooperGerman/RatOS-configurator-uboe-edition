@@ -48,29 +48,39 @@ export const PrinterToolheadState = atomFamily<
 					toolNumber: ToolNumber;
 				};
 				if (printerToolheadState != null) {
-					const parsedToolhead = ToolheadConfiguration.safeParse(printerToolheadState);
-					if (parsedToolhead.success) {
-						let freshToolboard = parsedToolhead.data.toolboard;
-						if (freshToolboard) {
-							if (freshToolboard != null) {
-								const toolboardPath = z.object({ id: BoardID }).safeParse(freshToolboard);
-								if (toolboardPath.success) {
-									const boardReq = await trpcClient.mcu.boards.query({ boardFilters: { toolboard: true } });
-									const maybeToolboard = boardReq.find((b) => b.id === toolboardPath.data.id);
-									if (maybeToolboard) {
-										freshToolboard = Toolboard.parse(maybeToolboard);
-									}
-								}
-							}
+					// Get the controlboard ID to pass to deserialization
+					const printerState = await read('Printer');
+					const controlboardId =
+						typeof printerState === 'object' && printerState != null && 'controlboard' in printerState
+							? (printerState as any).controlboard
+							: null;
+
+					// Deserialize the toolhead configuration to convert string IDs to full objects
+					// This ensures fields like xEndstop, yEndstop, partFan, etc. are properly initialized
+					// when loading from storage (e.g., when skipping directly to the confirmation step)
+					try {
+						const deserializedToolhead = await trpcClient.printer.deserializeToolheadConfiguration.query({
+							config: printerToolheadState as any,
+							printerConfig: { controlboard: controlboardId },
+						});
+						const parsedToolhead = ToolheadConfiguration.safeParse(deserializedToolhead);
+						if (parsedToolhead.success) {
+							return { ...parsedToolhead.data, toolNumber: param };
 						}
-						return { ...parsedToolhead.data, toolboard: freshToolboard, toolNumber: param };
+						getLogger().debug(
+							'RecoilSync: failed to parse deserialized toolhead!',
+							PrinterToolheadState(param).key,
+							parsedToolhead.error,
+							deserializedToolhead,
+						);
+					} catch (error) {
+						getLogger().error(
+							'RecoilSync: failed to deserialize toolhead configuration!',
+							PrinterToolheadState(param).key,
+							error,
+							printerToolheadState,
+						);
 					}
-					getLogger().debug(
-						'RecoilSync: failed to read toolhead!',
-						PrinterToolheadState(param).key,
-						parsedToolhead.error,
-						printerToolheadState,
-					);
 					return null;
 				}
 				return null;
