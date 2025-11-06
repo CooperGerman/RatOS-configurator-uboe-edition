@@ -1,5 +1,5 @@
 import { atomFamily, DefaultValue, selector, selectorFamily, noWait, waitForAll } from 'recoil';
-import { ReadAtomInterface, syncEffect } from 'recoil-sync';
+import { ReadAtomInterface, syncEffect, WriteAtomInterface } from 'recoil-sync';
 import { z } from 'zod';
 import { getRefineCheckerForZodSchema } from 'zod-refine';
 import { trpcClient } from '@/helpers/trpc';
@@ -14,6 +14,7 @@ import {
 import { PrinterState } from '@/recoil/printer';
 import { moonrakerWriteEffect } from '@/components/sync-with-moonraker';
 import { getLogger } from '@/app/_helpers/logger';
+import { serializePartialToolheadConfiguration } from '@/utils/serialization';
 
 export const isAxisValidForTool = (axis: PrinterAxis, tool: ToolNumber) => {
 	if (axis === PrinterAxis.dual_carriage && tool === 1) {
@@ -48,16 +49,32 @@ export const PrinterToolheadState = atomFamily<
 					toolNumber: ToolNumber;
 				};
 				if (printerToolheadState != null) {
-					// Get the controlboard ID to pass to deserialization
+					// First try to parse as-is (in case it's already a full configuration)
+					const directParse = ToolheadConfiguration.safeParse(printerToolheadState);
+					if (directParse.success) {
+						// Check if the toolboard needs to be refreshed (it might be just an ID)
+						let freshToolboard = directParse.data.toolboard;
+						if (freshToolboard != null) {
+							const toolboardPath = z.object({ id: BoardID }).safeParse(freshToolboard);
+							if (toolboardPath.success) {
+								const boardReq = await trpcClient.mcu.boards.query({ boardFilters: { toolboard: true } });
+								const maybeToolboard = boardReq.find((b) => b.id === toolboardPath.data.id);
+								if (maybeToolboard) {
+									freshToolboard = Toolboard.parse(maybeToolboard);
+								}
+							}
+						}
+						return { ...directParse.data, toolboard: freshToolboard, toolNumber: param };
+					}
+
+					// If direct parse fails, try server-side deserialization
+					// This handles cases where fields are stored as string IDs
 					const printerState = await read('Printer');
 					const controlboardId =
 						typeof printerState === 'object' && printerState != null && 'controlboard' in printerState
 							? (printerState as any).controlboard
 							: null;
 
-					// Deserialize the toolhead configuration to convert string IDs to full objects
-					// This ensures fields like xEndstop, yEndstop, partFan, etc. are properly initialized
-					// when loading from storage (e.g., when skipping directly to the confirmation step)
 					try {
 						const deserializedToolhead = await trpcClient.printer.deserializeToolheadConfiguration.query({
 							config: printerToolheadState as any,
@@ -81,9 +98,21 @@ export const PrinterToolheadState = atomFamily<
 							printerToolheadState,
 						);
 					}
+					// If all else fails, return null
 					return null;
 				}
 				return null;
+			},
+			write: ({ write }: WriteAtomInterface, newValue) => {
+				// Serialize the toolhead configuration before storing it
+				// This converts full objects to string IDs for storage
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(PrinterToolheadState(param).key, newValue);
+					return;
+				}
+				const { toolNumber, ...toolheadConfig } = newValue;
+				const serialized = serializePartialToolheadConfiguration(toolheadConfig);
+				write(PrinterToolheadState(param).key, { ...serialized, toolNumber });
 			},
 			refine: getRefineCheckerForZodSchema(BaseToolheadConfiguration.extend({ toolNumber: ToolNumber }).nullable()),
 		}),

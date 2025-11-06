@@ -1,6 +1,6 @@
 'use client';
 
-import { atom, selector, useRecoilValue, useRecoilState, waitForAll, noWait } from 'recoil';
+import { atom, selector, useRecoilValue, useRecoilState, waitForAll, noWait, DefaultValue } from 'recoil';
 import { z } from 'zod';
 import { Fan } from '@/zods/hardware';
 import {
@@ -97,6 +97,14 @@ export const ControllerFanState = atom<z.infer<typeof Fan> | null>({
 					}
 				}
 				return defaultControllerFan;
+			},
+			write: ({ write }, newValue) => {
+				// Serialize the fan to store only the ID
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(ControllerFanState.key, newValue);
+					return;
+				}
+				write(ControllerFanState.key, newValue.id);
 			},
 			refine: getRefineCheckerForZodSchema(Fan.nullable()),
 		}),
