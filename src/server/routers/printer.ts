@@ -225,12 +225,18 @@ export const deserializeToolheadConfiguration = async (
 		extruder: extruders.find((e) => e.id === config.extruder),
 		probe: probes.find((p) => p.id === config.probe),
 		thermistor: thermistors.find((t) => t === config.thermistor),
-		xEndstop: xEndstopOptions({ controlboard }, { toolboard, axis: config.axis }).find((e) => e.id === config.xEndstop),
-		yEndstop: yEndstopOptions({ controlboard }, { toolboard, axis: config.axis }).find((e) => e.id === config.yEndstop),
+		xEndstop: xEndstopOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
+			(e) => e.id === config.xEndstop,
+		),
+		yEndstop: yEndstopOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
+			(e) => e.id === config.yEndstop,
+		),
 		xAccelerometer: serializedXAccel != null ? { ...serializedXAccel, accelerometerType: xAccel?.type } : null,
 		yAccelerometer: serializedYAccel != null ? { ...serializedYAccel, accelerometerType: yAccel?.type } : null,
-		partFan: partFanOptions({ controlboard }, { toolboard, axis: config.axis }).find((f) => f.id === config.partFan),
-		hotendFan: hotendFanOptions({ controlboard }, { toolboard, axis: config.axis }).find(
+		partFan: partFanOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
+			(f) => f.id === config.partFan,
+		),
+		hotendFan: hotendFanOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
 			(f) => f.id === config.hotendFan,
 		),
 	} satisfies PartialToolheadConfiguration;
@@ -256,20 +262,24 @@ export const deserializePartialToolheadConfiguration = async (
 		extruder: extruders.find((e) => e.id === config?.extruder),
 		probe: probes.find((p) => p.id === config?.probe),
 		thermistor: thermistors.find((t) => t === config?.thermistor),
-		xEndstop: xEndstopOptions({ controlboard }, { toolboard, axis: config?.axis ?? PrinterAxis.x }).find(
-			(e) => e.id === config?.xEndstop,
-		),
-		yEndstop: yEndstopOptions({ controlboard }, { toolboard, axis: config?.axis ?? PrinterAxis.x }).find(
-			(e) => e.id === config?.yEndstop,
-		),
+		xEndstop: xEndstopOptions(
+			{ controlboard },
+			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
+		).find((e) => e.id === config?.xEndstop),
+		yEndstop: yEndstopOptions(
+			{ controlboard },
+			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
+		).find((e) => e.id === config?.yEndstop),
 		xAccelerometer: xAccelerometerOptions({ controlboard }, { toolboard }).find((a) => a.id === config?.xAccelerometer),
 		yAccelerometer: yAccelerometerOptions({ controlboard }, { toolboard }).find((a) => a.id === config?.yAccelerometer),
-		partFan: partFanOptions({ controlboard }, { toolboard, axis: config?.axis ?? PrinterAxis.x }).find(
-			(f) => f.id === config?.partFan,
-		),
-		hotendFan: hotendFanOptions({ controlboard }, { toolboard, axis: config?.axis ?? PrinterAxis.x }).find(
-			(f) => f.id === config?.hotendFan,
-		),
+		partFan: partFanOptions(
+			{ controlboard },
+			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
+		).find((f) => f.id === config?.partFan),
+		hotendFan: hotendFanOptions(
+			{ controlboard },
+			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
+		).find((f) => f.id === config?.hotendFan),
 	} satisfies PartialToolheadConfiguration);
 };
 

@@ -10,13 +10,14 @@ export const xEndstopOptions = (
 ): z.infer<typeof Endstop>[] => {
 	const endstops: z.infer<typeof Endstop>[] = [];
 	if (toolheadConfig?.toolboard != null) {
+		const toolNumberSuffix = toolheadConfig.toolNumber != null ? ` T${toolheadConfig.toolNumber}` : '';
 		endstops.push({
 			id: 'endstop-toolboard' as const,
 			title: 'Physical Endstop',
 			badge: [
 				{
 					color: 'sky',
-					children: `${toolheadConfig.toolboard.name}${toolheadConfig.toolNumber != null && ` T${toolheadConfig.toolNumber}`}`,
+					children: `${toolheadConfig.toolboard.name}${toolNumberSuffix}`,
 				},
 			],
 		});

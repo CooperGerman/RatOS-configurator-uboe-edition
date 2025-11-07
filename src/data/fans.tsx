@@ -44,13 +44,14 @@ export const partFanOptions = (
 		});
 	}
 	if (toolheadConfig?.toolboard != null) {
+		const toolNumberSuffix = toolheadConfig.toolNumber != null ? ` T${toolheadConfig.toolNumber}` : '';
 		fans.push({
 			id: '2pin-toolboard' as const,
 			title: 'Input Voltage PWM',
 			badge: [
 				{
 					color: 'sky',
-					children: `${toolheadConfig.toolboard.name}${toolheadConfig.toolNumber != null && ` T${toolheadConfig.toolNumber}`}`,
+					children: `${toolheadConfig.toolboard.name}${toolNumberSuffix}`,
 				},
 			],
 		});
@@ -60,7 +61,7 @@ export const partFanOptions = (
 			badge: [
 				{
 					color: 'sky',
-					children: `${toolheadConfig.toolboard.name}${toolheadConfig.toolNumber != null && ` T${toolheadConfig.toolNumber}`}`,
+					children: `${toolheadConfig.toolboard.name}${toolNumberSuffix}`,
 				},
 			],
 		});
@@ -74,7 +75,7 @@ export const partFanOptions = (
 				badge: [
 					{
 						color: 'sky',
-						children: `${toolheadConfig.toolboard.name}${toolheadConfig.toolNumber != null && ` T${toolheadConfig.toolNumber}`}`,
+						children: `${toolheadConfig.toolboard.name}${toolNumberSuffix}`,
 					},
 				],
 			});
@@ -113,13 +114,14 @@ export const hotendFanOptions = (
 		});
 	}
 	if (toolheadConfig?.toolboard != null) {
+		const toolNumberSuffix = toolheadConfig.toolNumber != null ? ` T${toolheadConfig.toolNumber}` : '';
 		fans.push({
 			id: '2pin-toolboard' as const,
 			title: 'Input Voltage PWM',
 			badge: [
 				{
 					color: 'sky',
-					children: `${toolheadConfig.toolboard.name}${toolheadConfig.toolNumber != null && ` T${toolheadConfig.toolNumber}`}`,
+					children: `${toolheadConfig.toolboard.name}${toolNumberSuffix}`,
 				},
 			],
 		});
@@ -129,7 +131,7 @@ export const hotendFanOptions = (
 			badge: [
 				{
 					color: 'sky',
-					children: `${toolheadConfig.toolboard.name}${toolheadConfig.toolNumber != null && ` T${toolheadConfig.toolNumber}`}`,
+					children: `${toolheadConfig.toolboard.name}${toolNumberSuffix}`,
 				},
 			],
 		});
@@ -143,7 +145,7 @@ export const hotendFanOptions = (
 				badge: [
 					{
 						color: 'sky',
-						children: `${toolheadConfig.toolboard.name}${toolheadConfig.toolNumber != null && ` T${toolheadConfig.toolNumber}`}`,
+						children: `${toolheadConfig.toolboard.name}${toolNumberSuffix}`,
 					},
 				],
 			});
