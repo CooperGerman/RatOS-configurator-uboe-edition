@@ -222,7 +222,6 @@ export const ToolboardPinMap = PinMap.extend({
 	e_heater_pin: z.string(),
 	e_sensor_pin: z.string(),
 	adxl345_cs_pin: z.string(),
-	probe_pin: z.string(),
 }).and(
 	z
 		.object({

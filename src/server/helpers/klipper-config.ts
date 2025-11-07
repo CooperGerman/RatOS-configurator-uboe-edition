@@ -892,6 +892,8 @@ export const constructKlipperConfigHelpers = async (
 			const result: string[] = [];
 			const th = utils.getToolheads().find((th) => th.getProbe() != null);
 			if (th) {
+				// NB: th.getProbe() is non-null here due to the if check above.
+				// NB: getPinFromAlias implicitly requires that the alias is resolved from the toolboard if present.
 				switch (th.getProbe()?.id) {
 					case 'bltouch':
 						const controlPin =
