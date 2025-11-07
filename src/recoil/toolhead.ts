@@ -76,8 +76,9 @@ export const PrinterToolheadState = atomFamily<
 							: null;
 
 					try {
+						// Add toolNumber to the config before deserializing so badges are generated correctly
 						const deserializedToolhead = await trpcClient.printer.deserializeToolheadConfiguration.query({
-							config: printerToolheadState as any,
+							config: { ...printerToolheadState, toolNumber: param } as any,
 							printerConfig: { controlboard: controlboardId },
 						});
 						const parsedToolhead = ToolheadConfiguration.safeParse(deserializedToolhead);
