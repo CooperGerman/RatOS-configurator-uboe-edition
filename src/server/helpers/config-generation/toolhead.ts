@@ -657,6 +657,8 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 			`variable_temperature_offset: 0                                               # hotend temperature offset`,
 			`variable_has_oozeguard: False                                                # toolhead has a oozeguard`,
 			`variable_has_front_arm_nozzle_wiper: False                                   # toolhead has front arm nozzle wipers`,
+			`variable_toolhead_sensor_button_only_when_sensor_enabled: False              # if True, the toolhead sensor action button is only enabled when the sensor is enabled`,
+			`variable_toolhead_detect_clog_only_when_sensor_enabled: True                 # if True, toolhead sensor clog detection is only enabled when the sensor is enabled`,
 		];
 		if (this.printer.kinematics == 'hybrid-corexy-idex') {
 			result.push(
