@@ -90,6 +90,9 @@ export const AllPins = {
 	rgb_led_data_pin: z.string().optional(),
 	orbiter_filament_sensor_sense_pin: z.string().optional(),
 	orbiter_filament_sensor_unload_pin: z.string().optional(),
+	ratrig_vaoc_probe_pin: z.string().optional(),
+	ratrig_vaoc_led_pin: z.string().optional(),
+	ratrig_vaoc_fan_pin: z.string().optional(),
 };
 export const PinMap = z.object(AllPins);
 
