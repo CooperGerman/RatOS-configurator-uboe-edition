@@ -51,7 +51,7 @@ const serializedConfigFromDefaults = (printer: PrinterDefinition): SerializedPri
 		standstillStealth: false,
 		stealthchop: false,
 		controllerFan: printer.defaults.controllerFan ?? '2pin',
-		chamberLighting: printer.defaults.chamberLighting ?? false,
+		chamberLighting: printer.defaults.chamberLighting ?? 'none',
 	} satisfies SerializedPrinterConfiguration);
 };
 

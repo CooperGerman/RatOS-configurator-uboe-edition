@@ -173,7 +173,14 @@ export const PrinterSelection: React.FC<StepScreenProps> = (props) => {
 						reset(ControllerFanState);
 					}
 					if (printer.defaults.chamberLighting != null) {
-						set(ChamberLightingState, printer.defaults.chamberLighting);
+						const chamberLightingOptions = (await import('@/data/accessories')).chamberLightingOptions;
+						const options = chamberLightingOptions();
+						const defaultChamberLighting = options.find((a) => a.id === printer.defaults.chamberLighting);
+						if (defaultChamberLighting) {
+							set(ChamberLightingState, defaultChamberLighting);
+						} else {
+							reset(ChamberLightingState);
+						}
 					} else {
 						reset(ChamberLightingState);
 					}

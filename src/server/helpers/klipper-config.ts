@@ -1122,14 +1122,14 @@ export const constructKlipperConfigHelpers = async (
 		},
 		renderChamberLighting() {
 			let result: string[] = [];
-			if (!config.chamberLighting) {
-				result.push('# Chamber lighting not configured');
+			if (config.chamberLighting.id !== 'controlboard') {
+				result.push('# Chamber lighting not installed');
 				return result.join('\n');
 			}
 			utils.requireControlboardPin('chamber_lighting_pin');
 			const pins = utils.getControlboardPins();
 			result.push(`# Chamber lighting (non-RGB)`);
-			result.push(`[led chamber]`);
+			result.push(`[output_pin chamber]`);
 			result.push(`white_pin: ${pins.chamber_lighting_pin}`);
 			result.push(`initial_WHITE: 0.5`);
 			return result.join('\n');

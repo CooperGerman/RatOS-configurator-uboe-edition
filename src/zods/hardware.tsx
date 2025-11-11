@@ -115,3 +115,16 @@ export const Fan = z.object({
 		)
 		.optional(),
 });
+
+export const ChamberLighting = z.object({
+	id: z.enum(['controlboard', 'none']),
+	title: z.string(),
+	badge: z
+		.array(
+			z.object({
+				children: z.string(),
+				color: badgeColorOptions,
+			}),
+		)
+		.optional(),
+});

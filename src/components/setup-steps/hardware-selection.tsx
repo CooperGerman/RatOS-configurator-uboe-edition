@@ -136,16 +136,15 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 								value={selectedControllerFan}
 							/>
 						</div>
-						{selectedBoard?.hasChamberLightingPin && (
-							<div>
-								<Toggle
-									label="Chamber Lighting"
-									description="Is chamber lighting installed and connected to the control board?"
-									onChange={setChamberLighting}
-									value={!!chamberLighting}
-								/>
-							</div>
-						)}
+						<div>
+							<DropdownWithPrinterQuery
+								label="Chamber Lighting"
+								query="chamberLightingOptions"
+								vars={{ config: serializedPrinterConfiguration }}
+								onSelect={setChamberLighting}
+								value={chamberLighting}
+							/>
+						</div>
 					</div>
 					<div className="mt-4 border-t border-zinc-100 pt-8 dark:border-zinc-700">
 						<div className="flex">

@@ -2,7 +2,7 @@
 
 import { atom, selector, useRecoilValue, useRecoilState, waitForAll, noWait, DefaultValue } from 'recoil';
 import { z } from 'zod';
-import { Fan } from '@/zods/hardware';
+import { ChamberLighting, Fan } from '@/zods/hardware';
 import {
 	PartialPrinterConfiguration,
 	PrinterConfiguration,
@@ -29,6 +29,7 @@ import { defaultControllerFan } from '@/data/fans';
 import { moonrakerWriteEffect } from '@/components/sync-with-moonraker';
 import { getLogger } from '@/app/_helpers/logger';
 import { trpcClient } from '@/helpers/trpc';
+import { defaultChamberLighting } from '@/data/accessories';
 
 export const PerformanceModeState = atom<boolean | null | undefined>({
 	key: 'PerformanceMode',
@@ -41,13 +42,39 @@ export const PerformanceModeState = atom<boolean | null | undefined>({
 	],
 });
 
-export const ChamberLightingState = atom<boolean | null | undefined>({
+export const ChamberLightingState = atom<z.infer<typeof ChamberLighting> | null | undefined>({
 	key: 'ChamberLighting',
-	default: false,
+	default: defaultChamberLighting,
 	effects: [
 		moonrakerWriteEffect(),
 		syncEffect({
-			refine: getRefineCheckerForZodSchema(z.boolean().optional().nullable()),
+			read: async ({ read }) => {
+				const chamberLightingState = read('ChamberLighting');
+				if (chamberLightingState != null && chamberLightingState !== '') {
+					if (typeof chamberLightingState === 'string') {
+						try {
+							const chamberLightingOptions = (await import('@/data/accessories')).chamberLightingOptions;
+							const options = chamberLightingOptions();
+							const chamberLighting = options.find((a) => a.id === chamberLightingState);
+							if (chamberLighting != null) {
+								return chamberLighting;
+							}
+						} catch (error) {
+							getLogger().error('RecoilSync: failed to deserialize chamber lighting!', error, chamberLightingState);
+						}
+					}
+				}
+				return defaultChamberLighting;
+			},
+			write: ({ write }, newValue) => {
+				// Serialize the chamber lighting to store only the ID
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(ChamberLightingState.key, newValue);
+					return;
+				}
+				write(ChamberLightingState.key, newValue.id);
+			},
+			refine: getRefineCheckerForZodSchema(ChamberLighting.nullable()),
 		}),
 	],
 });
@@ -208,7 +235,7 @@ export const serializePrinterConfiguration = (config: PrinterConfiguration): Ser
 		performanceMode: config.performanceMode,
 		stealthchop: config.stealthchop,
 		standstillStealth: config.standstillStealth,
-		chamberLighting: config.chamberLighting,
+		chamberLighting: config.chamberLighting.id,
 		rails: config.rails.map((rail) => serializePrinterRail(rail)),
 	};
 	return SerializedPrinterConfiguration.parse(serializedConfig);
@@ -226,7 +253,7 @@ export const serializePartialPrinterConfiguration = (
 		performanceMode: config?.performanceMode,
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
-		chamberLighting: config?.chamberLighting,
+		chamberLighting: config?.chamberLighting?.id,
 	};
 	return SerializedPartialPrinterConfiguration.parse(serializedConfig);
 };
