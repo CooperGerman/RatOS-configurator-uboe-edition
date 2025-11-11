@@ -93,6 +93,9 @@ export const AllPins = {
 	ratrig_vaoc_probe_pin: z.string().optional(),
 	ratrig_vaoc_led_pin: z.string().optional(),
 	ratrig_vaoc_fan_pin: z.string().optional(),
+	chamber_lighting_pin: z.string().optional(),
+	ratrig_ratpack_enable_pin: z.string().optional(),
+	ratrig_ratpack_pin: z.string().optional(),
 };
 export const PinMap = z.object(AllPins);
 
