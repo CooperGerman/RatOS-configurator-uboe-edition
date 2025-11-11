@@ -1120,6 +1120,20 @@ export const constructKlipperConfigHelpers = async (
 			}
 			return result.join('\n');
 		},
+		renderChamberLighting() {
+			let result: string[] = [];
+			if (!config.chamberLighting) {
+				result.push('# Chamber lighting not configured');
+				return result.join('\n');
+			}
+			utils.requireControlboardPin('chamber_lighting_pin');
+			const pins = utils.getControlboardPins();
+			result.push(`# Chamber lighting (non-RGB)`);
+			result.push(`[led chamber]`);
+			result.push(`white_pin: ${pins.chamber_lighting_pin}`);
+			result.push(`initial_WHITE: 0.5`);
+			return result.join('\n');
+		},
 		renderFans() {
 			const result: string[] = [];
 			const multipleToolheadPartFans = utils.getToolheads().filter((th) => th.getPartFan()).length > 1;

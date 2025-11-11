@@ -357,6 +357,7 @@ export const Board = z
 		thermistorPullup: z.number().default(4700),
 		alternativePT1000Resistor: z.number().optional(),
 		invertPinLogic: z.array(z.string()).default([]),
+		hasChamberLightingPin: z.boolean().default(false),
 		customSections: z
 			.record(
 				z.string().regex(/^\S+$/),

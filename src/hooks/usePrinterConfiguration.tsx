@@ -41,6 +41,17 @@ export const PerformanceModeState = atom<boolean | null | undefined>({
 	],
 });
 
+export const ChamberLightingState = atom<boolean | null | undefined>({
+	key: 'ChamberLighting',
+	default: false,
+	effects: [
+		moonrakerWriteEffect(),
+		syncEffect({
+			refine: getRefineCheckerForZodSchema(z.boolean().optional().nullable()),
+		}),
+	],
+});
+
 export const StealthchopState = atom<boolean | null | undefined>({
 	key: 'Stealchop',
 	default: false,
@@ -120,6 +131,7 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 			performanceMode,
 			stealthchop,
 			standstillStealth,
+			chamberLighting,
 			rails,
 			controlboard,
 			controllerFan,
@@ -131,6 +143,7 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 				performanceMode: PerformanceModeState,
 				stealthchop: StealthchopState,
 				standstillStealth: StandstillStealthState,
+				chamberLighting: ChamberLightingState,
 				rails: PrinterRailsState,
 				controlboard: ControlboardState,
 				controllerFan: ControllerFanState,
@@ -153,6 +166,7 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 			performanceMode,
 			stealthchop,
 			standstillStealth,
+			chamberLighting,
 			rails,
 			controlboard,
 			controllerFan,
@@ -194,6 +208,7 @@ export const serializePrinterConfiguration = (config: PrinterConfiguration): Ser
 		performanceMode: config.performanceMode,
 		stealthchop: config.stealthchop,
 		standstillStealth: config.standstillStealth,
+		chamberLighting: config.chamberLighting,
 		rails: config.rails.map((rail) => serializePrinterRail(rail)),
 	};
 	return SerializedPrinterConfiguration.parse(serializedConfig);
@@ -211,6 +226,7 @@ export const serializePartialPrinterConfiguration = (
 		performanceMode: config?.performanceMode,
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
+		chamberLighting: config?.chamberLighting,
 	};
 	return SerializedPartialPrinterConfiguration.parse(serializedConfig);
 };
@@ -230,6 +246,7 @@ export const usePrinterConfiguration = () => {
 	const [performanceMode, setPerformanceMode] = useRecoilState(PerformanceModeState);
 	const [stealthchop, setStealthchop] = useRecoilState(StealthchopState);
 	const [standstillStealth, setStandstillStealth] = useRecoilState(StandstillStealthState);
+	const [chamberLighting, setChamberLighting] = useRecoilState(ChamberLightingState);
 	const [selectedControllerFan, setSelectedControllerFan] = useRecoilState(ControllerFanState);
 	const selectedPrinterRails = useRecoilValue(PrinterRailsState);
 	const printerConfiguration = useRecoilValue(PrinterConfigurationState);
@@ -249,6 +266,8 @@ export const usePrinterConfiguration = () => {
 		setStealthchop,
 		standstillStealth,
 		setStandstillStealth,
+		chamberLighting,
+		setChamberLighting,
 		selectedPrinterRails,
 		selectedControllerFan,
 		setSelectedControllerFan,

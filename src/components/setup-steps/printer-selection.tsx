@@ -28,6 +28,7 @@ import {
 	PerformanceModeState,
 	StandstillStealthState,
 	StealthchopState,
+	ChamberLightingState,
 } from '@/hooks/usePrinterConfiguration';
 import { AnimatedContainer } from '@/components/common/animated-container';
 import { getLogger } from '@/app/_helpers/logger';
@@ -170,6 +171,11 @@ export const PrinterSelection: React.FC<StepScreenProps> = (props) => {
 						set(ControllerFanState, { id: printer.defaults.controllerFan, title: printer.defaults.controllerFan });
 					} else {
 						reset(ControllerFanState);
+					}
+					if (printer.defaults.chamberLighting != null) {
+						set(ChamberLightingState, printer.defaults.chamberLighting);
+					} else {
+						reset(ChamberLightingState);
 					}
 				} else {
 					if (oldToolheads.length > printer.defaults.toolheads.length) {

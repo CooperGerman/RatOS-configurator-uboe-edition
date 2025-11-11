@@ -74,6 +74,7 @@ export const PrinterDefinition = z
 				board: BoardID.describe('Default board for this printer. Should be the name of the board directory.'),
 				rails: z.array(SerializedPrinterRailDefinition).describe('Default rails for this printer'),
 				controllerFan: Fan.shape.id.optional().describe('Default controller fan for this printer'),
+				chamberLighting: z.boolean().optional().describe('Default chamber lighting setting for this printer'),
 			})
 			.strict()
 			.describe('Default hardware for this printer'),

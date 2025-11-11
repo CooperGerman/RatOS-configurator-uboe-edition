@@ -354,6 +354,7 @@ describe('configuration', async () => {
 				toolheads: toolheads,
 				rails: defaultRails,
 				size: printer.sizes?.[0],
+				chamberLighting: false,
 				performanceMode: false,
 				standstillStealth: false,
 				stealthchop: false,

@@ -304,6 +304,7 @@ export const deserializePartialPrinterConfiguration = async (
 		performanceMode: config?.performanceMode,
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
+		chamberLighting: config?.chamberLighting,
 		rails: config?.rails?.map((r) => deserializePrinterRail(r)),
 	});
 };
@@ -326,6 +327,7 @@ export const deserializePrinterConfiguration = async (
 		performanceMode: config?.performanceMode,
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
+		chamberLighting: config?.chamberLighting,
 		rails: config?.rails.map((r) => deserializePrinterRail(r)),
 	});
 };

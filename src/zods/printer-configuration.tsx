@@ -23,6 +23,7 @@ const BasePrinterConfiguration = z
 		performanceMode: z.boolean().default(false),
 		stealthchop: z.boolean().default(false),
 		standstillStealth: z.boolean().default(false),
+		chamberLighting: z.boolean().default(false),
 		rails: z.array(PrinterRail),
 	})
 	.strict()
