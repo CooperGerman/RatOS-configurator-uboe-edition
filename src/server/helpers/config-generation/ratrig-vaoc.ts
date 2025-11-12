@@ -8,8 +8,7 @@ export function getUpdatedCrowsnestConfForRatRigVaoc() {
 	return replaceOrAddIniSectionsFromFileSync(crowsnestPath, [
 		{
 			section: 'crowsnest',
-			body: `
-log_path: /home/pi/printer_data/logs/crowsnest.log
+			body: `log_path: /home/pi/printer_data/logs/crowsnest.log
 log_level: verbose
 delete_log: false
 no_proxy: false
@@ -17,8 +16,7 @@ no_proxy: false
 		},
 		{
 			section: 'cam 1',
-			body: `
-# Required for Rat Rig VAOC camera integration, DO NOT MODIFY THIS SECTION.
+			body: `# Required for Rat Rig VAOC camera integration, DO NOT MODIFY THIS SECTION.
 mode: camera-streamer
 enable_rtsp: false
 rtsp_port: 8554
