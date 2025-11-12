@@ -49,8 +49,14 @@ export const ChamberLightingState = atom<z.infer<typeof ChamberLighting> | null 
 		moonrakerWriteEffect(),
 		syncEffect({
 			read: async ({ read }) => {
-				const chamberLightingState = read('ChamberLighting');
+				const chamberLightingState = await read(ChamberLightingState.key);
 				if (chamberLightingState != null && chamberLightingState !== '') {
+					// If it's already a full object, return it
+					const parsedChamberLighting = ChamberLighting.safeParse(chamberLightingState);
+					if (parsedChamberLighting.success) {
+						return parsedChamberLighting.data;
+					}
+					// If it's just an ID string, deserialize it
 					if (typeof chamberLightingState === 'string') {
 						try {
 							const chamberLightingOptions = (await import('@/data/accessories')).chamberLightingOptions;
@@ -86,8 +92,14 @@ export const ToolheadAlignmentSystemState = atom<z.infer<typeof ToolheadAlignmen
 		moonrakerWriteEffect(),
 		syncEffect({
 			read: async ({ read }) => {
-				const toolheadAlignmentSystemState = read('ToolheadAlignmentSystem');
+				const toolheadAlignmentSystemState = await read(ToolheadAlignmentSystemState.key);
 				if (toolheadAlignmentSystemState != null && toolheadAlignmentSystemState !== '') {
+					// If it's already a full object, return it
+					const parsedToolheadAlignmentSystem = ToolheadAlignmentSystem.safeParse(toolheadAlignmentSystemState);
+					if (parsedToolheadAlignmentSystem.success) {
+						return parsedToolheadAlignmentSystem.data;
+					}
+					// If it's just an ID string, deserialize it
 					if (typeof toolheadAlignmentSystemState === 'string') {
 						try {
 							const toolheadAlignmentSystemOptions = (await import('@/data/accessories'))
@@ -128,8 +140,14 @@ export const ChamberAirFilterState = atom<z.infer<typeof ChamberAirFilter> | nul
 		moonrakerWriteEffect(),
 		syncEffect({
 			read: async ({ read }) => {
-				const chamberAirFilterState = read('ChamberAirFilter');
+				const chamberAirFilterState = await read(ChamberAirFilterState.key);
 				if (chamberAirFilterState != null && chamberAirFilterState !== '') {
+					// If it's already a full object, return it
+					const parsedChamberAirFilter = ChamberAirFilter.safeParse(chamberAirFilterState);
+					if (parsedChamberAirFilter.success) {
+						return parsedChamberAirFilter.data;
+					}
+					// If it's just an ID string, deserialize it
 					if (typeof chamberAirFilterState === 'string') {
 						try {
 							const chamberAirFilterOptions = (await import('@/data/accessories')).chamberAirFilterOptions;
