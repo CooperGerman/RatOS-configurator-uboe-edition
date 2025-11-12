@@ -90,14 +90,19 @@ export const ToolheadAlignmentSystemState = atom<z.infer<typeof ToolheadAlignmen
 				if (toolheadAlignmentSystemState != null && toolheadAlignmentSystemState !== '') {
 					if (typeof toolheadAlignmentSystemState === 'string') {
 						try {
-							const toolheadAlignmentSystemOptions = (await import('@/data/accessories')).toolheadAlignmentSystemOptions;
+							const toolheadAlignmentSystemOptions = (await import('@/data/accessories'))
+								.toolheadAlignmentSystemOptions;
 							const options = toolheadAlignmentSystemOptions();
 							const toolheadAlignmentSystem = options.find((a) => a.id === toolheadAlignmentSystemState);
 							if (toolheadAlignmentSystem != null) {
 								return toolheadAlignmentSystem;
 							}
 						} catch (error) {
-							getLogger().error('RecoilSync: failed to deserialize toolhead alignment system!', error, toolheadAlignmentSystemState);
+							getLogger().error(
+								'RecoilSync: failed to deserialize toolhead alignment system!',
+								error,
+								toolheadAlignmentSystemState,
+							);
 						}
 					}
 				}

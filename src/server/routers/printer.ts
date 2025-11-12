@@ -340,7 +340,9 @@ export const deserializePrinterConfiguration = async (
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
 		chamberLighting: chamberLightingOptions({ controlboard }).find((a) => a.id === config?.chamberLighting),
-		toolheadAlignmentSystem: toolheadAlignmentSystemOptions({ controlboard }).find((a) => a.id === config?.toolheadAlignmentSystem),
+		toolheadAlignmentSystem: toolheadAlignmentSystemOptions({ controlboard }).find(
+			(a) => a.id === config?.toolheadAlignmentSystem,
+		),
 		chamberAirFilter: chamberAirFilterOptions({ controlboard }).find((a) => a.id === config?.chamberAirFilter),
 		rails: config?.rails.map((r) => deserializePrinterRail(r)),
 	});
@@ -912,7 +914,9 @@ export const printerRouter = router({
 			}),
 		)
 		.output(z.array(ToolheadAlignmentSystem))
-		.query(async (ctx) => toolheadAlignmentSystemOptions(await deserializePartialPrinterConfiguration(ctx.input.config ?? {}))),
+		.query(async (ctx) =>
+			toolheadAlignmentSystemOptions(await deserializePartialPrinterConfiguration(ctx.input.config ?? {})),
+		),
 	chamberAirFilterOptions: publicProcedure
 		.input(
 			z.object({
@@ -920,7 +924,9 @@ export const printerRouter = router({
 			}),
 		)
 		.output(z.array(ChamberAirFilter))
-		.query(async (ctx) => chamberAirFilterOptions(await deserializePartialPrinterConfiguration(ctx.input.config ?? {}))),
+		.query(async (ctx) =>
+			chamberAirFilterOptions(await deserializePartialPrinterConfiguration(ctx.input.config ?? {})),
+		),
 	xAccelerometerOptions: publicProcedure
 		.input(
 			z.object({
