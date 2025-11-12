@@ -78,6 +78,14 @@ export const PrinterDefinition = z
 					.enum(['controlboard', 'none'])
 					.optional()
 					.describe('Default chamber lighting setting for this printer'),
+				toolheadAlignmentSystem: z
+					.enum(['ratRigVaoc', 'none'])
+					.optional()
+					.describe('Default toolhead alignment system for this printer'),
+				chamberAirFilter: z
+					.enum(['ratRigRatPack', 'none'])
+					.optional()
+					.describe('Default chamber air filter for this printer'),
 			})
 			.strict()
 			.describe('Default hardware for this printer'),

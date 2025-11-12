@@ -355,6 +355,8 @@ describe('configuration', async () => {
 				rails: defaultRails,
 				size: printer.sizes?.[0],
 				chamberLighting: { id: 'controlboard', title: 'nobody cares' },
+				toolheadAlignmentSystem: { id: 'none', title: 'nobody cares' },
+				chamberAirFilter: { id: 'none', title: 'nobody cares' },
 				performanceMode: false,
 				standstillStealth: false,
 				stealthchop: false,

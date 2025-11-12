@@ -1134,6 +1134,34 @@ export const constructKlipperConfigHelpers = async (
 			result.push(`initial_WHITE: 0.5`);
 			return result.join('\n');
 		},
+		renderToolheadAlignmentSystem() {
+			let result: string[] = [];
+			if (config.toolheadAlignmentSystem.id !== 'ratRigVaoc') {
+				result.push('# Toolhead alignment system not installed');
+				return result.join('\n');
+			}
+			utils.requireControlboardPin('ratrig_vaoc_probe_pin');
+			utils.requireControlboardPin('ratrig_vaoc_led_pin');
+			utils.requireControlboardPin('ratrig_vaoc_fan_pin');
+			result.push(`# Rat Rig VAOC`);
+			result.push(`[include RatOS/extras/ratrig-vaoc.cfg]`);
+			return result.join('\n');
+		},
+		renderChamberAirFilter() {
+			let result: string[] = [];
+			if (config.chamberAirFilter.id !== 'ratRigRatPack') {
+				result.push('# Chamber air filter not installed');
+				return result.join('\n');
+			}
+			utils.requireControlboardPin('ratrig_ratpack_pin');
+			utils.requireControlboardPin('ratrig_ratpack_enable_pin');
+			const pins = utils.getControlboardPins();
+			result.push(`# Rat Rig Rat Pack`);
+			result.push(`[fan_generic ratpack]`);
+			result.push(`pin: ${pins.ratrig_ratpack_pin}`);
+			result.push(`enable_pin: ${pins.ratrig_ratpack_enable_pin}`);
+			return result.join('\n');
+		},
 		renderFans() {
 			const result: string[] = [];
 			const multipleToolheadPartFans = utils.getToolheads().filter((th) => th.getPartFan()).length > 1;

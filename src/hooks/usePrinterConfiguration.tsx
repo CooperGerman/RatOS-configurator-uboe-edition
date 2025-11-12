@@ -2,7 +2,7 @@
 
 import { atom, selector, useRecoilValue, useRecoilState, waitForAll, noWait, DefaultValue } from 'recoil';
 import { z } from 'zod';
-import { ChamberLighting, Fan } from '@/zods/hardware';
+import { ChamberAirFilter, ChamberLighting, Fan, ToolheadAlignmentSystem } from '@/zods/hardware';
 import {
 	PartialPrinterConfiguration,
 	PrinterConfiguration,
@@ -29,7 +29,7 @@ import { defaultControllerFan } from '@/data/fans';
 import { moonrakerWriteEffect } from '@/components/sync-with-moonraker';
 import { getLogger } from '@/app/_helpers/logger';
 import { trpcClient } from '@/helpers/trpc';
-import { defaultChamberLighting } from '@/data/accessories';
+import { defaultChamberAirFilter, defaultChamberLighting, defaultToolheadAlignmentSystem } from '@/data/accessories';
 
 export const PerformanceModeState = atom<boolean | null | undefined>({
 	key: 'PerformanceMode',
@@ -75,6 +75,80 @@ export const ChamberLightingState = atom<z.infer<typeof ChamberLighting> | null 
 				write(ChamberLightingState.key, newValue.id);
 			},
 			refine: getRefineCheckerForZodSchema(ChamberLighting.nullable()),
+		}),
+	],
+});
+
+export const ToolheadAlignmentSystemState = atom<z.infer<typeof ToolheadAlignmentSystem> | null | undefined>({
+	key: 'ToolheadAlignmentSystem',
+	default: defaultToolheadAlignmentSystem,
+	effects: [
+		moonrakerWriteEffect(),
+		syncEffect({
+			read: async ({ read }) => {
+				const toolheadAlignmentSystemState = read('ToolheadAlignmentSystem');
+				if (toolheadAlignmentSystemState != null && toolheadAlignmentSystemState !== '') {
+					if (typeof toolheadAlignmentSystemState === 'string') {
+						try {
+							const toolheadAlignmentSystemOptions = (await import('@/data/accessories')).toolheadAlignmentSystemOptions;
+							const options = toolheadAlignmentSystemOptions();
+							const toolheadAlignmentSystem = options.find((a) => a.id === toolheadAlignmentSystemState);
+							if (toolheadAlignmentSystem != null) {
+								return toolheadAlignmentSystem;
+							}
+						} catch (error) {
+							getLogger().error('RecoilSync: failed to deserialize toolhead alignment system!', error, toolheadAlignmentSystemState);
+						}
+					}
+				}
+				return defaultToolheadAlignmentSystem;
+			},
+			write: ({ write }, newValue) => {
+				// Serialize the toolhead alignment system to store only the ID
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(ToolheadAlignmentSystemState.key, newValue);
+					return;
+				}
+				write(ToolheadAlignmentSystemState.key, newValue.id);
+			},
+			refine: getRefineCheckerForZodSchema(ToolheadAlignmentSystem.nullable()),
+		}),
+	],
+});
+
+export const ChamberAirFilterState = atom<z.infer<typeof ChamberAirFilter> | null | undefined>({
+	key: 'ChamberAirFilter',
+	default: defaultChamberAirFilter,
+	effects: [
+		moonrakerWriteEffect(),
+		syncEffect({
+			read: async ({ read }) => {
+				const chamberAirFilterState = read('ChamberAirFilter');
+				if (chamberAirFilterState != null && chamberAirFilterState !== '') {
+					if (typeof chamberAirFilterState === 'string') {
+						try {
+							const chamberAirFilterOptions = (await import('@/data/accessories')).chamberAirFilterOptions;
+							const options = chamberAirFilterOptions();
+							const chamberAirFilter = options.find((a) => a.id === chamberAirFilterState);
+							if (chamberAirFilter != null) {
+								return chamberAirFilter;
+							}
+						} catch (error) {
+							getLogger().error('RecoilSync: failed to deserialize chamber air filter!', error, chamberAirFilterState);
+						}
+					}
+				}
+				return defaultChamberAirFilter;
+			},
+			write: ({ write }, newValue) => {
+				// Serialize the chamber air filter to store only the ID
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(ChamberAirFilterState.key, newValue);
+					return;
+				}
+				write(ChamberAirFilterState.key, newValue.id);
+			},
+			refine: getRefineCheckerForZodSchema(ChamberAirFilter.nullable()),
 		}),
 	],
 });
@@ -159,6 +233,8 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 			stealthchop,
 			standstillStealth,
 			chamberLighting,
+			toolheadAlignmentSystem,
+			chamberAirFilter,
 			rails,
 			controlboard,
 			controllerFan,
@@ -171,6 +247,8 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 				stealthchop: StealthchopState,
 				standstillStealth: StandstillStealthState,
 				chamberLighting: ChamberLightingState,
+				toolheadAlignmentSystem: ToolheadAlignmentSystemState,
+				chamberAirFilter: ChamberAirFilterState,
 				rails: PrinterRailsState,
 				controlboard: ControlboardState,
 				controllerFan: ControllerFanState,
@@ -194,6 +272,8 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 			stealthchop,
 			standstillStealth,
 			chamberLighting,
+			toolheadAlignmentSystem,
+			chamberAirFilter,
 			rails,
 			controlboard,
 			controllerFan,
@@ -236,6 +316,8 @@ export const serializePrinterConfiguration = (config: PrinterConfiguration): Ser
 		stealthchop: config.stealthchop,
 		standstillStealth: config.standstillStealth,
 		chamberLighting: config.chamberLighting.id,
+		toolheadAlignmentSystem: config.toolheadAlignmentSystem.id,
+		chamberAirFilter: config.chamberAirFilter.id,
 		rails: config.rails.map((rail) => serializePrinterRail(rail)),
 	};
 	return SerializedPrinterConfiguration.parse(serializedConfig);
@@ -254,6 +336,8 @@ export const serializePartialPrinterConfiguration = (
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
 		chamberLighting: config?.chamberLighting?.id,
+		toolheadAlignmentSystem: config?.toolheadAlignmentSystem?.id,
+		chamberAirFilter: config?.chamberAirFilter?.id,
 	};
 	return SerializedPartialPrinterConfiguration.parse(serializedConfig);
 };
@@ -274,6 +358,8 @@ export const usePrinterConfiguration = () => {
 	const [stealthchop, setStealthchop] = useRecoilState(StealthchopState);
 	const [standstillStealth, setStandstillStealth] = useRecoilState(StandstillStealthState);
 	const [chamberLighting, setChamberLighting] = useRecoilState(ChamberLightingState);
+	const [toolheadAlignmentSystem, setToolheadAlignmentSystem] = useRecoilState(ToolheadAlignmentSystemState);
+	const [chamberAirFilter, setChamberAirFilter] = useRecoilState(ChamberAirFilterState);
 	const [selectedControllerFan, setSelectedControllerFan] = useRecoilState(ControllerFanState);
 	const selectedPrinterRails = useRecoilValue(PrinterRailsState);
 	const printerConfiguration = useRecoilValue(PrinterConfigurationState);
@@ -295,6 +381,10 @@ export const usePrinterConfiguration = () => {
 		setStandstillStealth,
 		chamberLighting,
 		setChamberLighting,
+		toolheadAlignmentSystem,
+		setToolheadAlignmentSystem,
+		chamberAirFilter,
+		setChamberAirFilter,
 		selectedPrinterRails,
 		selectedControllerFan,
 		setSelectedControllerFan,

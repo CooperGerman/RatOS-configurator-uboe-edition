@@ -128,3 +128,29 @@ export const ChamberLighting = z.object({
 		)
 		.optional(),
 });
+
+export const ToolheadAlignmentSystem = z.object({
+	id: z.enum(['ratRigVaoc', 'none']),
+	title: z.string(),
+	badge: z
+		.array(
+			z.object({
+				children: z.string(),
+				color: badgeColorOptions,
+			}),
+		)
+		.optional(),
+});
+
+export const ChamberAirFilter = z.object({
+	id: z.enum(['ratRigRatPack', 'none']),
+	title: z.string(),
+	badge: z
+		.array(
+			z.object({
+				children: z.string(),
+				color: badgeColorOptions,
+			}),
+		)
+		.optional(),
+});

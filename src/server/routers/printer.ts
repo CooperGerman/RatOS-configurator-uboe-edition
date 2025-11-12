@@ -2,7 +2,18 @@ import { z } from 'zod';
 import { getLogger } from '@/server/helpers/logger';
 
 import { extractIncludes, parseMetadata } from '@/server/helpers/metadata';
-import { Hotend, Extruder, Probe, thermistors, Endstop, Fan, Accelerometer, ChamberLighting } from '@/zods/hardware';
+import {
+	Hotend,
+	Extruder,
+	Probe,
+	thermistors,
+	Endstop,
+	Fan,
+	Accelerometer,
+	ChamberLighting,
+	ToolheadAlignmentSystem,
+	ChamberAirFilter,
+} from '@/zods/hardware';
 import { constants, existsSync, readFileSync } from 'fs';
 import { PrinterDefinition, PrinterDefinitionWithResolvedToolheads } from '@/zods/printer';
 import {
@@ -26,7 +37,7 @@ import {
 } from '@/server/helpers/klipper-config';
 import { serverSchema } from '@/env/schema.mjs';
 import { controllerFanOptions, partFanOptions, hotendFanOptions } from '@/data/fans';
-import { chamberLightingOptions } from '@/data/accessories';
+import { chamberAirFilterOptions, chamberLightingOptions, toolheadAlignmentSystemOptions } from '@/data/accessories';
 import { getBoards, getToolboards } from '@/server/routers/mcu';
 import { xAccelerometerOptions, yAccelerometerOptions } from '@/data/accelerometers';
 import { glob } from 'glob';
@@ -329,6 +340,8 @@ export const deserializePrinterConfiguration = async (
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
 		chamberLighting: chamberLightingOptions({ controlboard }).find((a) => a.id === config?.chamberLighting),
+		toolheadAlignmentSystem: toolheadAlignmentSystemOptions({ controlboard }).find((a) => a.id === config?.toolheadAlignmentSystem),
+		chamberAirFilter: chamberAirFilterOptions({ controlboard }).find((a) => a.id === config?.chamberAirFilter),
 		rails: config?.rails.map((r) => deserializePrinterRail(r)),
 	});
 };
@@ -892,6 +905,22 @@ export const printerRouter = router({
 		)
 		.output(z.array(ChamberLighting))
 		.query(async (ctx) => chamberLightingOptions(await deserializePartialPrinterConfiguration(ctx.input.config ?? {}))),
+	toolheadAlignmentSystemOptions: publicProcedure
+		.input(
+			z.object({
+				config: SerializedPartialPrinterConfiguration.nullable(),
+			}),
+		)
+		.output(z.array(ToolheadAlignmentSystem))
+		.query(async (ctx) => toolheadAlignmentSystemOptions(await deserializePartialPrinterConfiguration(ctx.input.config ?? {}))),
+	chamberAirFilterOptions: publicProcedure
+		.input(
+			z.object({
+				config: SerializedPartialPrinterConfiguration.nullable(),
+			}),
+		)
+		.output(z.array(ChamberAirFilter))
+		.query(async (ctx) => chamberAirFilterOptions(await deserializePartialPrinterConfiguration(ctx.input.config ?? {}))),
 	xAccelerometerOptions: publicProcedure
 		.input(
 			z.object({
@@ -997,6 +1026,8 @@ type HardwareQueries = Pick<
 	| 'yAccelerometerOptions'
 	| 'yEndstops'
 	| 'chamberLightingOptions'
+	| 'toolheadAlignmentSystemOptions'
+	| 'chamberAirFilterOptions'
 >;
 export type DropdownQueryKeys = keyof HardwareQueries;
 export type DropdownQuery<T extends DropdownQueryKeys = DropdownQueryKeys> = QueryLike<(typeof printerRouter)[T]>;

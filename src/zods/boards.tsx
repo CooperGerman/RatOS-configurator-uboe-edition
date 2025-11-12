@@ -358,6 +358,8 @@ export const Board = z
 		alternativePT1000Resistor: z.number().optional(),
 		invertPinLogic: z.array(z.string()).default([]),
 		hasChamberLightingPin: z.boolean().default(false),
+		hasRatRigVaocPins: z.boolean().default(false),
+		hasRatRigRatPackPins: z.boolean().default(false),
 		customSections: z
 			.record(
 				z.string().regex(/^\S+$/),

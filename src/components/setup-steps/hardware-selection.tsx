@@ -30,6 +30,10 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 		setStandstillStealth,
 		chamberLighting,
 		setChamberLighting,
+		toolheadAlignmentSystem,
+		setToolheadAlignmentSystem,
+		chamberAirFilter,
+		setChamberAirFilter,
 		selectedPrinterRails,
 		setSelectedControllerFan: setControllerFan,
 		serializedPrinterConfiguration,
@@ -136,15 +140,39 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 								value={selectedControllerFan}
 							/>
 						</div>
-						<div>
-							<DropdownWithPrinterQuery
-								label="Chamber Lighting"
-								query="chamberLightingOptions"
-								vars={{ config: serializedPrinterConfiguration }}
-								onSelect={setChamberLighting}
-								value={chamberLighting}
-							/>
-						</div>
+						{selectedBoard?.hasChamberLightingPin && (
+							<div>
+								<DropdownWithPrinterQuery
+									label="Chamber Lighting"
+									query="chamberLightingOptions"
+									vars={{ config: serializedPrinterConfiguration }}
+									onSelect={setChamberLighting}
+									value={chamberLighting}
+								/>
+							</div>
+						)}
+						{selectedBoard?.hasRatRigRatPackPins && (
+							<div>
+								<DropdownWithPrinterQuery
+									label="Chamber Air Filter"
+									query="chamberAirFilterOptions"
+									vars={{ config: serializedPrinterConfiguration }}
+									onSelect={setChamberAirFilter}
+									value={chamberAirFilter}
+								/>
+							</div>
+						)}
+						{selectedBoard?.hasRatRigVaocPins && (
+							<div>
+								<DropdownWithPrinterQuery
+									label="Toolhead Alignment System"
+									query="toolheadAlignmentSystemOptions"
+									vars={{ config: serializedPrinterConfiguration }}
+									onSelect={setToolheadAlignmentSystem}
+									value={toolheadAlignmentSystem}
+								/>
+							</div>
+						)}
 					</div>
 					<div className="mt-4 border-t border-zinc-100 pt-8 dark:border-zinc-700">
 						<div className="flex">
