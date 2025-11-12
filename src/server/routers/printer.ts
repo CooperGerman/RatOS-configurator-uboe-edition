@@ -397,7 +397,7 @@ export const getFilesToWrite = async (
 	overwriteFiles?: string[],
 ): Promise<FilesToWrite> => {
 	const utils = await constructKlipperConfigUtils(config);
-	const extrasGenerator = constructKlipperConfigExtrasGenerator(config, utils);
+	const extrasGenerator = constructKlipperConfigExtrasGenerator(config, utils, overwriteFiles);
 	const helper = await constructKlipperConfigHelpers(config, extrasGenerator, utils);
 	const environment = serverSchema.parse(process.env);
 	const { template, initialPrinterCfg } = await import(

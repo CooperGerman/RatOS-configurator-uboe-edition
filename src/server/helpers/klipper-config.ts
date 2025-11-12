@@ -31,7 +31,12 @@ import path from 'path';
 import { serverSchema } from '@/env/schema.mjs';
 import { KlipperAccelSensorName } from '@/zods/hardware';
 import { ToolheadSuffix } from '@/helpers/toolhead';
-import { getUpdatedCrowsnestConfForRatRigVaoc } from '@/server/helpers/config-generation/ratrig-vaoc';
+import {
+	getVaocControlPointVariables,
+	getUpdatedCrowsnestConfigurationForVaoc,
+	VAOCControlPoints,
+	getDcEndstopConfigurationFileContent,
+} from '@/server/helpers/config-generation/ratrig-vaoc';
 
 type WritableFiles = { fileName: string; content: string; overwrite: boolean; order?: number }[];
 type ExcludeStepperParameters<T extends string> = (T extends
@@ -332,16 +337,14 @@ export const constructKlipperConfigUtils = async (config: PrinterConfiguration) 
 		},
 	};
 };
+
 export type KlipperConfigUtils = Awaited<ReturnType<typeof constructKlipperConfigUtils>>;
 
-type VAOCControlPoints = {
-	xcontrolpoint?: number;
-	ycontrolpoint?: number;
-	zcontrolpoint?: number;
-	zoffsetcontrolpoint?: number;
-};
-
-export const constructKlipperConfigExtrasGenerator = (config: PrinterConfiguration, utils: KlipperConfigUtils) => {
+export const constructKlipperConfigExtrasGenerator = (
+	config: PrinterConfiguration,
+	utils: KlipperConfigUtils,
+	overwriteFiles?: string[],
+) => {
 	const _filesToWrite: WritableFiles = [];
 	const _reminders: string[] = [];
 	return {
@@ -358,15 +361,8 @@ export const constructKlipperConfigExtrasGenerator = (config: PrinterConfigurati
 			const environment = serverSchema.parse(process.env);
 			const vars: string[] = [`[Variables]`];
 			// const isIdex = utils.getToolheads().some((th) => th.getMotionAxis() === PrinterAxis.dual_carriage);
+			vars.push(...getVaocControlPointVariables(config, options));
 			vars.push(
-				`idex_applied_offset = 1`,
-				`idex_xcontrolpoint = ${options?.xcontrolpoint ?? config.size.x / 2}`,
-				`idex_xoffset = 0.0`,
-				`idex_ycontrolpoint = ${options?.ycontrolpoint ?? 50}`,
-				`idex_yoffset = 0.0`,
-				`idex_zcontrolpoint = ${options?.zcontrolpoint ?? 50}`,
-				`idex_zoffset = 0.0`,
-				`idex_zoffsetcontrolpoint = ${options?.zoffsetcontrolpoint ?? 25}`,
 				`nozzle_expansion_applied_offset = 0`,
 				`nozzle_expansion_coefficient_t0 = 0.06`,
 				`nozzle_expansion_coefficient_t1 = 0.06`,
@@ -420,15 +416,27 @@ export const constructKlipperConfigExtrasGenerator = (config: PrinterConfigurati
 			utils.requireControlboardPin('ratrig_vaoc_led_pin');
 			utils.requireControlboardPin('ratrig_vaoc_fan_pin');
 			// Modify crowsnest.conf
-			const updatedCrowsnestContent = getUpdatedCrowsnestConfForRatRigVaoc();
+			const updatedCrowsnestContent = getUpdatedCrowsnestConfigurationForVaoc();
 			this.addFileToRender({
 				fileName: 'crowsnest.conf',
 				content: updatedCrowsnestContent,
 				overwrite: false,
 			});
+			// If overwrite is requested (or overwrite details are not available), reset dc_endstop.cfg.
+			// Otherwise, use the existing content or the default conetent if the file does not exist.
+			const dcEndstopCfgFileName = 'dc_endstop.cfg';
+			const forceDcEndstopDefault =
+				(overwriteFiles?.includes(dcEndstopCfgFileName) || overwriteFiles?.includes('*')) ?? true;
+			const dcEndstopContent = getDcEndstopConfigurationFileContent(forceDcEndstopDefault);
+			this.addFileToRender({
+				fileName: dcEndstopCfgFileName,
+				content: dcEndstopContent,
+				overwrite: forceDcEndstopDefault,
+			});
 			// Emit VAOC include
 			result.push(`# Rat Rig VAOC`);
 			result.push(`[include RatOS/extras/ratrig-vaoc.cfg]`);
+			result.push(`[include dc_endstop.cfg]`);
 			return result.join('\n');
 		},
 		addReminder(reminder: string) {
