@@ -315,7 +315,19 @@ export function replaceOrAddIniSections(content: string, updates: IniUpdate[]): 
 			const body = nameToBody.get(nameForThis) ?? '';
 			out += body;
 			if (!out.endsWith('\n')) out += '\n';
-			out += '\n';
+			// Preserve trailing comment/blank block that preceded the next header (so comments between sections are kept)
+			const originalSlice = normContent.slice(sections[i].start, sections[i].end);
+			const trailingMatch = originalSlice.match(/(\n(?:[ \t]*#.*\n|[ \t]*\n)*)$/);
+			const trailing = trailingMatch ? trailingMatch[1] : '\n';
+			// Append trailing block (but avoid duplicating newlines)
+			if (trailing) {
+				// ensure we don't duplicate the newline already at end
+				if (trailing === '\n' && out.endsWith('\n')) {
+					// already has a single newline, nothing to do
+				} else {
+					out += trailing;
+				}
+			}
 		} else {
 			// copy original section slice
 			const slice = normContent.slice(sections[i].start, sections[i].end);

@@ -992,6 +992,14 @@ describe('server', async () => {
 				expect(out).toContain('v: new');
 				expect(out).not.toContain('v: old');
 			});
+			test('retains existing comments on unreplaced sections', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '# Start comment\n[section1]\nval: 1\n\n# Another comment\n[section2]\nval: 2\n';
+				const out = replaceOrAddIniSections(content, [{ section: 'section1', body: 'v: new' }]);
+				// only new body should be present
+				expect(out).toContain('v: new');
+				expect(out).toContain('# Another comment\n[section2]');
+			});
 		});
 	});
 });
