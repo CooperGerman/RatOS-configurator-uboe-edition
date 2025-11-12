@@ -29,9 +29,9 @@ import {
 import { z } from 'zod';
 import path from 'path';
 import { serverSchema } from '@/env/schema.mjs';
-import { AccelerometerType, KlipperAccelSensorName, klipperAccelSensorSchema } from '@/zods/hardware';
-import { getLogger } from '@/server/helpers/logger';
+import { KlipperAccelSensorName } from '@/zods/hardware';
 import { ToolheadSuffix } from '@/helpers/toolhead';
+import { getUpdatedCrowsnestConfForRatRigVaoc } from '@/server/helpers/config-generation/ratrig-vaoc';
 
 type WritableFiles = { fileName: string; content: string; overwrite: boolean; order?: number }[];
 type ExcludeStepperParameters<T extends string> = (T extends
@@ -413,6 +413,23 @@ export const constructKlipperConfigExtrasGenerator = (config: PrinterConfigurati
 					return `[include ${f.fileName}]`;
 				})
 				.join('\n');
+		},
+		generateRatRigVaocIncludes() {
+			const result: string[] = [];
+			utils.requireControlboardPin('ratrig_vaoc_probe_pin');
+			utils.requireControlboardPin('ratrig_vaoc_led_pin');
+			utils.requireControlboardPin('ratrig_vaoc_fan_pin');
+			// Modify crowsnest.conf
+			const updatedCrowsnestContent = getUpdatedCrowsnestConfForRatRigVaoc();
+			this.addFileToRender({
+				fileName: 'crowsnest.conf',
+				content: updatedCrowsnestContent,
+				overwrite: false,
+			});
+			// Emit VAOC include
+			result.push(`# Rat Rig VAOC`);
+			result.push(`[include RatOS/extras/ratrig-vaoc.cfg]`);
+			return result.join('\n');
 		},
 		addReminder(reminder: string) {
 			_reminders.push(reminder);
@@ -1121,7 +1138,7 @@ export const constructKlipperConfigHelpers = async (
 			return result.join('\n');
 		},
 		renderChamberLighting() {
-			let result: string[] = [];
+			const result: string[] = [];
 			if (config.chamberLighting.id !== 'controlboard') {
 				result.push('# Chamber lighting not installed');
 				return result.join('\n');
@@ -1135,20 +1152,15 @@ export const constructKlipperConfigHelpers = async (
 			return result.join('\n');
 		},
 		renderToolheadAlignmentSystem() {
-			let result: string[] = [];
+			const result: string[] = [];
 			if (config.toolheadAlignmentSystem.id !== 'ratRigVaoc') {
 				result.push('# Toolhead alignment system not installed');
 				return result.join('\n');
 			}
-			utils.requireControlboardPin('ratrig_vaoc_probe_pin');
-			utils.requireControlboardPin('ratrig_vaoc_led_pin');
-			utils.requireControlboardPin('ratrig_vaoc_fan_pin');
-			result.push(`# Rat Rig VAOC`);
-			result.push(`[include RatOS/extras/ratrig-vaoc.cfg]`);
-			return result.join('\n');
+			return extrasGenerator.generateRatRigVaocIncludes();
 		},
 		renderChamberAirFilter() {
-			let result: string[] = [];
+			const result: string[] = [];
 			if (config.chamberAirFilter.id !== 'ratRigRatPack') {
 				result.push('# Chamber air filter not installed');
 				return result.join('\n');
