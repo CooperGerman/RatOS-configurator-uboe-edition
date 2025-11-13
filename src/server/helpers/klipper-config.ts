@@ -424,10 +424,10 @@ export const constructKlipperConfigExtrasGenerator = (
 			});
 			// If overwrite is requested (or overwrite details are not available), reset dc-endstop.cfg.
 			// Otherwise, use the existing content or the default conetent if the file does not exist.
-			const dcEndstopCfgFileName = 'dc-endstop.cfg';
+			const dcEndstopCfgFileName = 'ratos_generated/dc-endstop.cfg';
 			const forceDcEndstopDefault =
 				(overwriteFiles?.includes(dcEndstopCfgFileName) || overwriteFiles?.includes('*')) ?? true;
-			const dcEndstopContent = getDcEndstopConfigurationFileContent(forceDcEndstopDefault);
+			const dcEndstopContent = getDcEndstopConfigurationFileContent(forceDcEndstopDefault, dcEndstopCfgFileName);
 			this.addFileToRender({
 				fileName: dcEndstopCfgFileName,
 				content: dcEndstopContent,
@@ -436,7 +436,7 @@ export const constructKlipperConfigExtrasGenerator = (
 			// Emit VAOC include
 			result.push(`# Rat Rig VAOC`);
 			result.push(`[include RatOS/extras/ratrig-vaoc.cfg]`);
-			result.push(`[include dc-endstop.cfg]`);
+			result.push(`[include ratos_generated/dc-endstop.cfg]`);
 			return result.join('\n');
 		},
 		addReminder(reminder: string) {
