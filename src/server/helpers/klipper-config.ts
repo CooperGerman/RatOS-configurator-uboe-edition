@@ -1154,7 +1154,7 @@ export const constructKlipperConfigHelpers = async (
 			utils.requireControlboardPin('chamber_lighting_pin');
 			const pins = utils.getControlboardPins();
 			result.push(`# Chamber lighting (non-RGB)`);
-			result.push(`[output_pin chamber]`);
+			result.push(`[led chamber]`);
 			result.push(`white_pin: ${pins.chamber_lighting_pin}`);
 			result.push(`initial_WHITE: 0.5`);
 			return result.join('\n');
@@ -1177,7 +1177,7 @@ export const constructKlipperConfigHelpers = async (
 			utils.requireControlboardPin('ratrig_ratpack_enable_pin');
 			const pins = utils.getControlboardPins();
 			result.push(`# Rat Rig Rat Pack`);
-			result.push(`[fan_generic ratpack]`);
+			result.push(`[fan_generic filter]`);
 			result.push(`pin: ${pins.ratrig_ratpack_pin}`);
 			result.push(`enable_pin: ${pins.ratrig_ratpack_enable_pin}`);
 			return result.join('\n');
