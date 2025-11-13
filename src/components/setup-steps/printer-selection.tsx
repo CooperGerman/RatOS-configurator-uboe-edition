@@ -29,6 +29,8 @@ import {
 	StandstillStealthState,
 	StealthchopState,
 	ChamberLightingState,
+	ChamberAirFilterState,
+	ToolheadAlignmentSystemState,
 } from '@/hooks/usePrinterConfiguration';
 import { AnimatedContainer } from '@/components/common/animated-container';
 import { getLogger } from '@/app/_helpers/logger';
@@ -183,6 +185,32 @@ export const PrinterSelection: React.FC<StepScreenProps> = (props) => {
 						}
 					} else {
 						reset(ChamberLightingState);
+					}
+					if (printer.defaults.chamberAirFilter != null) {
+						const chamberAirFilterOptions = (await import('@/data/accessories')).chamberAirFilterOptions;
+						const options = chamberAirFilterOptions();
+						const defaultChamberAirFilter = options.find((a) => a.id === printer.defaults.chamberAirFilter);
+						if (defaultChamberAirFilter) {
+							set(ChamberAirFilterState, defaultChamberAirFilter);
+						} else {
+							reset(ChamberAirFilterState);
+						}
+					} else {
+						reset(ChamberAirFilterState);
+					}
+					if (printer.defaults.toolheadAlignmentSystem != null) {
+						const toolheadAlignmentSystemOptions = (await import('@/data/accessories')).toolheadAlignmentSystemOptions;
+						const options = toolheadAlignmentSystemOptions();
+						const defaultToolheadAlignmentSystem = options.find(
+							(a) => a.id === printer.defaults.toolheadAlignmentSystem,
+						);
+						if (defaultToolheadAlignmentSystem) {
+							set(ToolheadAlignmentSystemState, defaultToolheadAlignmentSystem);
+						} else {
+							reset(ToolheadAlignmentSystemState);
+						}
+					} else {
+						reset(ToolheadAlignmentSystemState);
 					}
 				} else {
 					if (oldToolheads.length > printer.defaults.toolheads.length) {
