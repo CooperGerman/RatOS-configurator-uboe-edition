@@ -14,7 +14,7 @@ import {
 	ToolheadAlignmentSystem,
 	ChamberAirFilter,
 } from '@/zods/hardware';
-import { constants, existsSync, readFileSync } from 'fs';
+import { constants, existsSync, readFileSync, mkdirSync } from 'fs';
 import { PrinterDefinition, PrinterDefinitionWithResolvedToolheads } from '@/zods/printer';
 import {
 	PartialPrinterConfiguration,
@@ -430,11 +430,11 @@ export const getFilesToWrite = async (
 					path.join(environment.KLIPPER_CONFIG_PATH, fileWithExists.fileName),
 					'utf-8',
 				);
-				if (existsSync(path.join(environment.RATOS_DATA_DIR, `last-${fileWithExists.fileName}`))) {
-					fileWithExists.lastSavedContent = readFileSync(
-						path.join(environment.RATOS_DATA_DIR, `last-${fileWithExists.fileName}`),
-						'utf-8',
-					);
+				// Sanitize fileName for last-saved tracking (replace path separators with underscores)
+				const sanitizedFileName = fileWithExists.fileName.replace(/\//g, '_');
+				const lastSavedFilePath = path.join(environment.RATOS_DATA_DIR, `last-${sanitizedFileName}`);
+				if (existsSync(lastSavedFilePath)) {
+					fileWithExists.lastSavedContent = readFileSync(lastSavedFilePath, 'utf-8');
 				}
 			}
 			return fileWithExists;
@@ -454,7 +454,9 @@ const generateKlipperConfiguration = async <T extends boolean>(
 		filesToWrite.map(async (file) => {
 			let action: FileAction = 'created';
 			let finalPath = path.join(environment.KLIPPER_CONFIG_PATH, file.fileName);
-			let lastSavedPath = path.join(environment.RATOS_DATA_DIR, `last-${file.fileName}`);
+			// Sanitize fileName for last-saved tracking (replace path separators with underscores)
+			const sanitizedFileName = file.fileName.replace(/\//g, '_');
+			let lastSavedPath = path.join(environment.RATOS_DATA_DIR, `last-${sanitizedFileName}`);
 			try {
 				await access(finalPath, constants.F_OK);
 				// At this point we know the file exists.
@@ -463,15 +465,15 @@ const generateKlipperConfiguration = async <T extends boolean>(
 						return { fileName: file.fileName, action: 'unchanged' };
 					}
 					// Make a back up.
-					const backupFilename = `${file.fileName.split('.').slice(0, -1).join('.')}-${getTimeStamp()}.cfg`;
+					const fileExt = path.extname(file.fileName);
+					const baseFileName = path.basename(file.fileName, fileExt);
+					const fileDir = path.dirname(file.fileName);
+					const backupFilename = path.join(fileDir, `${baseFileName}-${getTimeStamp()}${fileExt}`);
 					try {
 						await copyFile(finalPath, path.join(environment.KLIPPER_CONFIG_PATH, backupFilename));
 						// prune backups
 						const backups = await glob(
-							path.join(
-								environment.KLIPPER_CONFIG_PATH,
-								`${file.fileName.split('.').slice(0, -1).join('.')}-+([0-9])_+([0-9]).cfg`,
-							),
+							path.join(environment.KLIPPER_CONFIG_PATH, fileDir, `${baseFileName}-+([0-9])_+([0-9])${fileExt}`),
 						);
 						if (backups.length > 0) {
 							const sortedBackups = backups.sort((a, b) => {
@@ -511,6 +513,15 @@ const generateKlipperConfiguration = async <T extends boolean>(
 			try {
 				if (skipFiles?.includes(file.fileName)) {
 					return { fileName: file.fileName, action: 'skipped' };
+				}
+				// Ensure directories exist
+				const finalDir = path.dirname(finalPath);
+				const lastSavedDir = path.dirname(lastSavedPath);
+				if (!existsSync(finalDir)) {
+					mkdirSync(finalDir, { recursive: true });
+				}
+				if (!existsSync(lastSavedDir)) {
+					mkdirSync(lastSavedDir, { recursive: true });
 				}
 				await writeFile(finalPath, file.content);
 				await writeFile(lastSavedPath, file.content);
