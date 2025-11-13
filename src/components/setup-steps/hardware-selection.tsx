@@ -162,7 +162,7 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 								/>
 							</div>
 						)}
-						{selectedBoard?.hasRatRigVaocPins && (
+						{selectedBoard?.hasRatRigVaocPins && (serializedPrinterConfiguration?.toolheads?.length ?? 0) > 1 && (
 							<div>
 								<DropdownWithPrinterQuery
 									label="Toolhead Alignment System"
