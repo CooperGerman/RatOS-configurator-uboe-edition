@@ -411,7 +411,7 @@ export const constructKlipperConfigExtrasGenerator = (
 				})
 				.join('\n');
 		},
-		generateRatRigVaocIncludes() {
+		generateRatRigVaocHardwareIncludes() {
 			const result: string[] = [];
 			utils.requireControlboardPin('ratrig_vaoc_probe_pin');
 			utils.requireControlboardPin('ratrig_vaoc_led_pin');
@@ -423,6 +423,13 @@ export const constructKlipperConfigExtrasGenerator = (
 				content: updatedCrowsnestContent,
 				overwrite: false,
 			});
+			// Emit VAOC include
+			result.push(`# Rat Rig VAOC`);
+			result.push(`[include RatOS/extras/ratrig-vaoc.cfg]`);
+			return result.join('\n');
+		},
+		generateRatRigVaocConfigHelperIncludes() {
+			const result: string[] = [];
 			// If overwrite is requested (or overwrite details are not available), reset dc-endstop.cfg.
 			// Otherwise, use the existing content or the default content if the file does not exist.
 			const dcEndstopCfgFileName = 'ratos_generated/dc-endstop.cfg';
@@ -444,11 +451,17 @@ export const constructKlipperConfigExtrasGenerator = (
 				content: adjustYMaxContent,
 				overwrite: forceAdjustYMaxDefault,
 			});
-			// Emit VAOC include
-			result.push(`# Rat Rig VAOC`);
-			result.push(`[include RatOS/extras/ratrig-vaoc.cfg]`);
-			result.push(`[include ratos_generated/dc-endstop.cfg]`);
-			result.push(`[include ratos_generated/adjust-y-max.cfg]`);
+			result.push(
+				'########################################',
+				`# Configuration Helpers for Rat Rig VAOC`,
+				`########################################`,
+				'#',
+				'# These includes must come after any user-defined stepper sections',
+				'# to ensure that overrides work correctly.',
+				'#',
+				'[include ratos_generated/dc-endstop.cfg]   # Managed by CONFIGURE_DC_ENDSTOP macro',
+				'[include ratos_generated/adjust-y-max.cfg] # Managed by INCREASE_Y_MAX macro',
+			);
 			return result.join('\n');
 		},
 		addReminder(reminder: string) {
@@ -1171,13 +1184,23 @@ export const constructKlipperConfigHelpers = async (
 			result.push(`initial_WHITE: 0.5`);
 			return result.join('\n');
 		},
-		renderToolheadAlignmentSystem() {
+		renderToolheadAlignmentSystemHardware() {
+			// This section is typically be emitted in RatOS.cfg (but only for IDEX printers)
 			const result: string[] = [];
 			if (config.toolheadAlignmentSystem.id !== 'ratRigVaoc') {
 				result.push('# Toolhead alignment system not installed');
 				return result.join('\n');
 			}
-			return extrasGenerator.generateRatRigVaocIncludes();
+			return extrasGenerator.generateRatRigVaocHardwareIncludes();
+		},
+		renderToolheadAlignmentSystemConfigHelpers() {
+			// This section is typically be emitted near the end of printer.cfg, after an user stepper sections (but only for IDEX printers)
+			const result: string[] = [];
+			if (config.toolheadAlignmentSystem.id !== 'ratRigVaoc') {
+				result.push('# Toolhead alignment system not installed');
+				return result.join('\n');
+			}
+			return extrasGenerator.generateRatRigVaocConfigHelperIncludes();
 		},
 		renderChamberAirFilter() {
 			const result: string[] = [];
