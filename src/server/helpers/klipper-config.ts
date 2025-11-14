@@ -36,6 +36,7 @@ import {
 	getUpdatedCrowsnestConfigurationForVaoc,
 	VAOCControlPoints,
 	getDcEndstopConfigurationFileContent,
+	getAdjustYMaxConfigurationFileContent,
 } from '@/server/helpers/config-generation/ratrig-vaoc';
 
 type WritableFiles = { fileName: string; content: string; overwrite: boolean; order?: number }[];
@@ -423,7 +424,7 @@ export const constructKlipperConfigExtrasGenerator = (
 				overwrite: false,
 			});
 			// If overwrite is requested (or overwrite details are not available), reset dc-endstop.cfg.
-			// Otherwise, use the existing content or the default conetent if the file does not exist.
+			// Otherwise, use the existing content or the default content if the file does not exist.
 			const dcEndstopCfgFileName = 'ratos_generated/dc-endstop.cfg';
 			const forceDcEndstopDefault =
 				(overwriteFiles?.includes(dcEndstopCfgFileName) || overwriteFiles?.includes('*')) ?? true;
@@ -433,10 +434,21 @@ export const constructKlipperConfigExtrasGenerator = (
 				content: dcEndstopContent,
 				overwrite: forceDcEndstopDefault,
 			});
+			// Ditto, for adjust-y-max.cfg.
+			const adjustYMaxCfgFileName = 'ratos_generated/adjust-y-max.cfg';
+			const forceAdjustYMaxDefault =
+				(overwriteFiles?.includes(adjustYMaxCfgFileName) || overwriteFiles?.includes('*')) ?? true;
+			const adjustYMaxContent = getAdjustYMaxConfigurationFileContent(forceAdjustYMaxDefault, adjustYMaxCfgFileName);
+			this.addFileToRender({
+				fileName: adjustYMaxCfgFileName,
+				content: adjustYMaxContent,
+				overwrite: forceAdjustYMaxDefault,
+			});
 			// Emit VAOC include
 			result.push(`# Rat Rig VAOC`);
 			result.push(`[include RatOS/extras/ratrig-vaoc.cfg]`);
 			result.push(`[include ratos_generated/dc-endstop.cfg]`);
+			result.push(`[include ratos_generated/adjust-y-max.cfg]`);
 			return result.join('\n');
 		},
 		addReminder(reminder: string) {
