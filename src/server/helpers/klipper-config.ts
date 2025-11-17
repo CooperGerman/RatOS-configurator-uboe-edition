@@ -72,6 +72,7 @@ export const constructKlipperConfigUtils = async (config: PrinterConfiguration) 
 					cbPins as PinMapZodFromBoard<false, false>,
 					config.printer,
 					config.size,
+					config.toolheads.length > 1,
 				);
 			}
 			return await ToolheadGenerator.fromConfig(
@@ -79,6 +80,7 @@ export const constructKlipperConfigUtils = async (config: PrinterConfiguration) 
 				cbPins as PinMapZodFromBoard<false, true>,
 				config.printer,
 				config.size,
+				config.toolheads.length > 1,
 			);
 		}),
 	);
@@ -486,10 +488,9 @@ export const constructKlipperConfigHelpers = async (
 	return {
 		renderToolboards() {
 			const toolheads = utils.getToolheads();
-			const multipleToolheads = toolheads.length > 1;
 			return toolheads
 				.map((th) => {
-					return th.renderToolboard(multipleToolheads, this.renderBoardPinAlias);
+					return th.renderToolboard(this.renderBoardPinAlias);
 				})
 				.join('\n');
 		},

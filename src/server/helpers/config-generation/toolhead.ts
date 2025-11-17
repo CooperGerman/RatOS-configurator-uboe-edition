@@ -23,16 +23,21 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 	private controlboardPins?: PinMapZodFromBoard<false, IsToolboard>;
 	private printer: PrinterConfiguration['printer'];
 	private size: PrinterConfiguration['size'];
+	private _printerHasMultipleToolheads: boolean;
+	public get printerHasMultipleToolheads() {
+		return this._printerHasMultipleToolheads;
+	}
 	public static async fromConfig<IT extends boolean>(
 		config: ToolheadConfiguration<IT>,
 		controlPins: PinMapZodFromBoard<false, IT>,
 		printer: PrinterConfiguration['printer'],
 		size: PrinterConfiguration['size'],
+		printerHasMultipleToolheads: boolean = false,
 	): Promise<ToolheadGenerator<IT>> {
 		const toolboardPins: PinMapZodFromBoard<IT, false> | null = config.toolboard
 			? await parseBoardPinConfig<IT, false>(config.toolboard)
 			: null;
-		return new ToolheadGenerator<IT>(config, toolboardPins, controlPins, printer, size);
+		return new ToolheadGenerator<IT>(config, toolboardPins, controlPins, printer, size, printerHasMultipleToolheads);
 	}
 	constructor(
 		toolhead: ToolheadConfiguration<IsToolboard>,
@@ -40,12 +45,14 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		controlboardPins: PinMapZodFromBoard<false, IsToolboard>,
 		printer: PrinterConfiguration['printer'],
 		size: PrinterConfiguration['size'],
+		printerHasMultipleToolheads: boolean = false,
 	) {
 		super(toolhead);
 		this.toolboardPins = toolboardPins;
 		this.controlboardPins = controlboardPins;
 		this.printer = printer;
 		this.size = size;
+		this._printerHasMultipleToolheads = printerHasMultipleToolheads;
 	}
 	public requireControlboardPin(pin: keyof ControlPins<false>) {
 		if (this.controlboardPins?.[pin] == null) {
@@ -196,7 +203,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		}
 		return false;
 	}
-	public renderToolboard(multipleToolheads: boolean = false, exportPinsFn?: RenderPinsFn) {
+	public renderToolboard(exportPinsFn?: RenderPinsFn) {
 		const pins = this.toolboardPins;
 		const toolboard = this.config.toolboard;
 		if (toolboard == null || pins == null) {
@@ -215,7 +222,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		if (toolboard.hasMcuTempSensor) {
 			result.push(''); // Add a newline for readability.
 			result.push(
-				`[temperature_sensor ${toolboard.name.replace(/\s/g, '_')}${multipleToolheads ? `_${this.getToolCommand()}` : ''}]`,
+				`[temperature_sensor ${toolboard.name.replace(/\s/g, '_')}${this.printerHasMultipleToolheads ? `_${this.getToolCommand()}` : ''}]`,
 			);
 			result.push(`sensor_type: temperature_mcu`);
 			result.push(`sensor_mcu: ${this.getToolboardName()}`);
@@ -267,7 +274,9 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		if (toolboard.outputPins != null) {
 			toolboard.outputPins.forEach((pindef) => {
 				result.push(''); // Add a newline for readability.
-				result.push(`[output_pin ${pindef.name}${multipleToolheads ? `_${this.getShortToolName()}` : ''}]`);
+				result.push(
+					`[output_pin ${pindef.name}${this.printerHasMultipleToolheads ? `_${this.getShortToolName()}` : ''}]`,
+				);
 				result.push(`pin: ${this.isToolboardPinInverted(pindef.pin) ? '!' : ''}${this.getPinPrefix()}${pindef.pin}`);
 				result.push(`value: ${pindef.value}`);
 				if (pindef.shutdownValue) {
@@ -281,7 +290,7 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 					return;
 				}
 				const section = toolboard.customSections[sectionName];
-				const isPerToolhead = section.isPerToolhead && multipleToolheads;
+				const isPerToolhead = section.isPerToolhead && this.printerHasMultipleToolheads;
 				if (isPerToolhead && section.name == null) {
 					throw new Error(`Name is required in per-toolhead custom section "${sectionName}"`);
 				}
