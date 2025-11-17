@@ -51,6 +51,25 @@ export const Probe = hardwareType.extend({
 	title: z.string(),
 });
 
+export const FilamentSensor = hardwareType.extend({
+	type: z.literal('filament-sensor'),
+	name: z.string(),
+	description: z.string(),
+	manufacturer: z.string(),
+	hasButton: z.boolean().default(false),
+	additionalRequiredPins: z.array(z.string()).optional(),
+	template: z.string(),
+	templateProperties: z.record(z.unknown()).optional(),
+	badge: z
+		.array(
+			z.object({
+				children: z.string(),
+				color: badgeColorOptions,
+			}),
+		)
+		.optional(),
+});
+
 export const Endstop = z.object({
 	id: z.enum(['endstop', 'endstop-toolboard', 'sensorless']),
 	title: z.string(),
