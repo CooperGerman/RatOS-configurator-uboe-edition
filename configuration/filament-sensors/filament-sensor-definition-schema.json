@@ -27,6 +27,16 @@
 			"type": "boolean",
 			"default": false
 		},
+		"sensePinAlias": {
+			"description": "The pin alias for the filament sensor sense pin. Default is 'filament_sensor_sense_pin'.",
+			"type": "string",
+			"default": "filament_sensor_sense_pin"
+		},
+		"buttonPinAlias": {
+			"description": "The pin alias for the filament sensor button pin. Default is 'filament_sensor_button_pin'.",
+			"type": "string",
+			"default": "filament_sensor_button_pin"
+		},
 		"additionalRequiredPins": {
 			"description": "Additional pin aliases required by this filament sensor. Note that filament_sensor_sense_pin is always required, and filament_sensor_button_pin is required if hasButton is true.",
 			"type": "array",

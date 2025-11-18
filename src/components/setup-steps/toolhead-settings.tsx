@@ -141,6 +141,10 @@ export const ToolheadSettings: React.FC<ToolheadSettingsProps> = (props) => {
 						value={toolhead.getProbe()}
 					/>
 				</div>
+				<div>
+					{ // TODO: DropdownWithPrinterQuery for filament sensors here! 
+					}
+				</div>
 			</CardContent>
 			<CardContent className="grid grid-cols-1 gap-4 border-b border-border @sm:grid-cols-2">
 				<div>

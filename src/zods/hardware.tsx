@@ -57,6 +57,8 @@ export const FilamentSensor = hardwareType.extend({
 	description: z.string(),
 	manufacturer: z.string(),
 	hasButton: z.boolean().default(false),
+	sensePinAlias: z.string().default('filament_sensor_sense_pin'),
+	buttonPinAlias: z.string().default('filament_sensor_button_pin'),
 	additionalRequiredPins: z.array(z.string()).optional(),
 	template: z.string(),
 	templateProperties: z.record(z.unknown()).optional(),
