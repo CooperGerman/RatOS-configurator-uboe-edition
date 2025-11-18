@@ -202,6 +202,23 @@ describe('server', async () => {
 			);
 		});
 	});
+
+	describe('printer schema validation', async () => {
+		test.concurrent('rejects template with directory traversal (..)', async () => {
+			const p = { ...parsedPrinters[0], template: '../evil-printer-printer.template.cfg' };
+			expect(() => PrinterDefinition.parse(p)).toThrow(/Invalid template filename/);
+		});
+
+		test.concurrent('rejects absolute template paths', async () => {
+			const p = { ...parsedPrinters[0], template: '/etc/passwd-printer.template.cfg' };
+			expect(() => PrinterDefinition.parse(p)).toThrow(/Invalid template filename/);
+		});
+
+		test.concurrent('accepts normal relative template paths', async () => {
+			const p = { ...parsedPrinters[0], template: 'v-core-200-printer.template.cfg' };
+			expect(PrinterDefinition.parse(p).template).toEqual(p.template);
+		});
+	});
 	describe('regression tests', async () => {
 		describe('can generate a default v-core config', async () => {
 			const vCoreConfigPath = path.join(__dirname, 'fixtures', 'v-core-200.json');

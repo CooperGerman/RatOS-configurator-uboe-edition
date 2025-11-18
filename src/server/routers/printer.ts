@@ -400,9 +400,8 @@ export const getFilesToWrite = async (
 	const extrasGenerator = constructKlipperConfigExtrasGenerator(config, utils, overwriteFiles);
 	const helper = await constructKlipperConfigHelpers(config, extrasGenerator, utils);
 	const environment = serverSchema.parse(process.env);
-	const { template, initialPrinterCfg } = await import(
-		`../../templates/${config.printer.template.replace('-printer.template.cfg', '.ts')}`
-	);
+	const templateFilename = config.printer.template.replace('-printer.template.cfg', '.ts');
+	const { template, initialPrinterCfg } = await import(`../../templates/printers/${templateFilename}`);
 	const renderedTemplate = template(config, helper).trim();
 	const renderedPrinterCfg = await portModifications(
 		path.join(environment.KLIPPER_CONFIG_PATH, 'printer.cfg'),

@@ -48,7 +48,12 @@ export const PrinterDefinition = z
 		documentationLink: z.string().describe('Link to the RatOS documentation for this printer'),
 		image: z.string().describe('Link to an image of the printer'),
 		sizes: z.record(z.string(), PrinterSizeDefinition).describe('Size options for this printer'),
-		template: z.string().describe('Printer.cfg template for this printer'),
+		template: z
+			.string()
+			.describe('printer.ts template for this printer. The path is relative to /src/templates/printers')
+			.refine((val) => !val.includes('..') && !path.isAbsolute(val), {
+				message: 'Invalid template filename: must be a relative path without .. segments',
+			}),
 		path: z.string().startsWith(startsWithServerValidation),
 		driverCountRequired: z.number().describe('Number of drivers required for this printer'),
 		kinematics: z

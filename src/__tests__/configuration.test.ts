@@ -419,7 +419,7 @@ describe('configuration', async () => {
 			expect(
 				fs.existsSync(
 					path.resolve(
-						path.join(__dirname, `../templates/${printer.template.replace('-printer.template.cfg', '.ts')}`),
+						path.join(__dirname, `../templates/printers/${printer.template.replace('-printer.template.cfg', '.ts')}`),
 					),
 				),
 			).toBeTruthy();
