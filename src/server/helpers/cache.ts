@@ -1,11 +1,11 @@
 import NodeCache from 'node-cache';
 import { BoardWithDetectionStatus } from '@/zods/boards';
-import { CFGDirectories } from '@/server/routers/printer';
+import { MetaDirectories } from '@/server/routers/printer';
 import { Extruder } from '@/zods/hardware';
 import { ZodType, z } from 'zod';
 
 type ServerCacheValue = {
-	[K in CFGDirectories]: unknown;
+	[K in MetaDirectories]: unknown;
 } & {
 	boards: BoardWithDetectionStatus[];
 };
@@ -22,7 +22,7 @@ const serverCachePromiseLookup = new Map<string, Promise<any>>();
 
 export const cacheAsyncDirectoryFn = <
 	R extends ZodType,
-	K extends CFGDirectories,
+	K extends MetaDirectories,
 	T extends (directory: K, zod: R) => Promise<z.TypeOf<R>>,
 >(
 	fn: T,
@@ -35,7 +35,6 @@ export const cacheAsyncDirectoryFn = <
 			if (promise == null) {
 				promise = fn(directory, zod) as Promise<z.TypeOf<R>[]>;
 				serverCachePromiseLookup.set(`${directory}`, promise);
-			} else {
 			}
 			const val = await promise;
 			cache.set(`${directory}`, val);

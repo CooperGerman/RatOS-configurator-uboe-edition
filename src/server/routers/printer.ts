@@ -71,31 +71,71 @@ function isNodeError(error: any): error is NodeJS.ErrnoException {
 }
 
 type FileAction = 'created' | 'overwritten' | 'skipped' | 'error' | 'unchanged';
-export type CFGDirectories = 'hotends' | 'extruders' | 'z-probe';
 
-export const parseDirectory = cacheAsyncDirectoryFn(async <T extends z.ZodType>(directory: CFGDirectories, zod: T) => {
+const CFG_META_DIRS = ['hotends', 'extruders', 'z-probe'] as const;
+const JSON_META_DIRS = ['filament-sensors'] as const;
+
+export type CfgMetaDirectories = (typeof CFG_META_DIRS)[number];
+export type JsonMetaDirectories = (typeof JSON_META_DIRS)[number];
+export type MetaDirectories = CfgMetaDirectories | JsonMetaDirectories;
+
+function isCfgMetaDirectory(directory: MetaDirectories): directory is CfgMetaDirectories {
+	return (CFG_META_DIRS as readonly string[]).includes(directory);
+}
+
+export const parseDirectory = cacheAsyncDirectoryFn(async <T extends z.ZodType>(directory: MetaDirectories, zod: T) => {
 	const cached = ServerCache.get(directory);
 	if (cached != null) {
 		return z.array(zod).parse(cached);
 	}
-	const defs = await glob(`${process.env.RATOS_CONFIGURATION_PATH}/${directory}/*.cfg`);
-	const res = (
-		await Promise.all(
-			defs
-				.map((f) => f.trim())
-				.filter((f) => f !== '')
-				.map(async (f) => {
-					const parsedFile = await parseMetadata(f, zod);
-					if (parsedFile == null) {
-						getLogger().warn(`No metadata present in ${f} skipping..`);
-						return null;
-					}
-					return parsedFile;
-				}),
-		)
-	).filter((f): f is z.TypeOf<T> => f != null);
-	ServerCache.set(directory, res);
-	return res;
+	if (isCfgMetaDirectory(directory)) {
+		const defs = await glob(`${process.env.RATOS_CONFIGURATION_PATH}/${directory}/*.cfg`);
+		const res = (
+			await Promise.all(
+				defs
+					.map((f) => f.trim())
+					.filter((f) => f !== '')
+					.map(async (f) => {
+						const parsedFile = await parseMetadata(f, zod);
+						if (parsedFile == null) {
+							getLogger().warn(`No metadata present in ${f} skipping..`);
+							return null;
+						}
+						return parsedFile;
+					}),
+			)
+		).filter((f): f is z.TypeOf<T> => f != null);
+		ServerCache.set(directory, res);
+		return res;
+	} else {
+		// JSON directories (simple JSON metadata files instead of config metadata blocks)
+		const defs = await glob(`${process.env.RATOS_CONFIGURATION_PATH}/${directory}/*.json`);
+		const res = (
+			await Promise.all(
+				defs
+					.map((f) => f.trim())
+					.filter((f) => f !== '')
+					.map(async (f) => {
+						try {
+							const file = (await readFile(f)).toString();
+							const parsed = JSON.parse(file);
+							parsed.path = f;
+							parsed.id = path.basename(f).replace(/\.json$/g, '');
+							return zod.parse(parsed);
+						} catch (e) {
+							if (e instanceof Error) {
+								getLogger().error(e.message);
+							}
+							throw new Error(
+								`Failed to parse JSON metadata in ${f}${e && typeof e === 'object' && 'message' in e ? ':' + e.message : ''}`,
+							);
+						}
+					}),
+			)
+		).filter((f): f is z.TypeOf<T> => f != null);
+		ServerCache.set(directory, res);
+		return res;
+	}
 }, ServerCache);
 
 const serializedPartialConfigFromPrinterDefinition = (def: PrinterDefinition) => {
