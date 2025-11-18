@@ -17,6 +17,7 @@ import { PrinterConfiguration } from '@/zods/printer-configuration';
 import type { RenderPinsFn } from '@/server/helpers/klipper-config';
 import { getLogger } from '@/server/helpers/logger';
 import { Board } from '@/zods/boards';
+import { from } from 'rxjs';
 
 export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelper<IsToolboard> {
 	private toolboardPins: PinMapZodFromBoard<IsToolboard, false> | null;
@@ -622,6 +623,22 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 			result.push(`max_power: ${vc.value}`);
 		}
 		return result.join('\n');
+	}
+	public async renderFilamentSensorAsync() {
+		const sensor = this.getFilamentSensor();
+		if (sensor == null) {
+			return null;
+		}
+		// Load the template dynamically based on the sensor's template property
+		const templatePath = `@/templates/filament-sensors/${sensor.template}`;
+		try {
+			const { template } = await import(templatePath);
+			// Allow template to be sync or async
+			return (await Promise.resolve(template(this))).trim();
+		} catch (error) {
+			getLogger().error(`Failed to load filament sensor template from ${templatePath}:`, error);
+			throw new Error(`Failed to render filament sensor template for ${sensor.id}: ${error}`);
+		}
 	}
 	renderToolheadMacro() {
 		const endstopSafetyMargin = 2;

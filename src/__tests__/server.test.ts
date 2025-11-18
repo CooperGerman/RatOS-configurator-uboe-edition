@@ -245,6 +245,19 @@ describe('server', async () => {
 				}
 			});
 		});
+		describe('can generate config with filament sensor', async () => {
+			const vCoreWithSensorConfigPath = path.join(__dirname, 'fixtures', 'v-core-200-with-filament-sensor.json');
+			const { splitRes, annotatedLines, config } = await loadConfig(vCoreWithSensorConfigPath);
+			test('produces valid config', async () => {
+				expectValidConfig(config, splitRes, annotatedLines);
+			});
+			test('does not include filament sensor when pins are not defined', async () => {
+				// Since boards don't have filament_sensor_sense_pin and filament_sensor_button_pin defined yet,
+				// the filament sensor section should NOT be rendered
+				const sensorSection = splitRes.find((l) => l.includes('[filament_switch_sensor'));
+				expect(sensorSection).toBeUndefined();
+			});
+		});
 		describe('can generate idex config', async () => {
 			const idexConfigPath = path.join(__dirname, 'fixtures', 'idex-config.json');
 			const { splitRes, annotatedLines, config } = await loadConfig(idexConfigPath);

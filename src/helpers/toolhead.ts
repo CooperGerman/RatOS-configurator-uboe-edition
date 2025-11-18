@@ -152,6 +152,9 @@ export class ToolheadHelper<IsToolboard extends boolean> {
 	public getProbe() {
 		return this.config.probe;
 	}
+	public getFilamentSensor() {
+		return this.config.filamentSensor;
+	}
 	public getPartFan() {
 		return this.config.partFan;
 	}

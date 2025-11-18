@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { BoardID, Toolboard } from '@/zods/boards';
-import { Hotend, Thermistor, Extruder, Probe, Endstop, Fan, Accelerometer, Nozzle } from '@/zods/hardware';
+import {
+	Hotend,
+	Thermistor,
+	Extruder,
+	Probe,
+	Endstop,
+	Fan,
+	Accelerometer,
+	Nozzle,
+	FilamentSensor,
+} from '@/zods/hardware';
 import { PrinterAxis } from '@/zods/motion';
 import { getDefaultNozzle } from '@/data/nozzles';
 
@@ -18,6 +28,7 @@ export const BaseToolheadConfiguration = z
 		yAccelerometer: Accelerometer.optional().nullable(),
 		toolboard: Toolboard.nullable(),
 		probe: Probe.optional(),
+		filamentSensor: FilamentSensor.optional().nullable(),
 		axis: z.literal(PrinterAxis.x).or(z.literal(PrinterAxis.dual_carriage)),
 		description: z.string().optional(),
 		toolNumber: z.number().optional(),
@@ -66,6 +77,7 @@ export const SerializedToolheadConfiguration = BaseToolheadConfiguration.extend(
 	yAccelerometer: Accelerometer.shape.id.optional().nullable(),
 	toolboard: BoardID.optional().nullable(),
 	probe: Probe.shape.id.optional().nullable(),
+	filamentSensor: FilamentSensor.shape.id.optional().nullable(),
 }).strict();
 export const SerializedPartialToolheadConfiguration = SerializedToolheadConfiguration.partial().optional();
 

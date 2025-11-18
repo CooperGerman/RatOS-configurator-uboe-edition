@@ -1,10 +1,6 @@
 import { ToolheadGenerator } from '@/server/helpers/config-generation/toolhead';
 import { z } from 'zod';
 
-// The following 2 lines will go away once toolhead.getFilamentSensor() is implemented
-import { FilamentSensor } from '@/zods/hardware';
-type FilamentSensor = z.infer<typeof FilamentSensor>;
-
 const TemplateProperties = z.object({
 	invertSensePin: z.boolean().default(false),
 	invertButtonPin: z.boolean().default(false),
@@ -13,14 +9,16 @@ const TemplateProperties = z.object({
 });
 
 export const template = (toolhead: ToolheadGenerator<boolean>) => {
-	// TODO: Awaiting toolhead.getFilamentSensor() implementation, then the explicit type can be removed.
-	const sensor: FilamentSensor = toolhead.getFilamentSensor();
+	const sensor = toolhead.getFilamentSensor();
+	if (sensor == null) {
+		throw new Error('Filament sensor is not configured');
+	}
 	const props = TemplateProperties.parse(sensor.templateProperties);
 	const sense = `
 [filament_switch_sensor filament_sensor${toolhead.printerHasMultipleToolheads ? `_${toolhead.getShortToolName()}` : ''}]
 pause_on_runout: False
 event_delay: 1.0
-switch_pin: ${props.invertSensePin ? '!' : ''}${props.pullUpSensePin ? '^' : ''}${toolhead.getPinFromAlias('filament_sensor_sense_pin')}
+switch_pin: ${props.invertSensePin ? '!' : ''}${props.pullUpSensePin ? '^' : ''}${toolhead.getPinFromAlias(sensor.sensePinAlias)}
 runout_gcode:
 	_ON_TOOLHEAD_FILAMENT_SENSOR_RUNOUT TOOLHEAD=${toolhead.getTool()}
 insert_gcode:
@@ -29,10 +27,11 @@ insert_gcode:
 	if (sensor.hasButton) {
 		const button = `
 [gcode_button filament_sensor_button${toolhead.printerHasMultipleToolheads ? `_${toolhead.getShortToolName()}` : ''}]
-pin: ${props.invertButtonPin ? '!' : ''}${props.pullUpButtonPin ? '^' : ''}${toolhead.getPinFromAlias('filament_sensor_button_pin')}
+pin: ${props.invertButtonPin ? '!' : ''}${props.pullUpButtonPin ? '^' : ''}${toolhead.getPinFromAlias(sensor.buttonPinAlias)}
 press_gcode:
 	_ON_FILAMENT_SENSOR_BUTTON_PRESSED TOOLHEAD=${toolhead.getTool()}
 release_gcode:
+	# No action on release
 `;
 		return sense + button;
 	} else {

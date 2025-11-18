@@ -13,6 +13,7 @@ import {
 	ChamberLighting,
 	ToolheadAlignmentSystem,
 	ChamberAirFilter,
+	FilamentSensor,
 } from '@/zods/hardware';
 import { constants, existsSync, readFileSync, mkdirSync } from 'fs';
 import { PrinterDefinition, PrinterDefinitionWithResolvedToolheads } from '@/zods/printer';
@@ -37,7 +38,12 @@ import {
 } from '@/server/helpers/klipper-config';
 import { serverSchema } from '@/env/schema.mjs';
 import { controllerFanOptions, partFanOptions, hotendFanOptions } from '@/data/fans';
-import { chamberAirFilterOptions, chamberLightingOptions, toolheadAlignmentSystemOptions } from '@/data/accessories';
+import {
+	chamberAirFilterOptions,
+	chamberLightingOptions,
+	toolheadAlignmentSystemOptions,
+	filamentSensorOptions,
+} from '@/data/accessories';
 import { getBoards, getToolboards } from '@/server/routers/mcu';
 import { xAccelerometerOptions, yAccelerometerOptions } from '@/data/accelerometers';
 import { glob } from 'glob';
@@ -108,8 +114,11 @@ export const parseDirectory = cacheAsyncDirectoryFn(async <T extends z.ZodType>(
 		ServerCache.set(directory, res);
 		return res;
 	} else {
-		// JSON directories (simple JSON metadata files instead of config metadata blocks)
-		const defs = await glob(`${process.env.RATOS_CONFIGURATION_PATH}/${directory}/*.json`);
+		// JSON directories
+		// - simple JSON metadata files instead of config metadata blocks
+		// - each definition is in a subdir named for the id
+		// - defintions are all named *-defintion.json
+		const defs = await glob(`${process.env.RATOS_CONFIGURATION_PATH}/${directory}/*/*-definition.json`);
 		const res = (
 			await Promise.all(
 				defs
@@ -120,7 +129,7 @@ export const parseDirectory = cacheAsyncDirectoryFn(async <T extends z.ZodType>(
 							const file = (await readFile(f)).toString();
 							const parsed = JSON.parse(file);
 							parsed.path = f;
-							parsed.id = path.basename(f).replace(/\.json$/g, '');
+							parsed.id = path.basename(path.dirname(f));
 							return zod.parse(parsed);
 						} catch (e) {
 							if (e instanceof Error) {
@@ -291,6 +300,13 @@ export const deserializeToolheadConfiguration = async (
 		hotendFan: hotendFanOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
 			(f) => f.id === config.hotendFan,
 		),
+		filamentSensor:
+			(
+				await filamentSensorOptions({ controlboard }, null, {
+					toolboard: toolboard,
+					toolNumber: config?.toolNumber,
+				})
+			).find((s) => s.id === config.filamentSensor) ?? null,
 	} satisfies PartialToolheadConfiguration;
 	return ToolheadConfiguration.parse(res);
 };
@@ -332,6 +348,13 @@ export const deserializePartialToolheadConfiguration = async (
 			{ controlboard },
 			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
 		).find((f) => f.id === config?.hotendFan),
+		filamentSensor:
+			(
+				await filamentSensorOptions({ controlboard }, null, {
+					toolboard: toolboard,
+					toolNumber: config?.toolNumber,
+				})
+			).find((s) => s.id === config?.filamentSensor) ?? null,
 	} satisfies PartialToolheadConfiguration);
 };
 
@@ -442,10 +465,12 @@ export const getFilesToWrite = async (
 	const environment = serverSchema.parse(process.env);
 	const templateFilename = config.printer.template.replace('-printer.template.cfg', '.ts');
 	const { template, initialPrinterCfg } = await import(`../../templates/printers/${templateFilename}`);
-	const renderedTemplate = template(config, helper).trim();
+	// Allow template to be sync or async
+	const renderedTemplate = (await Promise.resolve(template(config, helper))).trim();
 	const renderedPrinterCfg = await portModifications(
 		path.join(environment.KLIPPER_CONFIG_PATH, 'printer.cfg'),
-		initialPrinterCfg(config, helper).trim(),
+		// Allow initialPrinterCfg to be sync or async
+		(await Promise.resolve(initialPrinterCfg(config, helper))).trim(),
 	);
 	const extras: FilesToWrite = extrasGenerator.getFilesToWrite();
 	return [
@@ -1005,6 +1030,20 @@ export const printerRouter = router({
 				(await getToolhead(ctx.input.config, ctx.input.toolOrAxis))?.getConfig(),
 			),
 		),
+	filamentSensorOptions: publicProcedure
+		.input(
+			z.object({
+				config: SerializedPartialPrinterConfiguration.nullable(),
+				toolOrAxis: ToolOrAxis,
+			}),
+		)
+		.output(z.array(FilamentSensor))
+		.query(async (ctx) =>
+			filamentSensorOptions(
+				await deserializePartialPrinterConfiguration(ctx.input.config ?? {}),
+				typeof ctx.input.toolOrAxis === 'number' ? ctx.input.toolOrAxis : null,
+			),
+		),
 	deserializeToolheadConfiguration: publicProcedure
 		.input(
 			z.object({
@@ -1084,6 +1123,7 @@ type HardwareQueries = Pick<
 	| 'chamberLightingOptions'
 	| 'toolheadAlignmentSystemOptions'
 	| 'chamberAirFilterOptions'
+	| 'filamentSensorOptions'
 >;
 export type DropdownQueryKeys = keyof HardwareQueries;
 export type DropdownQuery<T extends DropdownQueryKeys = DropdownQueryKeys> = QueryLike<(typeof printerRouter)[T]>;

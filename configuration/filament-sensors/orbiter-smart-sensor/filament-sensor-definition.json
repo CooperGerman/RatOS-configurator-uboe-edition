@@ -1,5 +1,6 @@
 {
 	"$schema": "../filament-sensor-definition-schema.json",
+	"type": "filament-sensor",
 	"name": "Orbiter Smart Filament Sensor",
 	"description": "Filament sensor for Orbiter extruders with unload button and tangle detection",
 	"manufacturer": "LDO",

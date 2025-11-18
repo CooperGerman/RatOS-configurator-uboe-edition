@@ -1256,6 +1256,19 @@ export const constructKlipperConfigHelpers = async (
 			result.push(this.renderControllerFan());
 			return result.join('\n');
 		},
+		async renderFilamentSensorsAsync() {
+			const result: string[] = [];
+			// Filament sensors
+			const filamentSensors = (
+				await Promise.all(utils.getToolheads().map((th) => th.renderFilamentSensorAsync()))
+			).filter((s) => s != null);
+			if (filamentSensors.length > 0) {
+				result.push(``);
+				result.push(`# Filament sensors`);
+				result.push(filamentSensors.join('\n'));
+			}
+			return result.join('\n');
+		},
 		renderBoardPinAlias(pinAlias: string, board: Board, toolhead?: Parameters<RenderPinsFn>[2], mcu?: string) {
 			const enabledMap: 'toolboard' | 'controlboard' = board.isToolboard ? 'toolboard' : 'controlboard';
 			const pins = !board.isToolboard ? utils.getControlboardPins() : toolhead?.getToolboardPins();

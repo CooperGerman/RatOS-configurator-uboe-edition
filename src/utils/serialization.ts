@@ -98,6 +98,7 @@ export const serializeToolheadConfiguration = (th: ToolheadConfiguration<any>): 
 		hotendFan: th.hotendFan.id,
 		xAccelerometer: th.xAccelerometer?.id,
 		yAccelerometer: th.yAccelerometer?.id,
+		filamentSensor: th.filamentSensor?.id,
 	};
 };
 
@@ -107,7 +108,10 @@ export const serializePartialToolheadConfiguration = (
 	return th == null
 		? undefined
 		: {
-				...th,
+				axis: th.axis,
+				nozzle: th.nozzle,
+				description: th.description,
+				toolNumber: th.toolNumber,
 				toolboard: th.toolboard?.id,
 				hotend: th.hotend?.id,
 				thermistor: th.thermistor,
@@ -119,6 +123,7 @@ export const serializePartialToolheadConfiguration = (
 				hotendFan: th.hotendFan?.id,
 				xAccelerometer: th.xAccelerometer?.id,
 				yAccelerometer: th.yAccelerometer?.id,
+				filamentSensor: th.filamentSensor?.id,
 			};
 };
 

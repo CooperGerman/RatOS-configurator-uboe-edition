@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { serverSchema } from '@/env/schema.mjs';
 import { PrinterRailDefinition, Stepper } from '@/zods/motion';
 import { badgeColorOptions } from '@/components/common/badge';
+import { PinMap } from '@/zods/boards';
 
 export const thermistors = [
 	'EPCOS 100K B57560G104F',
@@ -21,7 +22,10 @@ if (process.env.RATOS_CONFIGURATION_PATH) {
 	startsWithServerValidation = environment.RATOS_CONFIGURATION_PATH;
 }
 const hardwareType = z.object({
-	path: z.string().startsWith(startsWithServerValidation).endsWith('.cfg'),
+	path: z
+		.string()
+		.startsWith(startsWithServerValidation)
+		.regex(/\.(cfg|json)$/, { message: "Path must end with '.cfg' or '.json'" }),
 	id: z.string(),
 });
 
@@ -57,9 +61,9 @@ export const FilamentSensor = hardwareType.extend({
 	description: z.string(),
 	manufacturer: z.string(),
 	hasButton: z.boolean().default(false),
-	sensePinAlias: z.string().default('filament_sensor_sense_pin'),
-	buttonPinAlias: z.string().default('filament_sensor_button_pin'),
-	additionalRequiredPins: z.array(z.string()).optional(),
+	sensePinAlias: PinMap.keyof().default('filament_sensor_sense_pin'),
+	buttonPinAlias: PinMap.keyof().default('filament_sensor_button_pin'),
+	additionalRequiredPins: z.array(PinMap.keyof()).optional(),
 	template: z.string(),
 	templateProperties: z.record(z.unknown()).optional(),
 	badge: z

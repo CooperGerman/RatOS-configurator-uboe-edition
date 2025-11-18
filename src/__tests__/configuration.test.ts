@@ -5,7 +5,7 @@ import {
 	getPrinters,
 	parseDirectory,
 } from '@/server/routers/printer';
-import { Extruder, Hotend, Probe } from '@/zods/hardware';
+import { Extruder, FilamentSensor, Hotend, Probe } from '@/zods/hardware';
 import { getBoards } from '@/server/routers/mcu';
 import fs from 'fs';
 import path from 'path';
@@ -37,6 +37,7 @@ describe('configuration', async () => {
 	const parsedHotends = await parseDirectory('hotends', Hotend);
 	const parsedExtruders = await parseDirectory('extruders', Extruder);
 	const parsedProbes = await parseDirectory('z-probe', Probe);
+	const parsedFilamentSensors = await parseDirectory('filament-sensors', FilamentSensor);
 	let parsedBoards;
 	try {
 		parsedBoards = await getBoards();
@@ -71,6 +72,31 @@ describe('configuration', async () => {
 	});
 	test.concurrent('has valid z-probe configuration files', async () => {
 		expect(parsedProbes.length).toBeGreaterThan(0);
+	});
+	test.concurrent('has valid filament sensor configuration files', async () => {
+		expect(parsedFilamentSensors.length).toBeGreaterThan(0);
+	});
+	test.concurrent('filament sensors have required properties', async () => {
+		parsedFilamentSensors.forEach((sensor) => {
+			expect(sensor.id).toBeDefined();
+			expect(sensor.type).toBe('filament-sensor');
+			expect(sensor.name).toBeDefined();
+			expect(sensor.description).toBeDefined();
+			expect(sensor.manufacturer).toBeDefined();
+			expect(sensor.template).toBeDefined();
+			expect(typeof sensor.hasButton).toBe('boolean');
+			expect(sensor.sensePinAlias).toBeDefined();
+			expect(sensor.buttonPinAlias).toBeDefined();
+		});
+	});
+	test.concurrent('filament sensor templates exist', async () => {
+		for (const sensor of parsedFilamentSensors) {
+			const templatePath = path.join(__dirname, `../templates/filament-sensors/${sensor.template}`);
+			expect(
+				fs.existsSync(templatePath),
+				`Template file should exist at ${templatePath} for sensor ${sensor.id}`,
+			).toBeTruthy();
+		}
 	});
 	test.concurrent('has valid board configuration files', async () => {
 		expect(parsedBoards.length).toBeGreaterThan(0);
@@ -384,6 +410,7 @@ describe('configuration', async () => {
 			const defaultHotend = parsedHotends.find((hotend) => hotend.id === toolhead.hotend);
 			const defaultExtruder = parsedExtruders.find((extruder) => extruder.id === toolhead.extruder);
 			const defaultProbe = parsedProbes.find((probe) => probe.id === toolhead.probe);
+			const defaultFilamentSensor = parsedFilamentSensors.find((sensor) => sensor.id === toolhead.filamentSensor);
 			const defaultXEndstop = xEndstopOptions(deserializedConfig, {
 				...deserializedToolheadConfig,
 				axis: deserializedToolheadConfig?.axis ?? PrinterAxis.x,
@@ -398,6 +425,9 @@ describe('configuration', async () => {
 			});
 			test.skipIf(!toolhead.probe).concurrent('has valid probe default', () => {
 				expect(defaultProbe).not.toBeNull();
+			});
+			test.skipIf(!toolhead.filamentSensor).concurrent('has valid filament sensor default', () => {
+				expect(defaultFilamentSensor).not.toBeNull();
 			});
 			test.concurrent('has valid hotend default', () => {
 				expect(defaultHotend).not.toBeNull();
