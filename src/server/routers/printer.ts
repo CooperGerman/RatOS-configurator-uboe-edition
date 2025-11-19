@@ -38,14 +38,11 @@ import {
 } from '@/server/helpers/klipper-config';
 import { serverSchema } from '@/env/schema.mjs';
 import { controllerFanOptions, partFanOptions, hotendFanOptions } from '@/data/fans';
-import {
-	chamberAirFilterOptions,
-	chamberLightingOptions,
-	toolheadAlignmentSystemOptions,
-	filamentSensorOptions,
-} from '@/data/accessories';
+import { chamberAirFilterOptions, chamberLightingOptions, toolheadAlignmentSystemOptions } from '@/data/accessories';
+import { filamentSensorOptions } from '@/data/filament-sensors.server';
 import { getBoards, getToolboards } from '@/server/routers/mcu';
 import { xAccelerometerOptions, yAccelerometerOptions } from '@/data/accelerometers';
+import { hasBeaconAccel } from '@/data/accelerometers.server';
 import { glob } from 'glob';
 import path from 'path';
 import { publicProcedure, router } from '@/server/trpc';
@@ -241,8 +238,9 @@ export const deserializeToolheadConfiguration = async (
 	const extruders = await parseDirectory('extruders', Extruder);
 	const probes = await parseDirectory('z-probe', Probe);
 	const toolboard = toolboards.find((b) => b.id === config.toolboard) ?? null;
-	const xAccels = xAccelerometerOptions({ controlboard }, { toolboard });
-	const yAccels = yAccelerometerOptions({ controlboard }, { toolboard });
+	const hasBeacon = hasBeaconAccel();
+	const xAccels = xAccelerometerOptions({ controlboard }, { toolboard }, hasBeacon);
+	const yAccels = yAccelerometerOptions({ controlboard }, { toolboard }, hasBeacon);
 	const serializedXAccel =
 		xAccels.find((a) => a.id === config.xAccelerometer) ??
 		(toolboard && (toolboard.ADXL345SPI != null || toolboard.LIS2DW)
@@ -323,6 +321,7 @@ export const deserializePartialToolheadConfiguration = async (
 	const extruders = await parseDirectory('extruders', Extruder);
 	const probes = await parseDirectory('z-probe', Probe);
 	const toolboard = toolboards.find((b) => b.id === config?.toolboard);
+	const hasBeacon = hasBeaconAccel();
 	return PartialToolheadConfiguration.parse({
 		...config,
 		toolboard: toolboard ?? null,
@@ -338,8 +337,12 @@ export const deserializePartialToolheadConfiguration = async (
 			{ controlboard },
 			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
 		).find((e) => e.id === config?.yEndstop),
-		xAccelerometer: xAccelerometerOptions({ controlboard }, { toolboard }).find((a) => a.id === config?.xAccelerometer),
-		yAccelerometer: yAccelerometerOptions({ controlboard }, { toolboard }).find((a) => a.id === config?.yAccelerometer),
+		xAccelerometer: xAccelerometerOptions({ controlboard }, { toolboard }, hasBeacon).find(
+			(a) => a.id === config?.xAccelerometer,
+		),
+		yAccelerometer: yAccelerometerOptions({ controlboard }, { toolboard }, hasBeacon).find(
+			(a) => a.id === config?.yAccelerometer,
+		),
 		partFan: partFanOptions(
 			{ controlboard },
 			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
@@ -1014,6 +1017,7 @@ export const printerRouter = router({
 			xAccelerometerOptions(
 				await deserializePartialPrinterConfiguration(ctx.input.config ?? {}),
 				(await getToolhead(ctx.input.config, ctx.input.toolOrAxis))?.getConfig(),
+				hasBeaconAccel(),
 			),
 		),
 	yAccelerometerOptions: publicProcedure
@@ -1028,20 +1032,25 @@ export const printerRouter = router({
 			yAccelerometerOptions(
 				await deserializePartialPrinterConfiguration(ctx.input.config ?? {}),
 				(await getToolhead(ctx.input.config, ctx.input.toolOrAxis))?.getConfig(),
+				hasBeaconAccel(),
 			),
 		),
 	filamentSensorOptions: publicProcedure
 		.input(
 			z.object({
-				config: SerializedPartialPrinterConfiguration.nullable(),
-				toolOrAxis: ToolOrAxis,
+				config: SerializedPartialPrinterConfiguration.optional().nullable(),
+				toolOrAxis: ToolOrAxis.optional().nullable(),
+				toolheadConfig: SerializedPartialToolheadConfiguration.optional().nullable(),
 			}),
 		)
 		.output(z.array(FilamentSensor))
 		.query(async (ctx) =>
 			filamentSensorOptions(
-				await deserializePartialPrinterConfiguration(ctx.input.config ?? {}),
+				ctx.input.config == null ? null : await deserializePartialPrinterConfiguration(ctx.input.config),
 				typeof ctx.input.toolOrAxis === 'number' ? ctx.input.toolOrAxis : null,
+				ctx.input.toolheadConfig == null
+					? null
+					: await deserializePartialToolheadConfiguration(ctx.input.toolheadConfig, ctx.input.config ?? {}),
 			),
 		),
 	deserializeToolheadConfiguration: publicProcedure

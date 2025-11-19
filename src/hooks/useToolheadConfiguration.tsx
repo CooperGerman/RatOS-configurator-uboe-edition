@@ -1,5 +1,7 @@
+'use client';
+
 import { ToolheadHelper } from '@/helpers/toolhead';
-import { deserializeStepper } from '@/utils/serialization';
+import { deserializeStepper, serializePartialToolheadConfiguration } from '@/utils/serialization';
 import { useRecoilCallback, useRecoilValue } from 'recoil';
 import { useMemo, useRef, useState } from 'react';
 import { ControlboardState, PrinterRailState } from '@/recoil/printer';
@@ -8,7 +10,7 @@ import { LoadablePrinterToolheadsState, PrinterToolheadState, PrinterToolheadsSt
 import { BaseToolheadConfiguration, ToolheadConfiguration, ToolNumber, ToolOrAxis } from '@/zods/toolhead';
 import { defaultXEndstop } from '@/data/endstops';
 import { hotendFanOptions, partFanOptions } from '@/data/fans';
-import { filamentSensorOptions } from '@/data/accessories';
+import { trpcClient } from '@/helpers/trpc';
 
 export const useToolhead = (toolOrAxis: ToolOrAxis | PrinterAxis | undefined) => {
 	const toolheadConfigs = useRecoilValue(PrinterToolheadsState);
@@ -102,9 +104,13 @@ export const useToolheadConfiguration = <T extends boolean = true>(
 						th.hotendFan = newFan;
 					}
 					// Reset filament sensor if it's no longer available with the new toolboard (will fall back to controlboard if possible)
-					if (th.filamentSensor != null) {
+					if (th.filamentSensor != null && th.toolNumber != null) {
 						const controlboard = await snapshot.getPromise(ControlboardState);
-						const availableSensors = await filamentSensorOptions(controlboard ? { controlboard } : null, null, th);
+						const availableSensors = await trpcClient.printer.filamentSensorOptions.query({
+							config: controlboard ? { controlboard: controlboard.id } : null,
+							toolheadConfig: serializePartialToolheadConfiguration(th),
+							toolOrAxis: th.toolNumber as ToolNumber,
+						});
 						const stillAvailable = availableSensors.find((s) => s.id === th.filamentSensor?.id);
 						if (stillAvailable == null) {
 							th.filamentSensor = null;
