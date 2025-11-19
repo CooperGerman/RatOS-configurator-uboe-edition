@@ -629,12 +629,14 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 			return null;
 		}
 		// Load the template dynamically based on the sensor's template property
-		const templatePath = `@/templates/filament-sensors/${sensor.template}`;
 		try {
-			const { template } = await import(templatePath);
+			// NOTE: The import argument must be a template literal for webpack to parse it correctly
+			/* webpackInclude: /\.ts$/ */
+			const { template } = await import(`../../../templates/filament-sensors/${sensor.template}`);
 			// Allow template to be sync or async
 			return (await Promise.resolve(template(this))).trim();
 		} catch (error) {
+			const templatePath = `../../../templates/filament-sensors/${sensor.template}`;
 			getLogger().error(`Failed to load filament sensor template from ${templatePath}:`, error);
 			throw new Error(`Failed to render filament sensor template for ${sensor.id}: ${error}`);
 		}
