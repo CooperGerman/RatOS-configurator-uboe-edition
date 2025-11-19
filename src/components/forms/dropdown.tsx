@@ -124,7 +124,13 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 	);
 
 	const options =
-		props.sort == false ? props.options : props.options.slice(0).sort((a, b) => a.title.localeCompare(b.title));
+		props.sort == false
+			? props.options
+			: props.options.slice(0).sort((a: any, b: any) => {
+					const at = (a.title ?? a.name ?? '').toString();
+					const bt = (b.title ?? b.name ?? '').toString();
+					return at.localeCompare(bt);
+				});
 
 	const inputClass = twJoin(
 		props.error && 'ring-red-500 ring-2 text-red-900 placeholder-red-300 dark:text-red-400 dark:placeholder-red-700',
@@ -162,7 +168,9 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 					className={twJoin('w-full justify-between bg-zinc-800 px-2', inputClass)}
 				>
 					<span className="flex min-w-0 flex-1 items-center justify-start gap-2 text-left">
-						<span className="min-w-0 flex-1 items-center truncate">{value?.title ?? 'Pick from the list...'}</span>
+						<span className="min-w-0 flex-1 items-center truncate">
+							{(value as any)?.title ?? (value as any)?.name ?? 'Pick from the list...'}
+						</span>
 						{props.canClear && !props.disabled && (
 							<span
 								onClick={(e) => {
@@ -203,7 +211,9 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 							{options.map((option) => (
 								<CommandItem
 									key={option.id}
-									value={option.title + badgeDescription(option.badge) + option.id}
+									value={
+										((option as any).title ?? (option as any).name ?? '') + badgeDescription(option.badge) + option.id
+									}
 									onSelect={() => {
 										onSelected(option.id);
 										setOpen(false);
@@ -219,7 +229,7 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 										) : (
 											<Badge {...option.badge} color={option.badge.color} size="sm" />
 										))}
-									{option.title}
+									{(option as any).title ?? (option as any).name}
 									<CheckIcon
 										className={cn(
 											'ml-auto h-4 w-4 text-brand-400',
