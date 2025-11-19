@@ -26,17 +26,6 @@ else
   echo "Configuration link already exists: $CONFIG_PATH/RatOS"
 fi
 
-# Create a sensible default for last-printer-settings.json if it doesn't exist
-LAST_FILE="$RATOS_DATA/last-printer-settings.json"
-if [ ! -f "$LAST_FILE" ]; then
-  cat <<EOF > "$LAST_FILE"
-{}
-EOF
-  echo "Created $LAST_FILE"
-else
-  echo "Found existing $LAST_FILE"
-fi
-
 # Generate src/.env.local using project paths to avoid editing .env in repo
 #
 # Klipper/Moonraker hostname handling
