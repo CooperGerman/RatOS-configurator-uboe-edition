@@ -108,10 +108,7 @@ export const serializePartialToolheadConfiguration = (
 	return th == null
 		? undefined
 		: {
-				axis: th.axis,
-				nozzle: th.nozzle,
-				description: th.description,
-				toolNumber: th.toolNumber,
+				...th,
 				toolboard: th.toolboard?.id,
 				hotend: th.hotend?.id,
 				thermistor: th.thermistor,

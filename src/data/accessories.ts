@@ -11,7 +11,7 @@ import { PartialToolheadConfiguration } from '@/zods/toolhead';
  * @param config A partial printer configuration or null. Only a subset is used:
  *               - `controlboard` — the selected control board (used to resolve pins)
  *               - `toolheads` — an array of toolheads (used when toolNumber is supplied)
- * 
+ *
  * @param toolNumber Optional toolhead index to select the toolhead from the printer config.
  *                   If not provided, toolheadConfig must be provided.
  *

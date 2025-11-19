@@ -17,7 +17,6 @@ import { PrinterConfiguration } from '@/zods/printer-configuration';
 import type { RenderPinsFn } from '@/server/helpers/klipper-config';
 import { getLogger } from '@/server/helpers/logger';
 import { Board } from '@/zods/boards';
-import { from } from 'rxjs';
 
 export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelper<IsToolboard> {
 	private toolboardPins: PinMapZodFromBoard<IsToolboard, false> | null;
