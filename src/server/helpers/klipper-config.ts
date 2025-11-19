@@ -1265,7 +1265,7 @@ export const constructKlipperConfigHelpers = async (
 			if (filamentSensors.length > 0) {
 				result.push(``);
 				result.push(`# Filament sensors`);
-				result.push(filamentSensors.join('\n'));
+				result.push(filamentSensors.join('\n\n'));
 			}
 			return result.join('\n');
 		},
