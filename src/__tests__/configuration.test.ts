@@ -80,13 +80,10 @@ describe('configuration', async () => {
 		parsedFilamentSensors.forEach((sensor) => {
 			expect(sensor.id).toBeDefined();
 			expect(sensor.type).toBe('filament-sensor');
-			expect(sensor.name).toBeDefined();
+			expect(sensor.title).toBeDefined();
 			expect(sensor.description).toBeDefined();
 			expect(sensor.manufacturer).toBeDefined();
 			expect(sensor.template).toBeDefined();
-			expect(typeof sensor.hasButton).toBe('boolean');
-			expect(sensor.sensePinAlias).toBeDefined();
-			expect(sensor.buttonPinAlias).toBeDefined();
 		});
 	});
 	test.concurrent('filament sensor templates exist', async () => {

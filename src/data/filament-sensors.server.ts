@@ -1,9 +1,9 @@
-import { z } from 'zod';
 import { FilamentSensor } from '@/zods/hardware';
 import type { PartialPrinterConfiguration } from '@/zods/printer-configuration';
 import { parseDirectory } from '@/server/routers/printer';
 import { parseBoardPinConfig } from '@/server/helpers/metadata';
 import { PartialToolheadConfiguration } from '@/zods/toolhead';
+import { TemplateModule } from '@/templates/template-api';
 
 /**
  * Return valid filament sensor options considering the controlboard and/or toolhead configuration.
@@ -31,7 +31,7 @@ export const filamentSensorOptions = async (
 	config?: PartialPrinterConfiguration | null,
 	toolNumber?: number | null,
 	toolheadConfig?: PartialToolheadConfiguration | null,
-): Promise<z.infer<typeof FilamentSensor>[]> => {
+): Promise<FilamentSensor[]> => {
 	// For a potentially non-empty result, caller must supply either:
 	// - A toolhead index to select the toolhead from the printer config
 	// - A toolhead config directly
@@ -60,19 +60,16 @@ export const filamentSensorOptions = async (
 	}
 
 	const boardPins = hasToolboard ? await parseBoardPinConfig(toolboard) : await parseBoardPinConfig(controlboard!);
-	const allSensors: z.infer<typeof FilamentSensor>[] = await parseDirectory('filament-sensors', FilamentSensor);
+	const allSensors: FilamentSensor[] = await parseDirectory('filament-sensors', FilamentSensor);
+	const validSensors: FilamentSensor[] = [];
 
-	// Only include sensors for which all required pins are present
-	const sensors = allSensors
-		.filter((sensor) => {
-			const requiredPins = sensor.additionalRequiredPins ?? [];
-			requiredPins.push(sensor.sensePinAlias);
-			if (sensor.hasButton) {
-				requiredPins.push(sensor.buttonPinAlias);
-			}
-			return requiredPins.every((pin: string) => (boardPins as Record<string, unknown>)[pin] != null);
-		})
-		.map((sensor) => {
+	for (const sensor of allSensors) {
+		// NOTE: The import argument must be a template literal for webpack to parse it correctly
+		/* webpackInclude: /\.ts$/ */
+		const templateModule = TemplateModule.parse(await import(`../templates/filament-sensors/${sensor.template}`));
+		const requiredPins = templateModule.getRequiredPinAliases({ templateOptions: sensor.templateOptions ?? {} });
+
+		if (requiredPins.every((pin) => boardPins[pin] != null)) {
 			const sensorCopy = { ...sensor };
 			sensorCopy.badge = [
 				hasToolboard
@@ -85,8 +82,9 @@ export const filamentSensorOptions = async (
 							children: controlboard!.name,
 						},
 			];
-			return sensorCopy;
-		});
+			validSensors.push(sensorCopy);
+		}
+	}
 
-	return sensors;
+	return validSensors;
 };

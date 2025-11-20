@@ -253,7 +253,7 @@ describe('server', async () => {
 				expectValidConfig(config, splitRes, annotatedLines);
 			});
 			test('does not include filament sensor when pins are not defined', async () => {
-				// Since boards don't have filament_sensor_sense_pin and filament_sensor_button_pin defined yet,
+				// Since boards don't have filament_sensor_runout_pin and filament_sensor_motion_pin defined yet,
 				// the filament sensor section should NOT be rendered
 				const sensorSection = splitRes.find((l) => l.includes('[filament_switch_sensor'));
 				expect(sensorSection).toBeUndefined();

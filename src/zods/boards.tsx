@@ -88,8 +88,8 @@ export const AllPins = {
 	'4p_controller_board_tach_pin': z.string().optional(),
 	run_led_pin: z.string().optional(),
 	rgb_led_data_pin: z.string().optional(),
-	filament_sensor_sense_pin: z.string().optional(),
-	filament_sensor_button_pin: z.string().optional(),
+	filament_sensor_runout_pin: z.string().optional(),
+	filament_sensor_motion_pin: z.string().optional(),
 	ratrig_vaoc_probe_pin: z.string().optional(),
 	ratrig_vaoc_led_pin: z.string().optional(),
 	ratrig_vaoc_fan_pin: z.string().optional(),
@@ -534,6 +534,7 @@ export type BoardWithDetectionStatus = z.infer<typeof BoardWithDetectionStatus>;
 export type Toolboard = z.infer<typeof Toolboard>;
 export type ToolboardWithDetectionStatus = z.infer<typeof ToolboardWithDetectionStatus>;
 export type AutoFlashableBoard = z.infer<typeof AutoFlashableBoard>;
+export type PinMap = z.infer<typeof PinMap>;
 export type ToolboardPinMap = z.infer<typeof ToolboardPinMap>;
 export type ControlBoardPinMap = z.infer<typeof ControlBoardPinMap>;
 export type ExtruderlessControlBoardPinMap = z.infer<typeof ExtruderlessControlBoardPinMap>;
