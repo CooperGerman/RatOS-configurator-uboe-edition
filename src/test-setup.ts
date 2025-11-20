@@ -1,11 +1,6 @@
-import dotenv from 'dotenv';
-import { existsSync } from 'fs';
+import { vi } from 'vitest';
 
 export const setup = () => {
-	if (existsSync('./.env.test')) {
-		dotenv.config({ path: './.env.test' });
-	}
-	if (existsSync('./.env.test.local')) {
-		dotenv.config({ path: './.env.test.local' });
-	}
+	// Mock server-only imports to avoid errors during tests
+	vi.mock('server-only', () => ({}));
 };
