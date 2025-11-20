@@ -153,6 +153,13 @@ export const PrinterSelection: React.FC<StepScreenProps> = (props) => {
 				const oldToolheads = await snapshot.getPromise(PrinterToolheadsState);
 				const oldRails = await snapshot.getPromise(PrinterRailsState);
 				if (!merge) {
+					// Note: we must reset ControlBoardState before resetting Toolheads, as Toolhead reset
+					// may depend on the controlboard being set correctly (eg, when using available pins from the controlboard
+					// to determine which components are compatible).
+					const defaultBoard = boardQuery.data?.find((b) => b.id === printer.defaults.board);
+					if (defaultBoard != null) {
+						set(ControlboardState, defaultBoard);
+					}
 					oldToolheads.forEach((th) => {
 						reset(PrinterToolheadState(th.toolNumber));
 					});
@@ -165,10 +172,6 @@ export const PrinterSelection: React.FC<StepScreenProps> = (props) => {
 					reset(StandstillStealthState);
 					reset(ControllerFanState);
 					reset(PrinterRailsState);
-					const defaultBoard = boardQuery.data?.find((b) => b.id === printer.defaults.board);
-					if (defaultBoard != null) {
-						set(ControlboardState, defaultBoard);
-					}
 					if (printer.defaults.controllerFan) {
 						set(ControllerFanState, { id: printer.defaults.controllerFan, title: printer.defaults.controllerFan });
 					} else {
