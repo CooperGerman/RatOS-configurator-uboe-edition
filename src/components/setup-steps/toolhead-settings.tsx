@@ -139,6 +139,7 @@ export const ToolheadSettings: React.FC<ToolheadSettingsProps> = (props) => {
 						error={errors?.fieldErrors.probe?.join('\n')}
 						onSelect={(value) => setToolheadField('probe', value ?? undefined)}
 						value={toolhead.getProbe()}
+						nothingSelectedText="None"
 					/>
 				</div>
 				<div>
@@ -151,6 +152,8 @@ export const ToolheadSettings: React.FC<ToolheadSettingsProps> = (props) => {
 						error={errors?.fieldErrors.filamentSensor?.join('\n')}
 						onSelect={(value) => setToolheadField('filamentSensor', value ?? null)}
 						value={toolhead.getFilamentSensor()}
+						nothingSelectedText="None"
+						noOptionsText="No filament sensors are supported by the selected toolboard and/or controlboard."
 					/>
 				</div>
 			</CardContent>
