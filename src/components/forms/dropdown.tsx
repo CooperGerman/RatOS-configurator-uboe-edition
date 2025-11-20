@@ -40,6 +40,8 @@ interface DropdownProps<DropdownOption extends Option = Option, CanClear extends
 	disabled?: boolean;
 	badge?: BadgeProps | BadgeProps[];
 	onShown?: () => void;
+	nothingSelectedText?: string;
+	noOptionsText?: string;
 }
 
 export const OnDropdownOpened: React.FC<{ open: boolean; onShown: () => void }> = ({ open, onShown }) => {
@@ -169,7 +171,7 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 				>
 					<span className="flex min-w-0 flex-1 items-center justify-start gap-2 text-left">
 						<span className="min-w-0 flex-1 items-center truncate">
-							{(value as any)?.title ?? (value as any)?.name ?? 'Pick from the list...'}
+							{(value as any)?.title ?? (value as any)?.name ?? props.nothingSelectedText ?? 'Pick from the list...'}
 						</span>
 						{props.canClear && !props.disabled && (
 							<span
@@ -206,7 +208,7 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 				<Command>
 					<CommandInput placeholder="Search for option..." className="h-9" />
 					<CommandList>
-						<CommandEmpty>No option found.</CommandEmpty>
+						<CommandEmpty>{props.noOptionsText ?? 'No option found.'}</CommandEmpty>
 						<CommandGroup>
 							{options.map((option) => (
 								<CommandItem
