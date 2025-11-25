@@ -2,7 +2,21 @@
 
 import { atom, selector, useRecoilValue, useRecoilState, waitForAll, noWait, DefaultValue } from 'recoil';
 import { z } from 'zod';
-import { ChamberAirFilter, ChamberLighting, Fan, ToolheadAlignmentSystem } from '@/zods/hardware';
+import {
+	Fan,
+	ChamberAirFilter,
+	OptionalChamberAirFilterRef,
+	ChamberLighting,
+	OptionalChamberLightingRef,
+	ToolheadAlignmentSystem,
+	OptionalToolheadAlignmentSystemRef,
+	ChamberLightingSchemas,
+	ToolheadAlignmentSystemSchemas,
+	ChamberAirFilterSchemas,
+	ChamberLightingRef,
+	ToolheadAlignmentSystemRef,
+	ChamberAirFilterRef,
+} from '@/zods/hardware';
 import {
 	PartialPrinterConfiguration,
 	PrinterConfiguration,
@@ -29,7 +43,23 @@ import { defaultControllerFan } from '@/data/fans';
 import { moonrakerWriteEffect } from '@/components/sync-with-moonraker';
 import { getLogger } from '@/app/_helpers/logger';
 import { trpcClient } from '@/helpers/trpc';
-import { defaultChamberAirFilter, defaultChamberLighting, defaultToolheadAlignmentSystem } from '@/data/accessories';
+import { Atom } from 'lucide-react';
+
+/* Message to future devs who are not gurus in this code area:
+ *
+ * Inside atom<...> effects, note that the 'key' used in read() and write() calls
+ * must match the key of the atom or selector being accessed. The moonrakerWriteEffect()
+ * will *always* use the defined key of the atom/selector it's attached to, not whatever
+ * is passed to write(). Even though techincally you don't need to use the same key for
+ * both the recoil and moonraker keys, the automatic behaviour of moonrakerWriteEffect() makes
+ * this effectively mandatory.
+ */
+
+const enum AtomKeys {
+	ChamberLightingRef = 'ChamberLightingRef',
+	ChamberAirFilterRef = 'ChamberAirFilterRef',
+	ToolheadAlignmentSystemRef = 'ToolheadAlignmentSystemRef',
+}
 
 export const PerformanceModeState = atom<boolean | null | undefined>({
 	key: 'PerformanceMode',
@@ -42,138 +72,196 @@ export const PerformanceModeState = atom<boolean | null | undefined>({
 	],
 });
 
-export const ChamberLightingState = atom<z.infer<typeof ChamberLighting> | null | undefined>({
+//-----------------------------------------------------------------------------
+// Chamber Lighting
+//-----------------------------------------------------------------------------
+
+export const ChamberLightingRefState = atom<OptionalChamberLightingRef>({
+	key: AtomKeys.ChamberLightingRef,
+	default: undefined,
+	effects: [
+		moonrakerWriteEffect(),
+		syncEffect({
+			write: ({ write }, newValue) => {
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(AtomKeys.ChamberLightingRef, DefaultValue);
+				} else {
+					const parsed = ChamberLightingRef.safeParse(newValue);
+					if (parsed.success){
+						write(AtomKeys.ChamberLightingRef, parsed.data);
+					} else {
+						getLogger().error(
+							'RecoilSync: tried to write an invalid ChamberLightingRef, will set to default.',
+							parsed.error,
+							newValue,
+						);
+						write(AtomKeys.ChamberLightingRef, DefaultValue);
+					}
+				}
+			},
+			refine: getRefineCheckerForZodSchema(OptionalChamberLightingRef),
+		}),
+	],
+});
+
+export const ChamberLightingState = selector<ChamberLighting | undefined>({
 	key: 'ChamberLighting',
-	default: defaultChamberLighting,
+	get: async ({ get }) => {		
+		const chamberLightingRef = get(ChamberLightingRefState);
+		if (chamberLightingRef == null) {
+			return undefined;
+		}
+		const controlboard = get(ControlboardState);
+		if (controlboard == null) {
+			return undefined;
+		}
+		try {
+			const opts = await trpcClient.printer.chamberLightingOptions.query({
+				config: { controlboard: controlboard.id },
+			});
+			const selectedOption = opts.find((opt) => ChamberLightingSchemas.refEquals(opt, chamberLightingRef));
+			return selectedOption;
+		} catch (error) {
+			getLogger().error('Failed to hydrate ChamberLighting', error);
+			return undefined;
+		}
+	},
+	set: ({ set }, newValue) => {
+		if (newValue instanceof DefaultValue || newValue == null) {
+			set(ChamberLightingRefState, undefined);
+			return;
+		}
+		const newRef = ChamberLightingSchemas.toRef(newValue);
+		set(ChamberLightingRefState, newRef);
+	},
+});
+
+//-----------------------------------------------------------------------------
+// Toolhead Alignment System
+//-----------------------------------------------------------------------------
+
+export const ToolheadAlignmentSystemRefState = atom<OptionalToolheadAlignmentSystemRef>({
+	key: AtomKeys.ToolheadAlignmentSystemRef,
+	default: undefined,
 	effects: [
 		moonrakerWriteEffect(),
 		syncEffect({
-			read: async ({ read }) => {
-				const chamberLightingState = await read(ChamberLightingState.key);
-				if (chamberLightingState != null && chamberLightingState !== '') {
-					// If it's already a full object, return it
-					const parsedChamberLighting = ChamberLighting.safeParse(chamberLightingState);
-					if (parsedChamberLighting.success) {
-						return parsedChamberLighting.data;
-					}
-					// If it's just an ID string, deserialize it
-					if (typeof chamberLightingState === 'string') {
-						try {
-							const chamberLightingOptions = (await import('@/data/accessories')).chamberLightingOptions;
-							const options = chamberLightingOptions();
-							const chamberLighting = options.find((a) => a.id === chamberLightingState);
-							if (chamberLighting != null) {
-								return chamberLighting;
-							}
-						} catch (error) {
-							getLogger().error('RecoilSync: failed to deserialize chamber lighting!', error, chamberLightingState);
-						}
-					}
-				}
-				return defaultChamberLighting;
-			},
 			write: ({ write }, newValue) => {
-				// Serialize the chamber lighting to store only the ID
 				if (newValue instanceof DefaultValue || newValue == null) {
-					write(ChamberLightingState.key, newValue);
-					return;
+					write(AtomKeys.ToolheadAlignmentSystemRef, DefaultValue);
+				} else {
+					const parsed = ToolheadAlignmentSystemRef.safeParse(newValue);
+					if (parsed.success){
+						write(AtomKeys.ToolheadAlignmentSystemRef, parsed.data);
+					} else {
+						getLogger().error(
+							'RecoilSync: tried to write an invalid ToolheadAlignmentSystemRef, will set to default.',
+							parsed.error,
+							newValue,
+						);
+						write(AtomKeys.ToolheadAlignmentSystemRef, DefaultValue);
+					}
 				}
-				write(ChamberLightingState.key, newValue.id);
 			},
-			refine: getRefineCheckerForZodSchema(ChamberLighting.nullable()),
+			refine: getRefineCheckerForZodSchema(OptionalToolheadAlignmentSystemRef),
 		}),
 	],
 });
 
-export const ToolheadAlignmentSystemState = atom<z.infer<typeof ToolheadAlignmentSystem> | null | undefined>({
+export const ToolheadAlignmentSystemState = selector<ToolheadAlignmentSystem | undefined>({
 	key: 'ToolheadAlignmentSystem',
-	default: defaultToolheadAlignmentSystem,
+	get: async ({ get }) => {		
+		const ToolheadAlignmentSystemRef = get(ToolheadAlignmentSystemRefState);
+		if (ToolheadAlignmentSystemRef == null) {
+			return undefined;
+		}
+		const controlboard = get(ControlboardState);
+		if (controlboard == null) {
+			return undefined;
+		}
+		try {
+			const opts = await trpcClient.printer.toolheadAlignmentSystemOptions.query({
+				config: { controlboard: controlboard.id },
+			});
+			const selectedOption = opts.find((opt) => ToolheadAlignmentSystemSchemas.refEquals(opt, ToolheadAlignmentSystemRef));
+			return selectedOption;
+		} catch (error) {
+			getLogger().error('Failed to hydrate ToolheadAlignmentSystem', error);
+			return undefined;
+		}
+	},
+	set: ({ set }, newValue) => {
+		if (newValue instanceof DefaultValue || newValue == null) {
+			set(ToolheadAlignmentSystemRefState, undefined);
+			return;
+		}
+		const newRef = ToolheadAlignmentSystemSchemas.toRef(newValue);
+		set(ToolheadAlignmentSystemRefState, newRef);
+	},
+});
+
+//-----------------------------------------------------------------------------
+// Chamber Air Filter
+//-----------------------------------------------------------------------------
+
+export const ChamberAirFilterRefState = atom<OptionalChamberAirFilterRef>({
+	key: AtomKeys.ChamberAirFilterRef,
+	default: undefined,
 	effects: [
 		moonrakerWriteEffect(),
 		syncEffect({
-			read: async ({ read }) => {
-				const toolheadAlignmentSystemState = await read(ToolheadAlignmentSystemState.key);
-				if (toolheadAlignmentSystemState != null && toolheadAlignmentSystemState !== '') {
-					// If it's already a full object, return it
-					const parsedToolheadAlignmentSystem = ToolheadAlignmentSystem.safeParse(toolheadAlignmentSystemState);
-					if (parsedToolheadAlignmentSystem.success) {
-						return parsedToolheadAlignmentSystem.data;
-					}
-					// If it's just an ID string, deserialize it
-					if (typeof toolheadAlignmentSystemState === 'string') {
-						try {
-							const toolheadAlignmentSystemOptions = (await import('@/data/accessories'))
-								.toolheadAlignmentSystemOptions;
-							const options = toolheadAlignmentSystemOptions();
-							const toolheadAlignmentSystem = options.find((a) => a.id === toolheadAlignmentSystemState);
-							if (toolheadAlignmentSystem != null) {
-								return toolheadAlignmentSystem;
-							}
-						} catch (error) {
-							getLogger().error(
-								'RecoilSync: failed to deserialize toolhead alignment system!',
-								error,
-								toolheadAlignmentSystemState,
-							);
-						}
-					}
-				}
-				return defaultToolheadAlignmentSystem;
-			},
 			write: ({ write }, newValue) => {
-				// Serialize the toolhead alignment system to store only the ID
 				if (newValue instanceof DefaultValue || newValue == null) {
-					write(ToolheadAlignmentSystemState.key, newValue);
-					return;
+					write(AtomKeys.ChamberAirFilterRef, DefaultValue);
+				} else {
+					const parsed = ChamberAirFilterRef.safeParse(newValue);
+					if (parsed.success){
+						write(AtomKeys.ChamberAirFilterRef, parsed.data);
+					} else {
+						getLogger().error(
+							'RecoilSync: tried to write an invalid ChamberAirFilterRef, will set to default.',
+							parsed.error,
+							newValue,
+						);
+						write(AtomKeys.ChamberAirFilterRef, DefaultValue);
+					}
 				}
-				write(ToolheadAlignmentSystemState.key, newValue.id);
 			},
-			refine: getRefineCheckerForZodSchema(ToolheadAlignmentSystem.nullable()),
+			refine: getRefineCheckerForZodSchema(OptionalChamberAirFilterRef),
 		}),
 	],
 });
 
-export const ChamberAirFilterState = atom<z.infer<typeof ChamberAirFilter> | null | undefined>({
+export const ChamberAirFilterState = selector<ChamberAirFilter | undefined>({
 	key: 'ChamberAirFilter',
-	default: defaultChamberAirFilter,
-	effects: [
-		moonrakerWriteEffect(),
-		syncEffect({
-			read: async ({ read }) => {
-				const chamberAirFilterState = await read(ChamberAirFilterState.key);
-				if (chamberAirFilterState != null && chamberAirFilterState !== '') {
-					// If it's already a full object, return it
-					const parsedChamberAirFilter = ChamberAirFilter.safeParse(chamberAirFilterState);
-					if (parsedChamberAirFilter.success) {
-						return parsedChamberAirFilter.data;
-					}
-					// If it's just an ID string, deserialize it
-					if (typeof chamberAirFilterState === 'string') {
-						try {
-							const chamberAirFilterOptions = (await import('@/data/accessories')).chamberAirFilterOptions;
-							const options = chamberAirFilterOptions();
-							const chamberAirFilter = options.find((a) => a.id === chamberAirFilterState);
-							if (chamberAirFilter != null) {
-								return chamberAirFilter;
-							}
-						} catch (error) {
-							getLogger().error('RecoilSync: failed to deserialize chamber air filter!', error, chamberAirFilterState);
-						}
-					}
-				}
-				return defaultChamberAirFilter;
-			},
-			write: ({ write }, newValue) => {
-				// Serialize the chamber air filter to store only the ID
-				if (newValue instanceof DefaultValue || newValue == null) {
-					write(ChamberAirFilterState.key, newValue);
-					return;
-				}
-				write(ChamberAirFilterState.key, newValue.id);
-			},
-			refine: getRefineCheckerForZodSchema(ChamberAirFilter.nullable()),
-		}),
-	],
+	get: async ({ get }) => {		
+		const ChamberAirFilterRef = get(ChamberAirFilterRefState);
+		if (ChamberAirFilterRef == null) {
+			return undefined;
+		}
+		const controlboard = get(ControlboardState);
+		if (controlboard == null) {
+			return undefined;
+		}
+		try {
+			const opts = await trpcClient.printer.chamberAirFilterOptions.query({
+				config: { controlboard: controlboard.id },
+			});
+			const selectedOption = opts.find((opt) => ChamberAirFilterSchemas.refEquals(opt, ChamberAirFilterRef));
+			return selectedOption;
+		} catch (error) {
+			getLogger().error('Failed to hydrate ChamberAirFilter', error);
+			return undefined;
+		}
+	},
+	set: ({ set }, newValue) => {
+		if (newValue instanceof DefaultValue || newValue == null) {
+			set(ChamberAirFilterRefState, undefined);
+			return;
+		}
+		const newRef = ChamberAirFilterSchemas.toRef(newValue);
+		set(ChamberAirFilterRefState, newRef);
+	},
 });
 
 export const StealthchopState = atom<boolean | null | undefined>({
@@ -338,9 +426,9 @@ export const serializePrinterConfiguration = (config: PrinterConfiguration): Ser
 		performanceMode: config.performanceMode,
 		stealthchop: config.stealthchop,
 		standstillStealth: config.standstillStealth,
-		chamberLighting: config.chamberLighting.id,
-		toolheadAlignmentSystem: config.toolheadAlignmentSystem.id,
-		chamberAirFilter: config.chamberAirFilter.id,
+		chamberLighting: ChamberLightingSchemas.toOptionalRef(config.chamberLighting),
+		toolheadAlignmentSystem: ToolheadAlignmentSystemSchemas.toOptionalRef(config.toolheadAlignmentSystem),
+		chamberAirFilter: ChamberAirFilterSchemas.toOptionalRef(config.chamberAirFilter),
 		rails: config.rails.map((rail) => serializePrinterRail(rail)),
 	};
 	return SerializedPrinterConfiguration.parse(serializedConfig);
@@ -358,9 +446,9 @@ export const serializePartialPrinterConfiguration = (
 		performanceMode: config?.performanceMode,
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
-		chamberLighting: config?.chamberLighting?.id,
-		toolheadAlignmentSystem: config?.toolheadAlignmentSystem?.id,
-		chamberAirFilter: config?.chamberAirFilter?.id,
+		chamberLighting: ChamberLightingSchemas.toOptionalRef(config?.chamberLighting),
+		toolheadAlignmentSystem: ToolheadAlignmentSystemSchemas.toOptionalRef(config?.toolheadAlignmentSystem),
+		chamberAirFilter: ChamberAirFilterSchemas.toOptionalRef(config?.chamberAirFilter),
 	};
 	return SerializedPartialPrinterConfiguration.parse(serializedConfig);
 };

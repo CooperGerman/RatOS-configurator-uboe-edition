@@ -13,10 +13,108 @@ import {
 	Toolboard,
 	ToolboardPinMap,
 } from '@/zods/boards';
-import { Extruder } from '@/zods/hardware';
+import { Extruder, FilamentSensor, ChamberLighting, ToolheadAlignmentSystem, ChamberAirFilter } from '@/zods/hardware';
 import { getScriptRoot } from '@/server/helpers/file-operations';
 import { getLogger } from '@/server/helpers/logger';
 import { MetadataCache, cacheAsyncMetadataFn, cacheMetadataFn } from '@/server/helpers/cache';
+import { HardwareInstance, HardwareTypeKey } from '@/zods/template-api';
+
+// 1. The Source of Truth (Zod Schema)
+// This is HardwareTypeKey from src/zods/template-api.ts
+
+// 2. Legacy Config Directories (kept as-is)
+const CFG_META_DIRS = ['hotends', 'extruders', 'z-probe'] as const;
+export type CfgMetaDirectories = (typeof CFG_META_DIRS)[number];
+
+// 3. The Master Configuration Map
+// We use a mapped type to enforce that EVERY HardwareTypeKey is present.
+// We use a dummy object to hold the types for inference.
+type HardwareTypeKeyToJsonMetaDirMap = {
+	[K in HardwareTypeKey]: {
+		dir: string;
+	};
+};
+
+/**
+ * This object defines the relationship between the hardware type key and the JSON meta directory name.
+ */
+const HARDWARE_KEY_TO_JSON_META_DIR = {
+	'filament-sensor': {
+		dir: 'filament-sensors',
+	},
+	'chamber-lighting': {
+		dir: 'chamber-lighting',
+	},
+	'toolhead-alignment-system': {
+		dir: 'toolhead-alignment-systems',
+	},
+	'chamber-air-filter': {
+		dir: 'chamber-air-filters',
+	},
+} as const satisfies HardwareTypeKeyToJsonMetaDirMap;
+
+// --- Derived Types & Constants ---
+
+/**
+ * A union of all valid JSON metadata directory strings.
+ * Derived values: 'filament-sensors' | 'chamber-lighting' | ...
+ */
+export type JsonMetaDirectories = (typeof HARDWARE_KEY_TO_JSON_META_DIR)[HardwareTypeKey]['dir'];
+
+export type MetaDirectories = CfgMetaDirectories | JsonMetaDirectories;
+
+type JsonMetaDirectoryToHardwareTypeMap = {
+	[K in JsonMetaDirectories]: {
+		type: HardwareTypeKey;
+	};
+};
+
+const JSON_META_DIR_TO_HARDWARE_KEY = {
+	[HARDWARE_KEY_TO_JSON_META_DIR['filament-sensor'].dir]: { type: 'filament-sensor' },
+	[HARDWARE_KEY_TO_JSON_META_DIR['chamber-lighting'].dir]: { type: 'chamber-lighting' },
+	[HARDWARE_KEY_TO_JSON_META_DIR['toolhead-alignment-system'].dir]: { type: 'toolhead-alignment-system' },
+	[HARDWARE_KEY_TO_JSON_META_DIR['chamber-air-filter'].dir]: { type: 'chamber-air-filter' },
+} as const satisfies JsonMetaDirectoryToHardwareTypeMap;
+
+// --- Runtime Lookups ---
+
+// Runtime list of JSON directories for the type guard
+const JSON_META_DIRS_ARRAY = Object.values(HARDWARE_KEY_TO_JSON_META_DIR).map((c) => c.dir);
+
+/**
+ * Resolves the parent directory name (plural) from a {@link HardwareTypeKey} (singular).
+ */
+export function getJsonMetaDirectoryName<K extends HardwareTypeKey>(
+	type: K,
+): (typeof HARDWARE_KEY_TO_JSON_META_DIR)[K]['dir'];
+
+/**
+ * Resolves the parent directory name (plural) from an internal 'type' property (singular).
+ */
+export function getJsonMetaDirectoryName<T extends { type: HardwareTypeKey }>(
+	component: T,
+): (typeof HARDWARE_KEY_TO_JSON_META_DIR)[T['type']]['dir'];
+
+export function getJsonMetaDirectoryName(arg: HardwareTypeKey | { type: HardwareTypeKey }) {
+	const key: HardwareTypeKey = typeof arg === 'string' ? arg : arg.type;
+	return HARDWARE_KEY_TO_JSON_META_DIR[key].dir;
+}
+
+export function getHardwareTypeKeyFromJsonMetaDirectory<K extends JsonMetaDirectories>(
+	directory: K,
+): (typeof JSON_META_DIR_TO_HARDWARE_KEY)[K]['type'] {
+	return JSON_META_DIR_TO_HARDWARE_KEY[directory].type;
+}
+
+const x = getHardwareTypeKeyFromJsonMetaDirectory('filament-sensors');
+
+export function isCfgMetaDirectory(directory: MetaDirectories): directory is CfgMetaDirectories {
+	return (CFG_META_DIRS as readonly string[]).includes(directory);
+}
+
+export function isJsonMetaDirectory(directory: MetaDirectories): directory is JsonMetaDirectories {
+	return (JSON_META_DIRS_ARRAY as unknown as string[]).includes(directory);
+}
 
 export const parseMetadata = async <T extends ZodType>(cfgFile: string, zod: T): Promise<z.infer<T> | null> => {
 	if (cfgFile.trim() === '') return null;

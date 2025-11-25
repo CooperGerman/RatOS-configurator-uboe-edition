@@ -51,9 +51,9 @@ const serializedConfigFromDefaults = (printer: PrinterDefinition): SerializedPri
 		standstillStealth: false,
 		stealthchop: false,
 		controllerFan: printer.defaults.controllerFan ?? '2pin',
-		chamberLighting: printer.defaults.chamberLighting ?? 'none',
-		toolheadAlignmentSystem: printer.defaults.toolheadAlignmentSystem ?? 'none',
-		chamberAirFilter: printer.defaults.chamberAirFilter ?? 'none',
+		chamberLighting: printer.defaults.chamberLighting,
+		toolheadAlignmentSystem: printer.defaults.toolheadAlignmentSystem,
+		chamberAirFilter: printer.defaults.chamberAirFilter,
 	} satisfies SerializedPrinterConfiguration);
 };
 

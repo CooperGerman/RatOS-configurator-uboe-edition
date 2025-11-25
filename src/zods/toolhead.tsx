@@ -10,9 +10,19 @@ import {
 	Accelerometer,
 	Nozzle,
 	FilamentSensor,
+	FilamentSensorRef,
 } from '@/zods/hardware';
 import { PrinterAxis } from '@/zods/motion';
 import { getDefaultNozzle } from '@/data/nozzles';
+
+// Was Accelerometer.optional().nullable(), which:
+//   a) uses optional/nullable ordering incorrectly and
+//   b) adds unnecessary complexity/confusion around undefined vs null
+// Now normalizing to undefined when not set, with tranform in place to handle null inputs
+// which may be encountered during deserialization in the wild.
+const GracefulOptionalAccelerometer = z
+	.union([Accelerometer.optional(), z.literal(null)])
+	.transform((val) => (val === null ? undefined : val));
 
 export const BaseToolheadConfiguration = z
 	.object({
@@ -24,11 +34,11 @@ export const BaseToolheadConfiguration = z
 		hotendFan: Fan,
 		partFan: Fan,
 		nozzle: Nozzle.default(getDefaultNozzle()),
-		xAccelerometer: Accelerometer.optional().nullable(),
-		yAccelerometer: Accelerometer.optional().nullable(),
+		xAccelerometer: GracefulOptionalAccelerometer,
+		yAccelerometer: GracefulOptionalAccelerometer,
 		toolboard: Toolboard.nullable(),
 		probe: Probe.optional(),
-		filamentSensor: FilamentSensor.optional().nullable(),
+		filamentSensor: FilamentSensor.optional(),
 		axis: z.literal(PrinterAxis.x).or(z.literal(PrinterAxis.dual_carriage)),
 		description: z.string().optional(),
 		toolNumber: z.number().optional(),
@@ -77,7 +87,8 @@ export const SerializedToolheadConfiguration = BaseToolheadConfiguration.extend(
 	yAccelerometer: Accelerometer.shape.id.optional().nullable(),
 	toolboard: BoardID.optional().nullable(),
 	probe: Probe.shape.id.optional().nullable(),
-	filamentSensor: FilamentSensor.shape.id.optional().nullable(),
+	// TODO: Can we drop nullable() here? This is a new property so there shouldn't be any existing nulls to handle.
+	filamentSensor: FilamentSensorRef.optional().nullable(),
 }).strict();
 export const SerializedPartialToolheadConfiguration = SerializedToolheadConfiguration.partial().optional();
 

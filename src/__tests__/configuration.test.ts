@@ -5,7 +5,7 @@ import {
 	getPrinters,
 	parseDirectory,
 } from '@/server/routers/printer';
-import { Extruder, FilamentSensor, Hotend, Probe } from '@/zods/hardware';
+import { Extruder, Hotend, Probe, UnconnectedFilamentSensor } from '@/zods/hardware';
 import { getBoards } from '@/server/routers/mcu';
 import fs from 'fs';
 import path from 'path';
@@ -37,7 +37,10 @@ describe('configuration', async () => {
 	const parsedHotends = await parseDirectory('hotends', Hotend);
 	const parsedExtruders = await parseDirectory('extruders', Extruder);
 	const parsedProbes = await parseDirectory('z-probe', Probe);
-	const parsedFilamentSensors = await parseDirectory('filament-sensors', FilamentSensor);
+	const parsedFilamentSensors: UnconnectedFilamentSensor[] = await parseDirectory(
+		'filament-sensors',
+		UnconnectedFilamentSensor,
+	);
 	let parsedBoards;
 	try {
 		parsedBoards = await getBoards();
@@ -377,9 +380,14 @@ describe('configuration', async () => {
 				toolheads: toolheads,
 				rails: defaultRails,
 				size: printer.sizes?.[0],
-				chamberLighting: { id: 'controlboard', title: 'nobody cares' },
-				toolheadAlignmentSystem: { id: 'none', title: 'nobody cares' },
-				chamberAirFilter: { id: 'none', title: 'nobody cares' },
+				// TODO: This is probably the right test to verify that the applicable printer.defaults are actually
+				//   compatible with the default board and toolboard.
+				//chamberLighting: { id: 'controlboard', title: 'nobody cares' },
+				//toolheadAlignmentSystem: { id: 'none', title: 'nobody cares' },
+				//chamberAirFilter: { id: 'none', title: 'nobody cares' },
+				chamberAirFilter: undefined,
+				chamberLighting: undefined,
+				toolheadAlignmentSystem: undefined,
 				performanceMode: false,
 				standstillStealth: false,
 				stealthchop: false,
@@ -407,7 +415,7 @@ describe('configuration', async () => {
 			const defaultHotend = parsedHotends.find((hotend) => hotend.id === toolhead.hotend);
 			const defaultExtruder = parsedExtruders.find((extruder) => extruder.id === toolhead.extruder);
 			const defaultProbe = parsedProbes.find((probe) => probe.id === toolhead.probe);
-			const defaultFilamentSensor = parsedFilamentSensors.find((sensor) => sensor.id === toolhead.filamentSensor);
+			const defaultFilamentSensor = deserializedToolheadConfig?.filamentSensor;
 			const defaultXEndstop = xEndstopOptions(deserializedConfig, {
 				...deserializedToolheadConfig,
 				axis: deserializedToolheadConfig?.axis ?? PrinterAxis.x,

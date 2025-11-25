@@ -11,6 +11,7 @@ import { BaseToolheadConfiguration, ToolheadConfiguration, ToolNumber, ToolOrAxi
 import { defaultXEndstop } from '@/data/endstops';
 import { hotendFanOptions, partFanOptions } from '@/data/fans';
 import { trpcClient } from '@/helpers/trpc';
+import { FilamentSensorSchemas } from '@/zods/hardware';
 
 export const useToolhead = (toolOrAxis: ToolOrAxis | PrinterAxis | undefined) => {
 	const toolheadConfigs = useRecoilValue(PrinterToolheadsState);
@@ -57,6 +58,7 @@ export const useToolheadConfiguration = <T extends boolean = true>(
 		return th ?? null;
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [errorIfNotExist, toolOrAxis, toolheadConfigsRef.current]);
+
 	const [hasManuallySelectedThermistor, setHasManuallySelectedThermistor] = useState(false);
 
 	const setToolhead = useRecoilCallback(
@@ -111,9 +113,9 @@ export const useToolheadConfiguration = <T extends boolean = true>(
 							toolheadConfig: serializePartialToolheadConfiguration(th),
 							toolOrAxis: th.toolNumber as ToolNumber,
 						});
-						const stillAvailable = availableSensors.find((s) => s.id === th.filamentSensor?.id);
+						const stillAvailable = availableSensors.find((s) => FilamentSensorSchemas.refEquals(s, th.filamentSensor));
 						if (stillAvailable == null) {
-							th.filamentSensor = null;
+							th.filamentSensor = undefined;
 						}
 					}
 				}
