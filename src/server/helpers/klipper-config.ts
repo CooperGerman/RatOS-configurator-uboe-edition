@@ -29,9 +29,10 @@ import {
 import { z } from 'zod';
 import path from 'path';
 import { serverSchema } from '@/env/schema.mjs';
-import { AccelerometerType, KlipperAccelSensorName, klipperAccelSensorSchema } from '@/zods/hardware';
-import { getLogger } from '@/server/helpers/logger';
+import { KlipperAccelSensorName } from '@/zods/hardware';
 import { ToolheadSuffix } from '@/helpers/toolhead';
+import { getVaocControlPointVariables, VAOCControlPoints } from '@/server/helpers/config-generation/ratrig-vaoc';
+import { renderTemplateAsync } from '@/templates/template-api';
 
 type WritableFiles = { fileName: string; content: string; overwrite: boolean; order?: number }[];
 type ExcludeStepperParameters<T extends string> = (T extends
@@ -66,6 +67,7 @@ export const constructKlipperConfigUtils = async (config: PrinterConfiguration) 
 					cbPins as PinMapZodFromBoard<false, false>,
 					config.printer,
 					config.size,
+					config.toolheads.length > 1,
 				);
 			}
 			return await ToolheadGenerator.fromConfig(
@@ -73,6 +75,7 @@ export const constructKlipperConfigUtils = async (config: PrinterConfiguration) 
 				cbPins as PinMapZodFromBoard<false, true>,
 				config.printer,
 				config.size,
+				config.toolheads.length > 1,
 			);
 		}),
 	);
@@ -332,16 +335,14 @@ export const constructKlipperConfigUtils = async (config: PrinterConfiguration) 
 		},
 	};
 };
+
 export type KlipperConfigUtils = Awaited<ReturnType<typeof constructKlipperConfigUtils>>;
 
-type VAOCControlPoints = {
-	xcontrolpoint?: number;
-	ycontrolpoint?: number;
-	zcontrolpoint?: number;
-	zoffsetcontrolpoint?: number;
-};
-
-export const constructKlipperConfigExtrasGenerator = (config: PrinterConfiguration, utils: KlipperConfigUtils) => {
+export const constructKlipperConfigExtrasGenerator = (
+	config: PrinterConfiguration,
+	utils: KlipperConfigUtils,
+	overwriteFiles?: string[],
+) => {
 	const _filesToWrite: WritableFiles = [];
 	const _reminders: string[] = [];
 	return {
@@ -358,15 +359,8 @@ export const constructKlipperConfigExtrasGenerator = (config: PrinterConfigurati
 			const environment = serverSchema.parse(process.env);
 			const vars: string[] = [`[Variables]`];
 			// const isIdex = utils.getToolheads().some((th) => th.getMotionAxis() === PrinterAxis.dual_carriage);
+			vars.push(...getVaocControlPointVariables(config, options));
 			vars.push(
-				`idex_applied_offset = 1`,
-				`idex_xcontrolpoint = ${options?.xcontrolpoint ?? config.size.x / 2}`,
-				`idex_xoffset = 0.0`,
-				`idex_ycontrolpoint = ${options?.ycontrolpoint ?? 50}`,
-				`idex_yoffset = 0.0`,
-				`idex_zcontrolpoint = ${options?.zcontrolpoint ?? 50}`,
-				`idex_zoffset = 0.0`,
-				`idex_zoffsetcontrolpoint = ${options?.zoffsetcontrolpoint ?? 25}`,
 				`nozzle_expansion_applied_offset = 0`,
 				`nozzle_expansion_coefficient_t0 = 0.06`,
 				`nozzle_expansion_coefficient_t1 = 0.06`,
@@ -414,6 +408,11 @@ export const constructKlipperConfigExtrasGenerator = (config: PrinterConfigurati
 				})
 				.join('\n');
 		},
+		isOverwriteRequestedForFile(fileName: string, defaultIfOverwriteFilesIsUndefined: boolean = true): boolean {
+			return (
+				(overwriteFiles?.includes(fileName) || overwriteFiles?.includes('*')) ?? defaultIfOverwriteFilesIsUndefined
+			);
+		},
 		addReminder(reminder: string) {
 			_reminders.push(reminder);
 		},
@@ -435,8 +434,8 @@ export const constructKlipperConfigHelpers = async (
 ) => {
 	return {
 		renderToolboards() {
-			return utils
-				.getToolheads()
+			const toolheads = utils.getToolheads();
+			return toolheads
 				.map((th) => {
 					return th.renderToolboard(this.renderBoardPinAlias);
 				})
@@ -891,6 +890,8 @@ export const constructKlipperConfigHelpers = async (
 			const result: string[] = [];
 			const th = utils.getToolheads().find((th) => th.getProbe() != null);
 			if (th) {
+				// NB: th.getProbe() is non-null here due to the if check above.
+				// NB: getPinFromAlias implicitly requires that the alias is resolved from the toolboard if present.
 				switch (th.getProbe()?.id) {
 					case 'bltouch':
 						const controlPin =
@@ -1117,9 +1118,36 @@ export const constructKlipperConfigHelpers = async (
 			}
 			return result.join('\n');
 		},
+		async renderChamberLightingAsync() {
+			const result = await renderTemplateAsync(config.chamberLighting, { utils, extrasGenerator });
+			return result?.trim() ?? '';
+		},
+		async renderToolheadAlignmentSystemHardwareAsync() {
+			// This section is typically emitted in RatOS.cfg (but only for IDEX printers)
+			const result = await renderTemplateAsync(config.toolheadAlignmentSystem, {
+				utils,
+				extrasGenerator,
+				section: 'hardware',
+			});
+			return result?.trim() ?? '';
+		},
+		async renderToolheadAlignmentSystemConfigHelpersAsync() {
+			// This section is typically emitted near the end of printer.cfg, after an user stepper sections (but only for IDEX printers)
+			const result = await renderTemplateAsync(config.toolheadAlignmentSystem, {
+				utils,
+				extrasGenerator,
+				section: 'config-helpers',
+			});
+			return result?.trim() ?? '';
+		},
+		async renderChamberAirFilterAsync() {
+			const result = await renderTemplateAsync(config.chamberAirFilter, { utils, extrasGenerator });
+			return result?.trim() ?? '';
+		},
 		renderFans() {
 			const result: string[] = [];
 			const multipleToolheadPartFans = utils.getToolheads().filter((th) => th.getPartFan()).length > 1;
+			const multipleToolheadHotendFans = utils.getToolheads().filter((th) => th.getHotendFan()).length > 1;
 			// Part fan
 			result.push(`# Part cooling fan`);
 			if (multipleToolheadPartFans) {
@@ -1139,16 +1167,35 @@ export const constructKlipperConfigHelpers = async (
 			// Hotend fan
 			result.push(``);
 			result.push(`# Hotend cooling fan`);
+			if (multipleToolheadHotendFans) {
+				result.push('# Multiple toolheads with hotend cooling fans configured');
+			}
 			result.push(
 				utils
 					.getToolheads()
-					.map((th) => th.renderHotendFan(config.controlboard))
+					.map((th) => th.renderHotendFan(multipleToolheadHotendFans, config.controlboard))
 					.join('\n'),
 			);
 			// Controller fan
 			result.push(``);
 			result.push(`# Controller cooling fan`);
 			result.push(this.renderControllerFan());
+			return result.join('\n');
+		},
+		async renderFilamentSensorsAsync() {
+			const result: string[] = [];
+			const filamentSensors = (
+				await Promise.all(
+					utils
+						.getToolheads()
+						.map((th) => renderTemplateAsync(th.getFilamentSensor(), { utils, extrasGenerator }, th.getTool())),
+				)
+			).filter((s) => s != null);
+			if (filamentSensors.length > 0) {
+				result.push(``);
+				result.push(`# Filament sensors`);
+				result.push(filamentSensors.join('\n\n'));
+			}
 			return result.join('\n');
 		},
 		renderBoardPinAlias(pinAlias: string, board: Board, toolhead?: Parameters<RenderPinsFn>[2], mcu?: string) {

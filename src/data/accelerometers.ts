@@ -2,28 +2,14 @@ import { z } from 'zod';
 import { Accelerometer } from '@/zods/hardware';
 import { PartialPrinterConfiguration } from '@/zods/printer-configuration';
 import { PartialToolheadConfiguration } from '@/zods/toolhead';
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
-import { getLogger } from '@/server/helpers/logger';
 
-const hasBeaconAccel = () => {
-	// I really need a better way to detect this :(
-	try {
-		const beaconID = existsSync('/dev/beacon')
-			? execSync(`udevadm info /dev/beacon | grep "ID_MODEL="`).toString().trim()
-			: null;
-		if (beaconID && beaconID.endsWith('RevH')) {
-			return true;
-		}
-	} catch (e) {
-		return false;
-	}
-	return false;
-};
+// hasBeaconAccel has been moved to accelerometers.server.ts
+// to avoid bundling Node.js modules (fs, child_process) into client code
 
 export const xAccelerometerOptions = (
 	config?: z.infer<typeof PartialPrinterConfiguration> | null,
 	toolheadConfig?: PartialToolheadConfiguration | null,
+	hasBeacon: boolean = false,
 ): z.infer<typeof Accelerometer>[] => {
 	const accelerometers: z.infer<typeof Accelerometer>[] = [
 		{ id: 'none' as const, title: 'None' },
@@ -38,7 +24,7 @@ export const xAccelerometerOptions = (
 	) {
 		accelerometers.push({ id: 'toolboard' as const, title: 'Integrated on toolboard' });
 	}
-	if (hasBeaconAccel()) {
+	if (hasBeacon) {
 		accelerometers.push({ id: 'beacon' as const, title: 'Beacon' });
 	}
 	return accelerometers;
@@ -47,6 +33,7 @@ export const xAccelerometerOptions = (
 export const yAccelerometerOptions = (
 	config?: z.infer<typeof PartialPrinterConfiguration> | null,
 	toolheadConfig?: PartialToolheadConfiguration | null,
+	hasBeacon: boolean = false,
 ): z.infer<typeof Accelerometer>[] => {
 	const accelerometers: z.infer<typeof Accelerometer>[] = [
 		{ id: 'none' as const, title: 'None' },
@@ -61,7 +48,7 @@ export const yAccelerometerOptions = (
 	) {
 		accelerometers.push({ id: 'toolboard' as const, title: 'Integrated on toolboard' });
 	}
-	if (hasBeaconAccel()) {
+	if (hasBeacon) {
 		accelerometers.push({ id: 'beacon' as const, title: 'Beacon' });
 	}
 	return accelerometers;

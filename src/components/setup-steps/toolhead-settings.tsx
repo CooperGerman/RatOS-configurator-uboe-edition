@@ -139,6 +139,21 @@ export const ToolheadSettings: React.FC<ToolheadSettingsProps> = (props) => {
 						error={errors?.fieldErrors.probe?.join('\n')}
 						onSelect={(value) => setToolheadField('probe', value ?? undefined)}
 						value={toolhead.getProbe()}
+						nothingSelectedText="None"
+					/>
+				</div>
+				<div>
+					<DropdownWithPrinterQuery
+						vars={{ toolOrAxis: toolhead.getTool(), config: {} }}
+						serializedPrinterConfiguration="config"
+						label="Filament Sensor"
+						query="filamentSensorOptions"
+						canClear={true}
+						error={errors?.fieldErrors.filamentSensor?.join('\n')}
+						onSelect={(value) => setToolheadField('filamentSensor', value ?? undefined)}
+						value={toolhead.getFilamentSensor()}
+						nothingSelectedText="None"
+						noOptionsText="No filament sensors are supported by the selected toolboard and/or controlboard."
 					/>
 				</div>
 			</CardContent>

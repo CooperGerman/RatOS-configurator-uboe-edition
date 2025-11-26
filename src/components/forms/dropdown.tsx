@@ -22,9 +22,22 @@ import { X } from 'lucide-react';
 
 type Option = {
 	id: number | string;
+	connectedTo?: string;
 	title: string;
 	disabled?: boolean;
 	badge?: BadgeProps | BadgeProps[];
+};
+
+const optionKey = (o: Pick<Option, 'id' | 'connectedTo'> | undefined | null) => {
+	return `${o?.id ?? ''}::${o?.connectedTo ?? ''}`;
+};
+
+const isSameOption = (
+	a: Pick<Option, 'id' | 'connectedTo'> | undefined | null,
+	b: Pick<Option, 'id' | 'connectedTo'> | undefined | null,
+) => {
+	if (!a || !b) return false;
+	return a.id === b.id && a.connectedTo === b.connectedTo;
 };
 
 interface DropdownProps<DropdownOption extends Option = Option, CanClear extends boolean = false> {
@@ -40,6 +53,8 @@ interface DropdownProps<DropdownOption extends Option = Option, CanClear extends
 	disabled?: boolean;
 	badge?: BadgeProps | BadgeProps[];
 	onShown?: () => void;
+	nothingSelectedText?: string;
+	noOptionsText?: string;
 }
 
 export const OnDropdownOpened: React.FC<{ open: boolean; onShown: () => void }> = ({ open, onShown }) => {
@@ -90,7 +105,9 @@ export const DropdownWithPrinterQuery = <
 	// Query the server for the options to refresh the value in case a badge contains stale hardware titles.
 	const fetchImmediately = value?.badge != null;
 	const queryProps = useDropdownPrinterQueryState<T>(query, vars, serializedPrinterConfiguration, fetchImmediately);
-	const selectedOption = (queryProps.options as Option[]).find((o) => o.id === value?.id);
+	const selectedOption = (queryProps.options as Option[]).find((o) => {
+		return o.id === value?.id && o.connectedTo === value?.connectedTo;
+	});
 	const correctedValue = selectedOption ?? value;
 	return (
 		<React.Suspense>
@@ -114,8 +131,8 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 	const [open, setOpen] = React.useState(false);
 
 	const onSelected = useCallback(
-		(newSelection: DropdownOption['id']) => {
-			const option = props.options.find((o) => o.id === newSelection);
+		(newSelectionId: DropdownOption['id'], newSelectionConnectedTo?: string) => {
+			const option = props.options.find((o) => o.id === newSelectionId && o.connectedTo === newSelectionConnectedTo);
 			if (option) {
 				onSelect?.(option);
 			}
@@ -124,7 +141,17 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 	);
 
 	const options =
-		props.sort == false ? props.options : props.options.slice(0).sort((a, b) => a.title.localeCompare(b.title));
+		props.sort == false
+			? props.options
+			: props.options.slice().sort((a: any, b: any) => {
+					// toolboard-connected options first, then alphabetical by title/name
+					if (a.connectedTo !== b.connectedTo) {
+						return a.connectedTo == 'toolboard' ? -1 : 1;
+					}
+					const at = (a.title ?? a.name ?? '').toString();
+					const bt = (b.title ?? b.name ?? '').toString();
+					return at.localeCompare(bt);
+				});
 
 	const inputClass = twJoin(
 		props.error && 'ring-red-500 ring-2 text-red-900 placeholder-red-300 dark:text-red-400 dark:placeholder-red-700',
@@ -162,7 +189,9 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 					className={twJoin('w-full justify-between bg-zinc-800 px-2', inputClass)}
 				>
 					<span className="flex min-w-0 flex-1 items-center justify-start gap-2 text-left">
-						<span className="min-w-0 flex-1 items-center truncate">{value?.title ?? 'Pick from the list...'}</span>
+						<span className="min-w-0 flex-1 items-center truncate">
+							{(value as any)?.title ?? (value as any)?.name ?? props.nothingSelectedText ?? 'Pick from the list...'}
+						</span>
 						{props.canClear && !props.disabled && (
 							<span
 								onClick={(e) => {
@@ -198,19 +227,22 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 				<Command>
 					<CommandInput placeholder="Search for option..." className="h-9" />
 					<CommandList>
-						<CommandEmpty>No option found.</CommandEmpty>
+						<CommandEmpty>{props.noOptionsText ?? 'No option found.'}</CommandEmpty>
 						<CommandGroup>
 							{options.map((option) => (
 								<CommandItem
-									key={option.id}
-									value={option.title + badgeDescription(option.badge) + option.id}
+									key={optionKey(option)}
+									value={
+										((option as any).title ?? (option as any).name ?? '') + badgeDescription(option.badge) + option.id
+									}
 									onSelect={() => {
-										onSelected(option.id);
+										onSelected(option.id, option.connectedTo);
 										setOpen(false);
 									}}
 									className={twJoin(
 										'gap-2',
-										value?.id === option.id && 'text-brand-400 aria-selected:text-brand-400 hover:text-brand-400',
+										isSameOption(value as any, option as any) &&
+											'text-brand-400 aria-selected:text-brand-400 hover:text-brand-400',
 									)}
 								>
 									{option.badge &&
@@ -219,11 +251,11 @@ export const Dropdown = <DropdownOption extends Option = Option, CanClear extend
 										) : (
 											<Badge {...option.badge} color={option.badge.color} size="sm" />
 										))}
-									{option.title}
+									{(option as any).title ?? (option as any).name}
 									<CheckIcon
 										className={cn(
 											'ml-auto h-4 w-4 text-brand-400',
-											value?.id === option.id ? 'opacity-100' : 'opacity-0',
+											isSameOption(value as any, option as any) ? 'opacity-100' : 'opacity-0',
 										)}
 									/>
 								</CommandItem>

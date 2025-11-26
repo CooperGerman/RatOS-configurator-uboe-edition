@@ -28,6 +28,12 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 		setStealthchop,
 		standstillStealth,
 		setStandstillStealth,
+		chamberLighting,
+		setChamberLighting,
+		toolheadAlignmentSystem,
+		setToolheadAlignmentSystem,
+		chamberAirFilter,
+		setChamberAirFilter,
 		selectedPrinterRails,
 		setSelectedControllerFan: setControllerFan,
 		serializedPrinterConfiguration,
@@ -134,6 +140,44 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 								value={selectedControllerFan}
 							/>
 						</div>
+						<div>
+							<DropdownWithPrinterQuery
+								label="Chamber Lighting"
+								query="chamberLightingOptions"
+								vars={{ config: serializedPrinterConfiguration }}
+								onSelect={(value) => setChamberLighting(value ?? undefined)}
+								value={chamberLighting}
+								canClear={true}
+								nothingSelectedText="None"
+								noOptionsText="No chamber lighting options are supported by the selected controlboard."
+							/>
+						</div>
+						<div>
+							<DropdownWithPrinterQuery
+								label="Chamber Air Filter"
+								query="chamberAirFilterOptions"
+								vars={{ config: serializedPrinterConfiguration }}
+								onSelect={(value) => setChamberAirFilter(value ?? undefined)}
+								value={chamberAirFilter}
+								canClear={true}
+								nothingSelectedText="None"
+								noOptionsText="No chamber air filters are supported by the selected controlboard."
+							/>
+						</div>
+						{(serializedPrinterConfiguration?.toolheads?.length ?? 0) > 1 && (
+							<div>
+								<DropdownWithPrinterQuery
+									label="Toolhead Alignment System"
+									query="toolheadAlignmentSystemOptions"
+									vars={{ config: serializedPrinterConfiguration }}
+									onSelect={(value) => setToolheadAlignmentSystem(value ?? undefined)}
+									value={toolheadAlignmentSystem}
+									canClear={true}
+									nothingSelectedText="None"
+									noOptionsText="No toolhead alignment systems are supported by the selected controlboard."
+								/>
+							</div>
+						)}
 					</div>
 					<div className="mt-4 border-t border-zinc-100 pt-8 dark:border-zinc-700">
 						<div className="flex">

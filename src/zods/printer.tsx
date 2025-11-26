@@ -3,7 +3,12 @@ import { serverSchema } from '@/env/schema.mjs';
 import path from 'path';
 import { SerializedPrinterRailDefinition } from '@/zods/motion';
 import { SerializedToolheadConfiguration, ToolheadConfiguration } from '@/zods/toolhead';
-import { Fan } from '@/zods/hardware';
+import {
+	Fan,
+	OptionalChamberAirFilterRef,
+	OptionalChamberLightingRef,
+	OptionalToolheadAlignmentSystemRef,
+} from '@/zods/hardware';
 import { BoardID } from '@/zods/boards';
 
 let startsWithServerValidation = '';
@@ -48,7 +53,12 @@ export const PrinterDefinition = z
 		documentationLink: z.string().describe('Link to the RatOS documentation for this printer'),
 		image: z.string().describe('Link to an image of the printer'),
 		sizes: z.record(z.string(), PrinterSizeDefinition).describe('Size options for this printer'),
-		template: z.string().describe('Printer.cfg template for this printer'),
+		template: z
+			.string()
+			.describe('printer.ts template for this printer. The path is relative to /src/templates/printers')
+			.refine((val) => !val.includes('..') && !path.isAbsolute(val), {
+				message: 'Invalid template filename: must be a relative path without .. segments',
+			}),
 		path: z.string().startsWith(startsWithServerValidation),
 		driverCountRequired: z.number().describe('Number of drivers required for this printer'),
 		kinematics: z
@@ -74,6 +84,11 @@ export const PrinterDefinition = z
 				board: BoardID.describe('Default board for this printer. Should be the name of the board directory.'),
 				rails: z.array(SerializedPrinterRailDefinition).describe('Default rails for this printer'),
 				controllerFan: Fan.shape.id.optional().describe('Default controller fan for this printer'),
+				chamberLighting: OptionalChamberLightingRef.describe('Default chamber lighting setting for this printer'),
+				toolheadAlignmentSystem: OptionalToolheadAlignmentSystemRef.describe(
+					'Default toolhead alignment system for this printer',
+				),
+				chamberAirFilter: OptionalChamberAirFilterRef.describe('Default chamber air filter for this printer'),
 			})
 			.strict()
 			.describe('Default hardware for this printer'),

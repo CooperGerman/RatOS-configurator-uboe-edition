@@ -1,9 +1,32 @@
 import { z } from 'zod';
 import { getLogger } from '@/server/helpers/logger';
 
-import { extractIncludes, parseMetadata } from '@/server/helpers/metadata';
-import { Hotend, Extruder, Probe, thermistors, Endstop, Fan, Accelerometer } from '@/zods/hardware';
-import { constants, existsSync, readFileSync } from 'fs';
+import {
+	getHardwareTypeKeyFromJsonMetaDirectory,
+	isCfgMetaDirectory,
+	JsonMetaDirectories,
+	MetaDirectories,
+	parseMetadata,
+} from '@/server/helpers/metadata';
+import {
+	Hotend,
+	Extruder,
+	Probe,
+	thermistors,
+	Endstop,
+	Fan,
+	Accelerometer,
+	ChamberLighting,
+	ToolheadAlignmentSystem,
+	ChamberAirFilter,
+	FilamentSensor,
+	HARDWARE_REGISTRY,
+	FilamentSensorSchemas,
+	ChamberLightingSchemas,
+	ToolheadAlignmentSystemSchemas,
+	ChamberAirFilterSchemas,
+} from '@/zods/hardware';
+import { constants, existsSync, readFileSync, mkdirSync } from 'fs';
 import { PrinterDefinition, PrinterDefinitionWithResolvedToolheads } from '@/zods/printer';
 import {
 	PartialPrinterConfiguration,
@@ -25,9 +48,16 @@ import {
 	constructKlipperConfigUtils,
 } from '@/server/helpers/klipper-config';
 import { serverSchema } from '@/env/schema.mjs';
-import { controllerFanOptions, hotendFanOptions, partFanOptions } from '@/data/fans';
+import { controllerFanOptions, partFanOptions, hotendFanOptions } from '@/data/fans';
+import {
+	getFilamentSensorOptionsAsync,
+	getChamberLightingOptionsAsync,
+	getChamberAirFilterOptionsAsync,
+	getToolheadAlignmentSystemOptionsAsync,
+} from '@/data/accessories';
 import { getBoards, getToolboards } from '@/server/routers/mcu';
 import { xAccelerometerOptions, yAccelerometerOptions } from '@/data/accelerometers';
+import { hasBeaconAccel } from '@/data/accelerometers.server';
 import { glob } from 'glob';
 import path from 'path';
 import { publicProcedure, router } from '@/server/trpc';
@@ -53,37 +83,78 @@ import objectHash from 'object-hash';
 import { getDefaultNozzle } from '@/data/nozzles';
 import { extractLinesFromFile, getScriptRoot, searchFileByLine } from '@/server/helpers/file-operations';
 import { runSudoScript } from '@/server/helpers/run-script';
+import { UnconnectedHardwareInstance } from '@/zods/template-api';
 
 function isNodeError(error: any): error is NodeJS.ErrnoException {
 	return error instanceof Error;
 }
 
 type FileAction = 'created' | 'overwritten' | 'skipped' | 'error' | 'unchanged';
-export type CFGDirectories = 'hotends' | 'extruders' | 'z-probe';
 
-export const parseDirectory = cacheAsyncDirectoryFn(async <T extends z.ZodType>(directory: CFGDirectories, zod: T) => {
+export const parseJsonMetaDirectory = async (
+	directory: JsonMetaDirectories,
+): Promise<UnconnectedHardwareInstance[]> => {
+	const hardwareType = getHardwareTypeKeyFromJsonMetaDirectory(directory);
+	const zod = HARDWARE_REGISTRY[hardwareType].schemas.Unconnected;
+	return parseDirectory(directory, zod);
+};
+
+export const parseDirectory = cacheAsyncDirectoryFn(async <T extends z.ZodType>(directory: MetaDirectories, zod: T) => {
 	const cached = ServerCache.get(directory);
 	if (cached != null) {
 		return z.array(zod).parse(cached);
 	}
-	const defs = await glob(`${process.env.RATOS_CONFIGURATION_PATH}/${directory}/*.cfg`);
-	const res = (
-		await Promise.all(
-			defs
-				.map((f) => f.trim())
-				.filter((f) => f !== '')
-				.map(async (f) => {
-					const parsedFile = await parseMetadata(f, zod);
-					if (parsedFile == null) {
-						getLogger().warn(`No metadata present in ${f} skipping..`);
-						return null;
-					}
-					return parsedFile;
-				}),
-		)
-	).filter((f): f is z.TypeOf<T> => f != null);
-	ServerCache.set(directory, res);
-	return res;
+	if (isCfgMetaDirectory(directory)) {
+		const defs = await glob(`${process.env.RATOS_CONFIGURATION_PATH}/${directory}/*.cfg`);
+		const res = (
+			await Promise.all(
+				defs
+					.map((f) => f.trim())
+					.filter((f) => f !== '')
+					.map(async (f) => {
+						const parsedFile = await parseMetadata(f, zod);
+						if (parsedFile == null) {
+							getLogger().warn(`No metadata present in ${f} skipping..`);
+							return null;
+						}
+						return parsedFile;
+					}),
+			)
+		).filter((f): f is z.TypeOf<T> => f != null);
+		ServerCache.set(directory, res);
+		return res;
+	} else {
+		// JSON directories
+		// - simple JSON metadata files instead of config metadata blocks
+		// - each definition is in a subdir named for the id
+		// - defintions are all named *-defintion.json
+		const defs = await glob(`${process.env.RATOS_CONFIGURATION_PATH}/${directory}/*/*-definition.json`);
+		const res = (
+			await Promise.all(
+				defs
+					.map((f) => f.trim())
+					.filter((f) => f !== '')
+					.map(async (f) => {
+						try {
+							const file = (await readFile(f)).toString();
+							const parsed = JSON.parse(file);
+							parsed.path = f;
+							parsed.id = path.basename(path.dirname(f));
+							return zod.parse(parsed);
+						} catch (e) {
+							if (e instanceof Error) {
+								getLogger().error(e.message);
+							}
+							throw new Error(
+								`Failed to parse JSON metadata in ${f}${e && typeof e === 'object' && 'message' in e ? ':' + e.message : ''}`,
+							);
+						}
+					}),
+			)
+		).filter((f): f is z.TypeOf<T> => f != null);
+		ServerCache.set(directory, res);
+		return res;
+	}
 }, ServerCache);
 
 const serializedPartialConfigFromPrinterDefinition = (def: PrinterDefinition) => {
@@ -180,8 +251,9 @@ export const deserializeToolheadConfiguration = async (
 	const extruders = await parseDirectory('extruders', Extruder);
 	const probes = await parseDirectory('z-probe', Probe);
 	const toolboard = toolboards.find((b) => b.id === config.toolboard) ?? null;
-	const xAccels = xAccelerometerOptions({ controlboard }, { toolboard });
-	const yAccels = yAccelerometerOptions({ controlboard }, { toolboard });
+	const hasBeacon = hasBeaconAccel();
+	const xAccels = xAccelerometerOptions({ controlboard }, { toolboard }, hasBeacon);
+	const yAccels = yAccelerometerOptions({ controlboard }, { toolboard }, hasBeacon);
 	const serializedXAccel =
 		xAccels.find((a) => a.id === config.xAccelerometer) ??
 		(toolboard && (toolboard.ADXL345SPI != null || toolboard.LIS2DW)
@@ -225,14 +297,29 @@ export const deserializeToolheadConfiguration = async (
 		extruder: extruders.find((e) => e.id === config.extruder),
 		probe: probes.find((p) => p.id === config.probe),
 		thermistor: thermistors.find((t) => t === config.thermistor),
-		xEndstop: xEndstopOptions({ controlboard }, { toolboard, axis: config.axis }).find((e) => e.id === config.xEndstop),
-		yEndstop: yEndstopOptions({ controlboard }, { toolboard, axis: config.axis }).find((e) => e.id === config.yEndstop),
-		xAccelerometer: serializedXAccel != null ? { ...serializedXAccel, accelerometerType: xAccel?.type } : null,
-		yAccelerometer: serializedYAccel != null ? { ...serializedYAccel, accelerometerType: yAccel?.type } : null,
-		partFan: partFanOptions({ controlboard }, { toolboard, axis: config.axis }).find((f) => f.id === config.partFan),
-		hotendFan: hotendFanOptions({ controlboard }, { toolboard, axis: config.axis }).find(
+		xEndstop: xEndstopOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
+			(e) => e.id === config.xEndstop,
+		),
+		yEndstop: yEndstopOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
+			(e) => e.id === config.yEndstop,
+		),
+		xAccelerometer: serializedXAccel != null ? { ...serializedXAccel, accelerometerType: xAccel?.type } : undefined,
+		yAccelerometer: serializedYAccel != null ? { ...serializedYAccel, accelerometerType: yAccel?.type } : undefined,
+		partFan: partFanOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
+			(f) => f.id === config.partFan,
+		),
+		hotendFan: hotendFanOptions({ controlboard }, { toolboard, axis: config.axis, toolNumber: config.toolNumber }).find(
 			(f) => f.id === config.hotendFan,
 		),
+		filamentSensor:
+			config.filamentSensor == null
+				? undefined
+				: (
+						await getFilamentSensorOptionsAsync({ controlboard }, null, {
+							toolboard: toolboard,
+							toolNumber: config?.toolNumber,
+						})
+					).find((s) => FilamentSensorSchemas.refEquals(s, config.filamentSensor)) ?? undefined,
 	} satisfies PartialToolheadConfiguration;
 	return ToolheadConfiguration.parse(res);
 };
@@ -249,6 +336,7 @@ export const deserializePartialToolheadConfiguration = async (
 	const extruders = await parseDirectory('extruders', Extruder);
 	const probes = await parseDirectory('z-probe', Probe);
 	const toolboard = toolboards.find((b) => b.id === config?.toolboard);
+	const hasBeacon = hasBeaconAccel();
 	return PartialToolheadConfiguration.parse({
 		...config,
 		toolboard: toolboard ?? null,
@@ -256,20 +344,37 @@ export const deserializePartialToolheadConfiguration = async (
 		extruder: extruders.find((e) => e.id === config?.extruder),
 		probe: probes.find((p) => p.id === config?.probe),
 		thermistor: thermistors.find((t) => t === config?.thermistor),
-		xEndstop: xEndstopOptions({ controlboard }, { toolboard, axis: config?.axis ?? PrinterAxis.x }).find(
-			(e) => e.id === config?.xEndstop,
+		xEndstop: xEndstopOptions(
+			{ controlboard },
+			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
+		).find((e) => e.id === config?.xEndstop),
+		yEndstop: yEndstopOptions(
+			{ controlboard },
+			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
+		).find((e) => e.id === config?.yEndstop),
+		xAccelerometer: xAccelerometerOptions({ controlboard }, { toolboard }, hasBeacon).find(
+			(a) => a.id === config?.xAccelerometer,
 		),
-		yEndstop: yEndstopOptions({ controlboard }, { toolboard, axis: config?.axis ?? PrinterAxis.x }).find(
-			(e) => e.id === config?.yEndstop,
+		yAccelerometer: yAccelerometerOptions({ controlboard }, { toolboard }, hasBeacon).find(
+			(a) => a.id === config?.yAccelerometer,
 		),
-		xAccelerometer: xAccelerometerOptions({ controlboard }, { toolboard }).find((a) => a.id === config?.xAccelerometer),
-		yAccelerometer: yAccelerometerOptions({ controlboard }, { toolboard }).find((a) => a.id === config?.yAccelerometer),
-		partFan: partFanOptions({ controlboard }, { toolboard, axis: config?.axis ?? PrinterAxis.x }).find(
-			(f) => f.id === config?.partFan,
-		),
-		hotendFan: hotendFanOptions({ controlboard }, { toolboard, axis: config?.axis ?? PrinterAxis.x }).find(
-			(f) => f.id === config?.hotendFan,
-		),
+		partFan: partFanOptions(
+			{ controlboard },
+			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
+		).find((f) => f.id === config?.partFan),
+		hotendFan: hotendFanOptions(
+			{ controlboard },
+			{ toolboard, axis: config?.axis ?? PrinterAxis.x, toolNumber: config?.toolNumber },
+		).find((f) => f.id === config?.hotendFan),
+		filamentSensor:
+			config?.filamentSensor == null
+				? undefined
+				: (
+						await getFilamentSensorOptionsAsync({ controlboard }, null, {
+							toolboard: toolboard,
+							toolNumber: config?.toolNumber,
+						})
+					).find((s) => FilamentSensorSchemas.refEquals(s, config.filamentSensor)) ?? undefined,
 	} satisfies PartialToolheadConfiguration);
 };
 
@@ -294,6 +399,24 @@ export const deserializePartialPrinterConfiguration = async (
 		performanceMode: config?.performanceMode,
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
+		chamberLighting:
+			config?.chamberLighting == null
+				? undefined
+				: (await getChamberLightingOptionsAsync({ controlboard })).find((a) =>
+						ChamberLightingSchemas.refEquals(a, config.chamberLighting),
+					),
+		toolheadAlignmentSystem:
+			config?.toolheadAlignmentSystem == null
+				? undefined
+				: (await getToolheadAlignmentSystemOptionsAsync({ controlboard })).find((a) =>
+						ToolheadAlignmentSystemSchemas.refEquals(a, config.toolheadAlignmentSystem),
+					),
+		chamberAirFilter:
+			config?.chamberAirFilter == null
+				? undefined
+				: (await getChamberAirFilterOptionsAsync({ controlboard })).find((a) =>
+						ChamberAirFilterSchemas.refEquals(a, config.chamberAirFilter),
+					),
 		rails: config?.rails?.map((r) => deserializePrinterRail(r)),
 	});
 };
@@ -316,6 +439,15 @@ export const deserializePrinterConfiguration = async (
 		performanceMode: config?.performanceMode,
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
+		chamberLighting: (await getChamberLightingOptionsAsync({ controlboard })).find((a) =>
+			ChamberLightingSchemas.refEquals(a, config.chamberLighting),
+		),
+		toolheadAlignmentSystem: (await getToolheadAlignmentSystemOptionsAsync({ controlboard })).find((a) =>
+			ToolheadAlignmentSystemSchemas.refEquals(a, config.toolheadAlignmentSystem),
+		),
+		chamberAirFilter: (await getChamberAirFilterOptionsAsync({ controlboard })).find((a) =>
+			ChamberAirFilterSchemas.refEquals(a, config.chamberAirFilter),
+		),
 		rails: config?.rails.map((r) => deserializePrinterRail(r)),
 	});
 };
@@ -369,16 +501,17 @@ export const getFilesToWrite = async (
 	overwriteFiles?: string[],
 ): Promise<FilesToWrite> => {
 	const utils = await constructKlipperConfigUtils(config);
-	const extrasGenerator = constructKlipperConfigExtrasGenerator(config, utils);
+	const extrasGenerator = constructKlipperConfigExtrasGenerator(config, utils, overwriteFiles);
 	const helper = await constructKlipperConfigHelpers(config, extrasGenerator, utils);
 	const environment = serverSchema.parse(process.env);
-	const { template, initialPrinterCfg } = await import(
-		`../../templates/${config.printer.template.replace('-printer.template.cfg', '.ts')}`
-	);
-	const renderedTemplate = template(config, helper).trim();
+	const templateFilename = config.printer.template.replace('-printer.template.cfg', '.ts');
+	const { template, initialPrinterCfg } = await import(`../../templates/printers/${templateFilename}`);
+	// Allow template to be sync or async
+	const renderedTemplate = (await Promise.resolve(template(config, helper))).trim();
 	const renderedPrinterCfg = await portModifications(
 		path.join(environment.KLIPPER_CONFIG_PATH, 'printer.cfg'),
-		initialPrinterCfg(config, helper).trim(),
+		// Allow initialPrinterCfg to be sync or async
+		(await Promise.resolve(initialPrinterCfg(config, helper))).trim(),
 	);
 	const extras: FilesToWrite = extrasGenerator.getFilesToWrite();
 	return [
@@ -402,11 +535,11 @@ export const getFilesToWrite = async (
 					path.join(environment.KLIPPER_CONFIG_PATH, fileWithExists.fileName),
 					'utf-8',
 				);
-				if (existsSync(path.join(environment.RATOS_DATA_DIR, `last-${fileWithExists.fileName}`))) {
-					fileWithExists.lastSavedContent = readFileSync(
-						path.join(environment.RATOS_DATA_DIR, `last-${fileWithExists.fileName}`),
-						'utf-8',
-					);
+				// Sanitize fileName for last-saved tracking (replace path separators with underscores)
+				const sanitizedFileName = fileWithExists.fileName.replace(/\//g, '_');
+				const lastSavedFilePath = path.join(environment.RATOS_DATA_DIR, `last-${sanitizedFileName}`);
+				if (existsSync(lastSavedFilePath)) {
+					fileWithExists.lastSavedContent = readFileSync(lastSavedFilePath, 'utf-8');
 				}
 			}
 			return fileWithExists;
@@ -426,7 +559,9 @@ const generateKlipperConfiguration = async <T extends boolean>(
 		filesToWrite.map(async (file) => {
 			let action: FileAction = 'created';
 			let finalPath = path.join(environment.KLIPPER_CONFIG_PATH, file.fileName);
-			let lastSavedPath = path.join(environment.RATOS_DATA_DIR, `last-${file.fileName}`);
+			// Sanitize fileName for last-saved tracking (replace path separators with underscores)
+			const sanitizedFileName = file.fileName.replace(/\//g, '_');
+			let lastSavedPath = path.join(environment.RATOS_DATA_DIR, `last-${sanitizedFileName}`);
 			try {
 				await access(finalPath, constants.F_OK);
 				// At this point we know the file exists.
@@ -435,15 +570,15 @@ const generateKlipperConfiguration = async <T extends boolean>(
 						return { fileName: file.fileName, action: 'unchanged' };
 					}
 					// Make a back up.
-					const backupFilename = `${file.fileName.split('.').slice(0, -1).join('.')}-${getTimeStamp()}.cfg`;
+					const fileExt = path.extname(file.fileName);
+					const baseFileName = path.basename(file.fileName, fileExt);
+					const fileDir = path.dirname(file.fileName);
+					const backupFilename = path.join(fileDir, `${baseFileName}-${getTimeStamp()}${fileExt}`);
 					try {
 						await copyFile(finalPath, path.join(environment.KLIPPER_CONFIG_PATH, backupFilename));
 						// prune backups
 						const backups = await glob(
-							path.join(
-								environment.KLIPPER_CONFIG_PATH,
-								`${file.fileName.split('.').slice(0, -1).join('.')}-+([0-9])_+([0-9]).cfg`,
-							),
+							path.join(environment.KLIPPER_CONFIG_PATH, fileDir, `${baseFileName}-+([0-9])_+([0-9])${fileExt}`),
 						);
 						if (backups.length > 0) {
 							const sortedBackups = backups.sort((a, b) => {
@@ -483,6 +618,15 @@ const generateKlipperConfiguration = async <T extends boolean>(
 			try {
 				if (skipFiles?.includes(file.fileName)) {
 					return { fileName: file.fileName, action: 'skipped' };
+				}
+				// Ensure directories exist
+				const finalDir = path.dirname(finalPath);
+				const lastSavedDir = path.dirname(lastSavedPath);
+				if (!existsSync(finalDir)) {
+					mkdirSync(finalDir, { recursive: true });
+				}
+				if (!existsSync(lastSavedDir)) {
+					mkdirSync(lastSavedDir, { recursive: true });
 				}
 				await writeFile(finalPath, file.content);
 				await writeFile(lastSavedPath, file.content);
@@ -525,7 +669,11 @@ export const compareSettings = async (newSettings: SerializedPrinterConfiguratio
 						`git diff --minimal --no-ext-diff --no-index /dev/null /tmp/ratos-added-new-${timehash}.cfg`,
 						(err, stdout, stderr) => {
 							if (stdout.trim() == '') {
-								reject(stderr);
+								if (err) {
+									return reject(err);
+								}
+								const msg = (stderr && stderr.toString()) || 'Empty diff output';
+								return reject(new Error(msg));
 							}
 							resolve(stdout);
 						},
@@ -544,7 +692,14 @@ export const compareSettings = async (newSettings: SerializedPrinterConfiguratio
 	);
 	const removedFiles = await Promise.all(
 		oldFiles
-			.filter((f) => f.exists && !newFiles.some((nf) => nf.fileName === f.fileName))
+			.filter(
+				(f) =>
+					f.exists &&
+					// TODO: Minor hack here. Never remove crowsnest.conf. This can happen if VAOC is removed from the config.
+					// It would be nice to handle this more elegantly in the future.
+					f.fileName !== 'crowsnest.conf' &&
+					!newFiles.some((nf) => nf.fileName === f.fileName),
+			)
 			.map(async (f) => {
 				const timehash = new Date().getTime() + objectHash(f);
 				await writeFile(`/tmp/ratos-removed-old-${timehash}.cfg`, f.content);
@@ -553,7 +708,11 @@ export const compareSettings = async (newSettings: SerializedPrinterConfiguratio
 						`git diff --minimal --no-ext-diff --no-index /tmp/ratos-removed-old-${timehash}.cfg /dev/null`,
 						(err, stdout, stderr) => {
 							if (stdout.trim() == '') {
-								reject(stderr);
+								if (err) {
+									return reject(err);
+								}
+								const msg = (stderr && stderr.toString()) || 'Empty diff output';
+								return reject(new Error(msg));
 							}
 							resolve(stdout);
 						},
@@ -570,6 +729,7 @@ export const compareSettings = async (newSettings: SerializedPrinterConfiguratio
 				} satisfies Unpacked<FilesToWriteWithState> as Unpacked<FilesToWriteWithState>;
 			}),
 	);
+
 	const changedFiles = await Promise.all(
 		newFiles
 			.filter(
@@ -588,22 +748,37 @@ export const compareSettings = async (newSettings: SerializedPrinterConfiguratio
 				}
 				const timehash = new Date().getTime() + objectHash(f);
 				let oldPath = path.resolve(path.join(environment.KLIPPER_CONFIG_PATH, oldFile.fileName));
+				let skipDiff = false;
 				if (!oldFile.exists) {
 					oldPath = `/tmp/ratos-changed-old-${timehash}.cfg`;
 					await writeFile(oldPath, oldFile.content);
+				} else {
+					// If the old file exists on disk, but its content matches the new content,
+					// skip generating a diff as there will be no changes to show. This happens
+					// when the user has, coincidentally, made changes on disk that match the new content.
+					if (oldFile.diskContent === f.content) {
+						skipDiff = true;
+					}
 				}
-				await writeFile(`/tmp/ratos-changed-new-${timehash}.cfg`, f.content);
-				const diff = await new Promise<string | null>((resolve, reject) => {
-					exec(
-						`git diff --minimal --no-ext-diff --no-index ${oldPath} /tmp/ratos-changed-new-${timehash}.cfg`,
-						(err, stdout, stderr) => {
-							if (stdout.trim() == '') {
-								reject(stderr);
-							}
-							resolve(stdout);
-						},
-					);
-				});
+				let diff: string | null = null;
+				if (!skipDiff) {
+					await writeFile(`/tmp/ratos-changed-new-${timehash}.cfg`, f.content);
+					diff = await new Promise<string | null>((resolve, reject) => {
+						exec(
+							`git diff --minimal --no-ext-diff --no-index ${oldPath} /tmp/ratos-changed-new-${timehash}.cfg`,
+							(err, stdout, stderr) => {
+								if (stdout.trim() == '') {
+									if (err) {
+										return reject(err);
+									}
+									const msg = (stderr && stderr.toString()) || 'Empty diff output';
+									return reject(new Error(msg));
+								}
+								resolve(stdout);
+							},
+						);
+					});
+				}
 				return {
 					fileName: f.fileName,
 					diff: diff,
@@ -649,7 +824,11 @@ export const compareSettings = async (newSettings: SerializedPrinterConfiguratio
 							`git diff --minimal --no-ext-diff --no-index ${oldPath} /tmp/ratos-changed-new-${timehash}.cfg`,
 							(err, stdout, stderr) => {
 								if (stdout.trim() == '') {
-									reject(stderr);
+									if (err) {
+										return reject(err);
+									}
+									const msg = (stderr && stderr.toString()) || 'Empty diff output';
+									return reject(new Error(msg));
 								}
 								resolve(stdout);
 							},
@@ -762,6 +941,10 @@ const getToolheads = async <
 
 export const printerRouter = router({
 	getSavedConfig: publicProcedure.output(SerializedPrinterConfiguration.nullable()).query(async (ctx) => {
+		if (!hasLastPrinterSettings()) {
+			getLogger().info('No saved printer settings found.');
+			return null;
+		}
 		const config = await getLastPrinterSettings(undefined, true);
 		return config;
 	}),
@@ -871,6 +1054,41 @@ export const printerRouter = router({
 				(await getToolheads(ctx.input.config))?.map((th) => th.getConfig()),
 			),
 		),
+	chamberLightingOptions: publicProcedure
+		.input(
+			z.object({
+				config: SerializedPartialPrinterConfiguration.nullable(),
+			}),
+		)
+		.output(z.array(ChamberLighting))
+		.query(
+			async (ctx) =>
+				await getChamberLightingOptionsAsync(await deserializePartialPrinterConfiguration(ctx.input.config ?? {})),
+		),
+	toolheadAlignmentSystemOptions: publicProcedure
+		.input(
+			z.object({
+				config: SerializedPartialPrinterConfiguration.nullable(),
+			}),
+		)
+		.output(z.array(ToolheadAlignmentSystem))
+		.query(
+			async (ctx) =>
+				await getToolheadAlignmentSystemOptionsAsync(
+					await deserializePartialPrinterConfiguration(ctx.input.config ?? {}),
+				),
+		),
+	chamberAirFilterOptions: publicProcedure
+		.input(
+			z.object({
+				config: SerializedPartialPrinterConfiguration.nullable(),
+			}),
+		)
+		.output(z.array(ChamberAirFilter))
+		.query(
+			async (ctx) =>
+				await getChamberAirFilterOptionsAsync(await deserializePartialPrinterConfiguration(ctx.input.config ?? {})),
+		),
 	xAccelerometerOptions: publicProcedure
 		.input(
 			z.object({
@@ -883,6 +1101,7 @@ export const printerRouter = router({
 			xAccelerometerOptions(
 				await deserializePartialPrinterConfiguration(ctx.input.config ?? {}),
 				(await getToolhead(ctx.input.config, ctx.input.toolOrAxis))?.getConfig(),
+				hasBeaconAccel(),
 			),
 		),
 	yAccelerometerOptions: publicProcedure
@@ -897,7 +1116,27 @@ export const printerRouter = router({
 			yAccelerometerOptions(
 				await deserializePartialPrinterConfiguration(ctx.input.config ?? {}),
 				(await getToolhead(ctx.input.config, ctx.input.toolOrAxis))?.getConfig(),
+				hasBeaconAccel(),
 			),
+		),
+	filamentSensorOptions: publicProcedure
+		.input(
+			z.object({
+				config: SerializedPartialPrinterConfiguration.optional().nullable(),
+				toolOrAxis: ToolOrAxis.optional().nullable(),
+				toolheadConfig: SerializedPartialToolheadConfiguration.optional().nullable(),
+			}),
+		)
+		.output(z.array(FilamentSensor))
+		.query(
+			async (ctx) =>
+				await getFilamentSensorOptionsAsync(
+					ctx.input.config == null ? null : await deserializePartialPrinterConfiguration(ctx.input.config),
+					typeof ctx.input.toolOrAxis === 'number' ? ctx.input.toolOrAxis : null,
+					ctx.input.toolheadConfig == null
+						? null
+						: await deserializePartialToolheadConfiguration(ctx.input.toolheadConfig, ctx.input.config ?? {}),
+				),
 		),
 	deserializeToolheadConfiguration: publicProcedure
 		.input(
@@ -975,6 +1214,10 @@ type HardwareQueries = Pick<
 	| 'xEndstops'
 	| 'yAccelerometerOptions'
 	| 'yEndstops'
+	| 'chamberLightingOptions'
+	| 'toolheadAlignmentSystemOptions'
+	| 'chamberAirFilterOptions'
+	| 'filamentSensorOptions'
 >;
 export type DropdownQueryKeys = keyof HardwareQueries;
 export type DropdownQuery<T extends DropdownQueryKeys = DropdownQueryKeys> = QueryLike<(typeof printerRouter)[T]>;

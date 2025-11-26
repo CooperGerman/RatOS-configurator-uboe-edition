@@ -1,5 +1,13 @@
 import { Board, BoardID } from '@/zods/boards';
-import { Fan } from '@/zods/hardware';
+import {
+	Fan,
+	ChamberAirFilter,
+	OptionalChamberAirFilterRef,
+	ChamberLighting,
+	OptionalChamberLightingRef,
+	OptionalToolheadAlignmentSystemRef,
+	ToolheadAlignmentSystem,
+} from '@/zods/hardware';
 import { PrinterDefinition, PrinterSizeDefinition } from '@/zods/printer';
 import { PrinterAxis, PrinterRail, SerializedPrinterRail } from '@/zods/motion';
 import {
@@ -10,6 +18,7 @@ import {
 } from '@/zods/toolhead';
 import { ToolheadHelper } from '@/helpers/toolhead';
 import { z } from 'zod';
+//import { defaultChamberAirFilter, defaultChamberLighting, defaultToolheadAlignmentSystem } from '@/data/accessories';
 
 export const PrinterSize = z.union([PrinterSizeDefinition, z.number(), z.string()]).nullable().optional();
 
@@ -23,6 +32,9 @@ const BasePrinterConfiguration = z
 		performanceMode: z.boolean().default(false),
 		stealthchop: z.boolean().default(false),
 		standstillStealth: z.boolean().default(false),
+		chamberLighting: ChamberLighting.optional(),
+		toolheadAlignmentSystem: ToolheadAlignmentSystem.optional(),
+		chamberAirFilter: ChamberAirFilter.optional(),
 		rails: z.array(PrinterRail),
 	})
 	.strict()
@@ -114,6 +126,9 @@ export const SerializedPrinterConfiguration = BasePrinterConfiguration.innerType
 		controlboard: BoardID,
 		toolheads: z.array(SerializedToolheadConfiguration).min(1).max(2),
 		controllerFan: Fan.shape.id,
+		chamberLighting: OptionalChamberLightingRef,
+		toolheadAlignmentSystem: OptionalToolheadAlignmentSystemRef,
+		chamberAirFilter: OptionalChamberAirFilterRef,
 		rails: z.array(SerializedPrinterRail),
 	})
 	.strict();

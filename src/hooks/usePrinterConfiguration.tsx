@@ -1,8 +1,22 @@
 'use client';
 
-import { atom, selector, useRecoilValue, useRecoilState, waitForAll, noWait } from 'recoil';
+import { atom, selector, useRecoilValue, useRecoilState, waitForAll, noWait, DefaultValue } from 'recoil';
 import { z } from 'zod';
-import { Fan } from '@/zods/hardware';
+import {
+	Fan,
+	ChamberAirFilter,
+	OptionalChamberAirFilterRef,
+	ChamberLighting,
+	OptionalChamberLightingRef,
+	ToolheadAlignmentSystem,
+	OptionalToolheadAlignmentSystemRef,
+	ChamberLightingSchemas,
+	ToolheadAlignmentSystemSchemas,
+	ChamberAirFilterSchemas,
+	ChamberLightingRef,
+	ToolheadAlignmentSystemRef,
+	ChamberAirFilterRef,
+} from '@/zods/hardware';
 import {
 	PartialPrinterConfiguration,
 	PrinterConfiguration,
@@ -28,6 +42,24 @@ import { PrinterToolheadsState } from '@/recoil/toolhead';
 import { defaultControllerFan } from '@/data/fans';
 import { moonrakerWriteEffect } from '@/components/sync-with-moonraker';
 import { getLogger } from '@/app/_helpers/logger';
+import { trpcClient } from '@/helpers/trpc';
+import { Atom } from 'lucide-react';
+
+/* Message to future devs who are not gurus in this code area:
+ *
+ * Inside atom<...> effects, note that the 'key' used in read() and write() calls
+ * must match the key of the atom or selector being accessed. The moonrakerWriteEffect()
+ * will *always* use the defined key of the atom/selector it's attached to, not whatever
+ * is passed to write(). Even though techincally you don't need to use the same key for
+ * both the recoil and moonraker keys, the automatic behaviour of moonrakerWriteEffect() makes
+ * this effectively mandatory.
+ */
+
+const enum AtomKeys {
+	ChamberLightingRef = 'ChamberLightingRef',
+	ChamberAirFilterRef = 'ChamberAirFilterRef',
+	ToolheadAlignmentSystemRef = 'ToolheadAlignmentSystemRef',
+}
 
 export const PerformanceModeState = atom<boolean | null | undefined>({
 	key: 'PerformanceMode',
@@ -38,6 +70,198 @@ export const PerformanceModeState = atom<boolean | null | undefined>({
 			refine: getRefineCheckerForZodSchema(z.boolean().optional().nullable()),
 		}),
 	],
+});
+
+//-----------------------------------------------------------------------------
+// Chamber Lighting
+//-----------------------------------------------------------------------------
+
+export const ChamberLightingRefState = atom<OptionalChamberLightingRef>({
+	key: AtomKeys.ChamberLightingRef,
+	default: undefined,
+	effects: [
+		moonrakerWriteEffect(),
+		syncEffect({
+			write: ({ write }, newValue) => {
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(AtomKeys.ChamberLightingRef, DefaultValue);
+				} else {
+					const parsed = ChamberLightingRef.safeParse(newValue);
+					if (parsed.success){
+						write(AtomKeys.ChamberLightingRef, parsed.data);
+					} else {
+						getLogger().error(
+							'RecoilSync: tried to write an invalid ChamberLightingRef, will set to default.',
+							parsed.error,
+							newValue,
+						);
+						write(AtomKeys.ChamberLightingRef, DefaultValue);
+					}
+				}
+			},
+			refine: getRefineCheckerForZodSchema(OptionalChamberLightingRef),
+		}),
+	],
+});
+
+export const ChamberLightingState = selector<ChamberLighting | undefined>({
+	key: 'ChamberLighting',
+	get: async ({ get }) => {		
+		const chamberLightingRef = get(ChamberLightingRefState);
+		if (chamberLightingRef == null) {
+			return undefined;
+		}
+		const controlboard = get(ControlboardState);
+		if (controlboard == null) {
+			return undefined;
+		}
+		try {
+			const opts = await trpcClient.printer.chamberLightingOptions.query({
+				config: { controlboard: controlboard.id },
+			});
+			const selectedOption = opts.find((opt) => ChamberLightingSchemas.refEquals(opt, chamberLightingRef));
+			return selectedOption;
+		} catch (error) {
+			getLogger().error('Failed to hydrate ChamberLighting', error);
+			return undefined;
+		}
+	},
+	set: ({ set }, newValue) => {
+		if (newValue instanceof DefaultValue || newValue == null) {
+			set(ChamberLightingRefState, undefined);
+			return;
+		}
+		const newRef = ChamberLightingSchemas.toRef(newValue);
+		set(ChamberLightingRefState, newRef);
+	},
+});
+
+//-----------------------------------------------------------------------------
+// Toolhead Alignment System
+//-----------------------------------------------------------------------------
+
+export const ToolheadAlignmentSystemRefState = atom<OptionalToolheadAlignmentSystemRef>({
+	key: AtomKeys.ToolheadAlignmentSystemRef,
+	default: undefined,
+	effects: [
+		moonrakerWriteEffect(),
+		syncEffect({
+			write: ({ write }, newValue) => {
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(AtomKeys.ToolheadAlignmentSystemRef, DefaultValue);
+				} else {
+					const parsed = ToolheadAlignmentSystemRef.safeParse(newValue);
+					if (parsed.success){
+						write(AtomKeys.ToolheadAlignmentSystemRef, parsed.data);
+					} else {
+						getLogger().error(
+							'RecoilSync: tried to write an invalid ToolheadAlignmentSystemRef, will set to default.',
+							parsed.error,
+							newValue,
+						);
+						write(AtomKeys.ToolheadAlignmentSystemRef, DefaultValue);
+					}
+				}
+			},
+			refine: getRefineCheckerForZodSchema(OptionalToolheadAlignmentSystemRef),
+		}),
+	],
+});
+
+export const ToolheadAlignmentSystemState = selector<ToolheadAlignmentSystem | undefined>({
+	key: 'ToolheadAlignmentSystem',
+	get: async ({ get }) => {		
+		const ToolheadAlignmentSystemRef = get(ToolheadAlignmentSystemRefState);
+		if (ToolheadAlignmentSystemRef == null) {
+			return undefined;
+		}
+		const controlboard = get(ControlboardState);
+		if (controlboard == null) {
+			return undefined;
+		}
+		try {
+			const opts = await trpcClient.printer.toolheadAlignmentSystemOptions.query({
+				config: { controlboard: controlboard.id },
+			});
+			const selectedOption = opts.find((opt) => ToolheadAlignmentSystemSchemas.refEquals(opt, ToolheadAlignmentSystemRef));
+			return selectedOption;
+		} catch (error) {
+			getLogger().error('Failed to hydrate ToolheadAlignmentSystem', error);
+			return undefined;
+		}
+	},
+	set: ({ set }, newValue) => {
+		if (newValue instanceof DefaultValue || newValue == null) {
+			set(ToolheadAlignmentSystemRefState, undefined);
+			return;
+		}
+		const newRef = ToolheadAlignmentSystemSchemas.toRef(newValue);
+		set(ToolheadAlignmentSystemRefState, newRef);
+	},
+});
+
+//-----------------------------------------------------------------------------
+// Chamber Air Filter
+//-----------------------------------------------------------------------------
+
+export const ChamberAirFilterRefState = atom<OptionalChamberAirFilterRef>({
+	key: AtomKeys.ChamberAirFilterRef,
+	default: undefined,
+	effects: [
+		moonrakerWriteEffect(),
+		syncEffect({
+			write: ({ write }, newValue) => {
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(AtomKeys.ChamberAirFilterRef, DefaultValue);
+				} else {
+					const parsed = ChamberAirFilterRef.safeParse(newValue);
+					if (parsed.success){
+						write(AtomKeys.ChamberAirFilterRef, parsed.data);
+					} else {
+						getLogger().error(
+							'RecoilSync: tried to write an invalid ChamberAirFilterRef, will set to default.',
+							parsed.error,
+							newValue,
+						);
+						write(AtomKeys.ChamberAirFilterRef, DefaultValue);
+					}
+				}
+			},
+			refine: getRefineCheckerForZodSchema(OptionalChamberAirFilterRef),
+		}),
+	],
+});
+
+export const ChamberAirFilterState = selector<ChamberAirFilter | undefined>({
+	key: 'ChamberAirFilter',
+	get: async ({ get }) => {		
+		const ChamberAirFilterRef = get(ChamberAirFilterRefState);
+		if (ChamberAirFilterRef == null) {
+			return undefined;
+		}
+		const controlboard = get(ControlboardState);
+		if (controlboard == null) {
+			return undefined;
+		}
+		try {
+			const opts = await trpcClient.printer.chamberAirFilterOptions.query({
+				config: { controlboard: controlboard.id },
+			});
+			const selectedOption = opts.find((opt) => ChamberAirFilterSchemas.refEquals(opt, ChamberAirFilterRef));
+			return selectedOption;
+		} catch (error) {
+			getLogger().error('Failed to hydrate ChamberAirFilter', error);
+			return undefined;
+		}
+	},
+	set: ({ set }, newValue) => {
+		if (newValue instanceof DefaultValue || newValue == null) {
+			set(ChamberAirFilterRefState, undefined);
+			return;
+		}
+		const newRef = ChamberAirFilterSchemas.toRef(newValue);
+		set(ChamberAirFilterRefState, newRef);
+	},
 });
 
 export const StealthchopState = atom<boolean | null | undefined>({
@@ -67,6 +291,44 @@ export const ControllerFanState = atom<z.infer<typeof Fan> | null>({
 	effects: [
 		moonrakerWriteEffect(),
 		syncEffect({
+			read: async ({ read }) => {
+				const fanState = await read(ControllerFanState.key);
+				if (fanState != null) {
+					// If it's already a full object, return it
+					const parsedFan = Fan.safeParse(fanState);
+					if (parsedFan.success) {
+						return parsedFan.data;
+					}
+					// If it's just an ID string, deserialize it via the server
+					if (typeof fanState === 'string') {
+						try {
+							const controlboardState = await read('Controlboard');
+							const controlboardId =
+								typeof controlboardState === 'object' && controlboardState != null && 'id' in controlboardState
+									? (controlboardState as any).id
+									: null;
+							const fanOptions = await trpcClient.printer.controllerFanOptions.query({
+								config: { controlboard: controlboardId },
+							});
+							const fan = fanOptions.find((f) => f.id === fanState);
+							if (fan != null) {
+								return fan;
+							}
+						} catch (error) {
+							getLogger().error('RecoilSync: failed to deserialize controller fan!', error, fanState);
+						}
+					}
+				}
+				return defaultControllerFan;
+			},
+			write: ({ write }, newValue) => {
+				// Serialize the fan to store only the ID
+				if (newValue instanceof DefaultValue || newValue == null) {
+					write(ControllerFanState.key, newValue);
+					return;
+				}
+				write(ControllerFanState.key, newValue.id);
+			},
 			refine: getRefineCheckerForZodSchema(Fan.nullable()),
 		}),
 	],
@@ -81,6 +343,9 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 			performanceMode,
 			stealthchop,
 			standstillStealth,
+			chamberLighting,
+			toolheadAlignmentSystem,
+			chamberAirFilter,
 			rails,
 			controlboard,
 			controllerFan,
@@ -92,6 +357,9 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 				performanceMode: PerformanceModeState,
 				stealthchop: StealthchopState,
 				standstillStealth: StandstillStealthState,
+				chamberLighting: ChamberLightingState,
+				toolheadAlignmentSystem: ToolheadAlignmentSystemState,
+				chamberAirFilter: ChamberAirFilterState,
 				rails: PrinterRailsState,
 				controlboard: ControlboardState,
 				controllerFan: ControllerFanState,
@@ -114,6 +382,9 @@ export const PrinterConfigurationState = selector<z.infer<typeof PartialPrinterC
 			performanceMode,
 			stealthchop,
 			standstillStealth,
+			chamberLighting,
+			toolheadAlignmentSystem,
+			chamberAirFilter,
 			rails,
 			controlboard,
 			controllerFan,
@@ -155,6 +426,9 @@ export const serializePrinterConfiguration = (config: PrinterConfiguration): Ser
 		performanceMode: config.performanceMode,
 		stealthchop: config.stealthchop,
 		standstillStealth: config.standstillStealth,
+		chamberLighting: ChamberLightingSchemas.toOptionalRef(config.chamberLighting),
+		toolheadAlignmentSystem: ToolheadAlignmentSystemSchemas.toOptionalRef(config.toolheadAlignmentSystem),
+		chamberAirFilter: ChamberAirFilterSchemas.toOptionalRef(config.chamberAirFilter),
 		rails: config.rails.map((rail) => serializePrinterRail(rail)),
 	};
 	return SerializedPrinterConfiguration.parse(serializedConfig);
@@ -172,6 +446,9 @@ export const serializePartialPrinterConfiguration = (
 		performanceMode: config?.performanceMode,
 		stealthchop: config?.stealthchop,
 		standstillStealth: config?.standstillStealth,
+		chamberLighting: ChamberLightingSchemas.toOptionalRef(config?.chamberLighting),
+		toolheadAlignmentSystem: ToolheadAlignmentSystemSchemas.toOptionalRef(config?.toolheadAlignmentSystem),
+		chamberAirFilter: ChamberAirFilterSchemas.toOptionalRef(config?.chamberAirFilter),
 	};
 	return SerializedPartialPrinterConfiguration.parse(serializedConfig);
 };
@@ -191,6 +468,9 @@ export const usePrinterConfiguration = () => {
 	const [performanceMode, setPerformanceMode] = useRecoilState(PerformanceModeState);
 	const [stealthchop, setStealthchop] = useRecoilState(StealthchopState);
 	const [standstillStealth, setStandstillStealth] = useRecoilState(StandstillStealthState);
+	const [chamberLighting, setChamberLighting] = useRecoilState(ChamberLightingState);
+	const [toolheadAlignmentSystem, setToolheadAlignmentSystem] = useRecoilState(ToolheadAlignmentSystemState);
+	const [chamberAirFilter, setChamberAirFilter] = useRecoilState(ChamberAirFilterState);
 	const [selectedControllerFan, setSelectedControllerFan] = useRecoilState(ControllerFanState);
 	const selectedPrinterRails = useRecoilValue(PrinterRailsState);
 	const printerConfiguration = useRecoilValue(PrinterConfigurationState);
@@ -210,6 +490,12 @@ export const usePrinterConfiguration = () => {
 		setStealthchop,
 		standstillStealth,
 		setStandstillStealth,
+		chamberLighting,
+		setChamberLighting,
+		toolheadAlignmentSystem,
+		setToolheadAlignmentSystem,
+		chamberAirFilter,
+		setChamberAirFilter,
 		selectedPrinterRails,
 		selectedControllerFan,
 		setSelectedControllerFan,

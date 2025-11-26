@@ -1,6 +1,6 @@
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import type { Route } from 'next';
 import { AreaChart, LucideProps, Monitor, Move3D, Video, Wand, Wand2, FileText } from 'lucide-react';
 
@@ -66,9 +66,20 @@ interface RedirecterProps extends React.PropsWithChildren {
 export const Redirecter: React.FC<RedirecterProps> = (props) => {
 	const router = useRouter();
 	const isRouteActive = useIsRouteActive();
-	if (!props.hasLastPrinterSettings && !isRouteActive('/wizard')) {
-		router.replace('/wizard');
-	} else {
-		return props.children;
+
+	// Compute the redirect condition at render time but perform navigation from within an effect.
+	const shouldRedirect = !props.hasLastPrinterSettings && !isRouteActive('/wizard');
+
+	useEffect(() => {
+		if (shouldRedirect) {
+			// Router navigation updates state; schedule it after render to avoid React warnings.
+			router.replace('/wizard');
+		}
+	}, [shouldRedirect, router]);
+
+	if (shouldRedirect) {
+		// While redirecting, render nothing to avoid presenting the protected UI transiently.
+		return null;
 	}
+	return props.children;
 };

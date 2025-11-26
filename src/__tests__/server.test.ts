@@ -51,6 +51,9 @@ const serializedConfigFromDefaults = (printer: PrinterDefinition): SerializedPri
 		standstillStealth: false,
 		stealthchop: false,
 		controllerFan: printer.defaults.controllerFan ?? '2pin',
+		chamberLighting: printer.defaults.chamberLighting,
+		toolheadAlignmentSystem: printer.defaults.toolheadAlignmentSystem,
+		chamberAirFilter: printer.defaults.chamberAirFilter,
 	} satisfies SerializedPrinterConfiguration);
 };
 
@@ -199,6 +202,23 @@ describe('server', async () => {
 			);
 		});
 	});
+
+	describe('printer schema validation', async () => {
+		test.concurrent('rejects template with directory traversal (..)', async () => {
+			const p = { ...parsedPrinters[0], template: '../evil-printer-printer.template.cfg' };
+			expect(() => PrinterDefinition.parse(p)).toThrow(/Invalid template filename/);
+		});
+
+		test.concurrent('rejects absolute template paths', async () => {
+			const p = { ...parsedPrinters[0], template: '/etc/passwd-printer.template.cfg' };
+			expect(() => PrinterDefinition.parse(p)).toThrow(/Invalid template filename/);
+		});
+
+		test.concurrent('accepts normal relative template paths', async () => {
+			const p = { ...parsedPrinters[0], template: 'v-core-200-printer.template.cfg' };
+			expect(PrinterDefinition.parse(p).template).toEqual(p.template);
+		});
+	});
 	describe('regression tests', async () => {
 		describe('can generate a default v-core config', async () => {
 			const vCoreConfigPath = path.join(__dirname, 'fixtures', 'v-core-200.json');
@@ -225,6 +245,21 @@ describe('server', async () => {
 				}
 			});
 		});
+		/*
+		describe('can generate config with filament sensor', async () => {			
+			const vCoreWithSensorConfigPath = path.join(__dirname, 'fixtures', 'v-core-200-with-filament-sensor.json');
+			const { splitRes, annotatedLines, config } = await loadConfig(vCoreWithSensorConfigPath);
+			test('produces valid config', async () => {
+				expectValidConfig(config, splitRes, annotatedLines);
+			});
+			test('does not include filament sensor when pins are not defined', async () => {
+				// Since boards don't have filament_sensor_runout_pin and filament_sensor_motion_pin defined yet,
+				// the filament sensor section should NOT be rendered
+				const sensorSection = splitRes.find((l) => l.includes('[filament_switch_sensor'));
+				expect(sensorSection).toBeUndefined();
+			});		
+		});
+		*/
 		describe('can generate idex config', async () => {
 			const idexConfigPath = path.join(__dirname, 'fixtures', 'idex-config.json');
 			const { splitRes, annotatedLines, config } = await loadConfig(idexConfigPath);
@@ -402,7 +437,7 @@ describe('server', async () => {
 					.slice(sectionIndex > -1 ? sectionIndex : 0)
 					.findIndex((l) => l.includes('pin: toolboard_t0:PA1'));
 				expect(sectionIndex, 'Expected [heater_fan toolhead_cooling_fan] section present').toBeGreaterThan(-1);
-				expect(commentIndex, 'Expected 2-pin toolboard fan comment').toEqual(2);
+				expect(commentIndex, 'Expected 2-pin toolboard fan comment').toEqual(3);
 				expect(pinIndex, 'expected toolboard fan pin').toEqual(commentIndex! + 1);
 			});
 			test.concurrent('uses the correct part fan', async () => {
@@ -910,6 +945,145 @@ describe('server', async () => {
 					1,
 				);
 			}
+		});
+	});
+	describe('ini utils', async () => {
+		describe('replaceOrAddIniSections', async () => {
+			test('appends sections when none exist', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '';
+				const out = replaceOrAddIniSections(content, [
+					{ section: 'alpha', body: 'a: 1' },
+					{ section: 'beta', body: 'b: 2' },
+				]);
+				expect(out).toContain('[alpha]');
+				expect(out).toContain('[beta]');
+				// alpha should appear before beta
+				expect(out.indexOf('[alpha]') < out.indexOf('[beta]')).toBeTruthy();
+			});
+			test('replaces first occurrence and removes duplicates, preserving header text', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[foo]\nold: 1\n\n[foo]\nold: 2\n';
+				const out = replaceOrAddIniSections(content, [{ section: 'foo', body: 'new: 9' }]);
+				// header of first match preserved
+				expect(out).toContain('[foo]');
+				// only one foo section remains
+				const matches = out.match(/\[foo\b/g) || [];
+				expect(matches.length).toEqual(1);
+				// body replaced
+				expect(out).toContain('new: 9');
+				// old bodies gone
+				expect(out).not.toContain('old: 1');
+				expect(out).not.toContain('old: 2');
+			});
+			test('normalizes section name whitespace for matching', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[doo  dah]\nold: 1\n\n[doo   dah ]\nold: 2\n';
+				const out = replaceOrAddIniSections(content, [{ section: 'doo dah', body: 'new: 9' }]);
+				// header of first match preserved
+				expect(out).toContain('[doo  dah]');
+				// only one doo dah section remains
+				const matches = out.match(/\[doo\s+dah\b/g) || [];
+				expect(matches.length).toEqual(1);
+				// body replaced
+				expect(out).toContain('new: 9');
+				// old bodies gone
+				expect(out).not.toContain('old: 1');
+				expect(out).not.toContain('old: 2');
+			});
+			test('multiple updates: replace existing and append missing in order', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[a]\nval: 1\n\n[other]\nfoo: bar\n';
+				const out = replaceOrAddIniSections(content, [
+					{ section: 'a', body: 'val: replaced' },
+					{ section: 'b', body: 'bval: appended' },
+				]);
+				// a should be replaced
+				expect(out).toContain('[a]');
+				expect(out).toContain('val: replaced');
+				// b appended at EOF after existing sections
+				expect(out.indexOf('[a]') < out.indexOf('[b]')).toBeTruthy();
+			});
+			test('preserves CRLF style when input contains CRLF', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = 'preline\r\n[sec]\r\nval:1\r\n';
+				const out = replaceOrAddIniSections(content, [{ section: 'sec', body: 'val:2' }]);
+				// should contain CRLF sequences
+				expect(out.includes('\r\n')).toBeTruthy();
+				// and the updated value
+				expect(out).toContain('val:2');
+			});
+			test('multiple updates for same name: last update wins', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '';
+				const out = replaceOrAddIniSections(content, [
+					{ section: 'dup', body: 'v: old' },
+					{ section: 'dup', body: 'v: new' },
+				]);
+				// only new body should be present
+				expect(out).toContain('v: new');
+				expect(out).not.toContain('v: old');
+			});
+			test('retains existing comments on unreplaced sections', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '# Start comment\n[section1]\nval: 1\n\n# Another comment\n[section2]\nval: 2\n';
+				const out = replaceOrAddIniSections(content, [{ section: 'section1', body: 'v: new\n' }]);
+				// new body should be present
+				expect(out).toContain('v: new');
+				// section2 should still be present
+				expect(out).toContain('[section2]');
+			});
+			test('idempotent: replacing section with identical content returns identical output', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[section1]\nval: 1\nkey: 2\n\n[section2]\nval: 3\n';
+				const out = replaceOrAddIniSections(content, [{ section: 'section1', body: 'val: 1\nkey: 2\n\n' }]);
+				expect(out).toEqual(content);
+			});
+			test('idempotent: replacing multiple sections with identical content returns identical output', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[section1]\nval: 1\n\n[section2]\nval: 2\nkey: 3\n\n[section3]\nval: 4\n';
+				const out = replaceOrAddIniSections(content, [
+					{ section: 'section1', body: 'val: 1\n\n' },
+					{ section: 'section2', body: 'val: 2\nkey: 3\n\n' },
+					{ section: 'section3', body: 'val: 4\n' },
+				]);
+				expect(out).toEqual(content);
+			});
+			test('idempotent: works with trailing whitespace and comments between sections', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[section1]\nval: 1\n\n# Comment\n[section2]\nval: 2\n';
+				const out = replaceOrAddIniSections(content, [
+					{ section: 'section1', body: 'val: 1\n\n# Comment\n' },
+					{ section: 'section2', body: 'val: 2\n' },
+				]);
+				expect(out).toEqual(content);
+			});
+			test('idempotent: preserves prelude and EOF formatting', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '# Header comment\n\n[section1]\nval: 1\n\n[section2]\nval: 2\n';
+				const out = replaceOrAddIniSections(content, [
+					{ section: 'section1', body: 'val: 1\n' },
+					{ section: 'section2', body: 'val: 2\n' },
+				]);
+				expect(out).toEqual(content);
+			});
+			test('idempotent: works with CRLF line endings', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[section1]\r\nval: 1\r\n\r\n[section2]\r\nval: 2\r\n';
+				const out = replaceOrAddIniSections(content, [
+					{ section: 'section1', body: 'val: 1\n' },
+					{ section: 'section2', body: 'val: 2\n' },
+				]);
+				expect(out).toEqual(content);
+			});
+			test('changing one section does not affect others', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[section1]\nval: 1\n\n[section2]\nval: 2\nkey: 3\n\n[section3]\nval: 4\n';
+				const out = replaceOrAddIniSections(content, [{ section: 'section2', body: 'val: changed\n' }]);
+				expect(out).toContain('[section1]\nval: 1\n\n');
+				expect(out).toContain('[section2]\nval: changed\n');
+				expect(out).toContain('[section3]\nval: 4\n');
+			});
 		});
 	});
 });

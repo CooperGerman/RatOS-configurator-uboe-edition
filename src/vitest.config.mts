@@ -6,7 +6,8 @@ export default defineConfig({
 		dir: '__tests__',
 		environment: 'node',
 		globals: true,
-		globalSetup: './test-setup.ts',
+		setupFiles: [ './test-setup.ts' ],
+		globalSetup: './test-setup-global.ts',
 		coverage: {
 			enabled: process.env.argv?.includes('--coverage'),
 			reporter: ['text', 'json-summary', 'json'],

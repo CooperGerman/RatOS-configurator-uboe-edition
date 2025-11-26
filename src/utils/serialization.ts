@@ -24,9 +24,11 @@ import { ToolheadHelper, ToolheadSuffix } from '@/helpers/toolhead';
 import {
 	Accelerometer,
 	AccelerometerType,
+	FilamentSensorSchemas,
 	KlipperAccelSensorName,
 	KlipperAccelSensorSchema,
 	klipperAccelSensorSchema,
+	OptionalFilamentSensorRef,
 } from '@/zods/hardware';
 import { Board, Toolboard } from '@/zods/boards';
 
@@ -98,6 +100,7 @@ export const serializeToolheadConfiguration = (th: ToolheadConfiguration<any>): 
 		hotendFan: th.hotendFan.id,
 		xAccelerometer: th.xAccelerometer?.id,
 		yAccelerometer: th.yAccelerometer?.id,
+		filamentSensor: FilamentSensorSchemas.toOptionalRef(th.filamentSensor),
 	};
 };
 
@@ -119,6 +122,7 @@ export const serializePartialToolheadConfiguration = (
 				hotendFan: th.hotendFan?.id,
 				xAccelerometer: th.xAccelerometer?.id,
 				yAccelerometer: th.yAccelerometer?.id,
+				filamentSensor: FilamentSensorSchemas.toOptionalRef(th.filamentSensor),
 			};
 };
 

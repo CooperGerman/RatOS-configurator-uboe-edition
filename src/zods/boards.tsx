@@ -66,6 +66,7 @@ export const AllPins = {
 	e_diag_pin: z.string().optional(),
 	e_heater_pin: z.string().optional(),
 	e_sensor_pin: z.string().optional(),
+	e_power_draw_pin: z.string().optional(),
 	stepper_spi_mosi_pin: z.string().optional(),
 	stepper_spi_miso_pin: z.string().optional(),
 	stepper_spi_sclk_pin: z.string().optional(),
@@ -80,10 +81,21 @@ export const AllPins = {
 	heater_bed_sensor_pin: z.string().optional(),
 	'4p_fan_part_cooling_pin': z.string().optional(),
 	'4p_fan_part_cooling_tach_pin': z.string().optional(),
+	'4p_fan_part_cooling_enable_pin': z.string().optional(),
 	'4p_toolhead_cooling_pin': z.string().optional(),
 	'4p_toolhead_cooling_tach_pin': z.string().optional(),
 	'4p_controller_board_pin': z.string().optional(),
 	'4p_controller_board_tach_pin': z.string().optional(),
+	run_led_pin: z.string().optional(),
+	rgb_led_data_pin: z.string().optional(),
+	filament_sensor_runout_pin: z.string().optional(),
+	filament_sensor_motion_pin: z.string().optional(),
+	ratrig_vaoc_probe_pin: z.string().optional(),
+	ratrig_vaoc_led_pin: z.string().optional(),
+	ratrig_vaoc_fan_pin: z.string().optional(),
+	chamber_lighting_pin: z.string().optional(),
+	chamber_filter_4p_fan_pin: z.string().optional(),
+	chamber_filter_4p_fan_enable_pin: z.string().optional(),
 };
 export const PinMap = z.object(AllPins);
 
@@ -216,7 +228,6 @@ export const ToolboardPinMap = PinMap.extend({
 	e_heater_pin: z.string(),
 	e_sensor_pin: z.string(),
 	adxl345_cs_pin: z.string(),
-	probe_pin: z.string(),
 }).and(
 	z
 		.object({
@@ -351,6 +362,7 @@ export const Board = z
 				z.string().regex(/^\S+$/),
 				z.object({
 					name: z.string().optional(),
+					isPerToolhead: z.boolean().default(true),
 					parameters: z.record(z.string().regex(/^\S+$/), z.string().or(z.number()).or(z.boolean())),
 					comments: z.array(z.string()).default([]),
 				}),
@@ -363,6 +375,7 @@ export const Board = z
 					pin: z.string(),
 					name: z.string(),
 					value: z.number().min(0).max(1),
+					shutdownValue: z.number().min(0).max(1).optional(),
 				}),
 			)
 			.optional(),
@@ -391,9 +404,28 @@ export const Board = z
 				}),
 			)
 			.optional(),
+		hotendHeater: z
+			.object({
+				maxPower: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+				pwmCycleTime: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+			})
+			.optional(),
+		toolheadCoolingFan: z
+			.object({
+				maxPower: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+				inputVoltagePwmCycleTime: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+			})
+			.optional(),
+		partCoolingFan: z
+			.object({
+				maxPower: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+				inputVoltagePwmCycleTime: z.object({ value: z.number(), comment: z.string().optional() }).optional(),
+			})
+			.optional(),
 		ADXL345SPI: z
 			.object({
 				cs_pin: z.string(),
+				axesMap: z.string().optional(),
 			})
 			.and(
 				z
@@ -416,6 +448,7 @@ export const Board = z
 		LIS2DW: z
 			.object({
 				cs_pin: z.string(),
+				axesMap: z.string().optional(),
 			})
 			.and(
 				z
@@ -442,7 +475,23 @@ export const Board = z
 			.object({ isToolboard: z.literal(true), motorSlots: z.undefined() })
 			.or(z.object({ motorSlots: motorSlots }))
 			.or(z.object({ isHost: z.literal(true), motorSlots: z.undefined() })),
-	);
+	)
+	.superRefine((board, ctx) => {
+		const customSections = board.customSections;
+		if (!customSections) return;
+		for (const [key, section] of Object.entries(customSections)) {
+			if (section?.isPerToolhead) {
+				const name = section.name;
+				if (typeof name !== 'string' || name.trim() === '') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `customSections.${key}.name is required when isPerToolhead is true`,
+						path: ['customSections', key, 'name'],
+					});
+				}
+			}
+		}
+	});
 
 export const BoardWithDetectionStatus = Board.and(
 	z.object({
@@ -482,6 +531,7 @@ export type BoardWithDetectionStatus = z.infer<typeof BoardWithDetectionStatus>;
 export type Toolboard = z.infer<typeof Toolboard>;
 export type ToolboardWithDetectionStatus = z.infer<typeof ToolboardWithDetectionStatus>;
 export type AutoFlashableBoard = z.infer<typeof AutoFlashableBoard>;
+export type PinMap = z.infer<typeof PinMap>;
 export type ToolboardPinMap = z.infer<typeof ToolboardPinMap>;
 export type ControlBoardPinMap = z.infer<typeof ControlBoardPinMap>;
 export type ExtruderlessControlBoardPinMap = z.infer<typeof ExtruderlessControlBoardPinMap>;
