@@ -101,6 +101,13 @@ jobs:
         run: |
           ./scripts/test-ratos-logging.sh
 
+      - name: Bash Syntax Check
+        working-directory: ratos-configurator
+        run: |
+          # Use the standalone bash validation script for consistent validation
+          # across CI and local development environments
+          ./scripts/validate-bash-syntax.sh --quiet
+
       - name: Lint
         working-directory: ratos-configurator/src
         run: pnpm run lint:ci
