@@ -130,9 +130,9 @@ validate_required_env_var "RATOS_USERGROUP" "group"
 
 # Migration constants (readonly to prevent accidental modification)
 readonly OFFICIAL_KLIPPER_URL="https://github.com/Klipper3d/klipper.git"
-readonly RATOS_FORK_URL="https://github.com/Rat-OS/klipper.git"
+readonly RATOS_FORK_URL="https://github.com/tg73/klipper.git"
 readonly RATOS_FORK_REMOTE="ratos-fork"
-readonly TARGET_BRANCH="topic/first-layer-experimental"
+readonly TARGET_BRANCH="ratos-development"
 readonly MOONRAKER_CONF_PATH="$SCRIPT_DIR/../moonraker.conf"
 
 # extract_target_commit_from_moonraker() - Dynamically extracts klipper pinned_commit from moonraker.conf
