@@ -87,7 +87,7 @@ export const ChamberLightingRefState = atom<OptionalChamberLightingRef>({
 					write(AtomKeys.ChamberLightingRef, DefaultValue);
 				} else {
 					const parsed = ChamberLightingRef.safeParse(newValue);
-					if (parsed.success){
+					if (parsed.success) {
 						write(AtomKeys.ChamberLightingRef, parsed.data);
 					} else {
 						getLogger().error(
@@ -106,7 +106,7 @@ export const ChamberLightingRefState = atom<OptionalChamberLightingRef>({
 
 export const ChamberLightingState = selector<ChamberLighting | undefined>({
 	key: 'ChamberLighting',
-	get: async ({ get }) => {		
+	get: async ({ get }) => {
 		const chamberLightingRef = get(ChamberLightingRefState);
 		if (chamberLightingRef == null) {
 			return undefined;
@@ -151,7 +151,7 @@ export const ToolheadAlignmentSystemRefState = atom<OptionalToolheadAlignmentSys
 					write(AtomKeys.ToolheadAlignmentSystemRef, DefaultValue);
 				} else {
 					const parsed = ToolheadAlignmentSystemRef.safeParse(newValue);
-					if (parsed.success){
+					if (parsed.success) {
 						write(AtomKeys.ToolheadAlignmentSystemRef, parsed.data);
 					} else {
 						getLogger().error(
@@ -170,7 +170,7 @@ export const ToolheadAlignmentSystemRefState = atom<OptionalToolheadAlignmentSys
 
 export const ToolheadAlignmentSystemState = selector<ToolheadAlignmentSystem | undefined>({
 	key: 'ToolheadAlignmentSystem',
-	get: async ({ get }) => {		
+	get: async ({ get }) => {
 		const ToolheadAlignmentSystemRef = get(ToolheadAlignmentSystemRefState);
 		if (ToolheadAlignmentSystemRef == null) {
 			return undefined;
@@ -183,7 +183,9 @@ export const ToolheadAlignmentSystemState = selector<ToolheadAlignmentSystem | u
 			const opts = await trpcClient.printer.toolheadAlignmentSystemOptions.query({
 				config: { controlboard: controlboard.id },
 			});
-			const selectedOption = opts.find((opt) => ToolheadAlignmentSystemSchemas.refEquals(opt, ToolheadAlignmentSystemRef));
+			const selectedOption = opts.find((opt) =>
+				ToolheadAlignmentSystemSchemas.refEquals(opt, ToolheadAlignmentSystemRef),
+			);
 			return selectedOption;
 		} catch (error) {
 			getLogger().error('Failed to hydrate ToolheadAlignmentSystem', error);
@@ -215,7 +217,7 @@ export const ChamberAirFilterRefState = atom<OptionalChamberAirFilterRef>({
 					write(AtomKeys.ChamberAirFilterRef, DefaultValue);
 				} else {
 					const parsed = ChamberAirFilterRef.safeParse(newValue);
-					if (parsed.success){
+					if (parsed.success) {
 						write(AtomKeys.ChamberAirFilterRef, parsed.data);
 					} else {
 						getLogger().error(
@@ -234,7 +236,7 @@ export const ChamberAirFilterRefState = atom<OptionalChamberAirFilterRef>({
 
 export const ChamberAirFilterState = selector<ChamberAirFilter | undefined>({
 	key: 'ChamberAirFilter',
-	get: async ({ get }) => {		
+	get: async ({ get }) => {
 		const ChamberAirFilterRef = get(ChamberAirFilterRefState);
 		if (ChamberAirFilterRef == null) {
 			return undefined;
