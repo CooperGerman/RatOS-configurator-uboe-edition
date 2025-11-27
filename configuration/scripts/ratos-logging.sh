@@ -267,17 +267,24 @@ handle_error() {
     local exit_code="$1"
     local line_number="$2"
     local context="$3"
-    
+
+    # Prevent recursive traps during error handling
+    trap - ERR
+    set +e
+    set +o pipefail 2>/dev/null || true
+
     log_fatal "Script failed at line $line_number with exit code $exit_code" "$context" "SCRIPT_ERROR"
-    
+
     # Log stack trace if available
     if command -v caller >/dev/null 2>&1; then
         local frame=0
         log_error "Stack trace:" "$context" "SCRIPT_ERROR"
-        while caller "$frame"; do
+        # Use a simple loop without pipelines to avoid pipefail interactions
+        while caller "$frame" >/dev/null 2>&1; do
+            local call_line
+            call_line=$(caller "$frame")
+            log_error "  $call_line" "$context" "SCRIPT_ERROR"
             ((frame++))
-        done 2>&1 | while read -r line; do
-            log_error "  $line" "$context" "SCRIPT_ERROR"
         done
     fi
 
