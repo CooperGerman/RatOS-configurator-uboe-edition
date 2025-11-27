@@ -14,11 +14,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 	try {
 		const environment = serverSchema.parse(process.env);
-		const logPath = `${environment.RATOS_DATA_DIR}/logs/ratos-update.log`;
+		const logPath = environment.LOG_FILE;
 
 		if (!existsSync(logPath)) {
 			return res.status(404).json({
-				error: 'Update log file not found',
+				error: 'Configurator log file not found',
 			});
 		}
 
@@ -29,13 +29,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		res.setHeader('Content-Type', 'text/plain');
 		res.setHeader(
 			'Content-Disposition',
-			`attachment; filename="ratos-update-${new Date().toISOString().split('T')[0]}.log"`,
+			`attachment; filename="ratos-configurator-${new Date().toISOString().split('T')[0]}.log"`,
 		);
 		res.setHeader('Content-Length', stats.size);
 
 		return res.status(200).send(content);
 	} catch (error) {
-		getLogger().error(`Failed to download update log: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		getLogger().error(
+			`Failed to download configurator log: ${error instanceof Error ? error.message : 'Unknown error'}`,
+		);
 		return res.status(500).json({
 			error: 'Failed to download log file',
 		});

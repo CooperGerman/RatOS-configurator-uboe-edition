@@ -13,12 +13,21 @@ else
     exit 1
 fi
 
+if [[ -z "${RATOS_PRINTER_DATA_DIR:-}" ]]; then
+	echo "Error: RATOS_PRINTER_DATA_DIR is not set. Please ensure environment.sh is configured correctly." >&2
+	exit 1
+fi
+
+# NOTE/TODO: environment.sh DOES NOT source ~/ratos-configurator/src|app/.env, so don't expect it to
+# be set at this point. This is the expected behaviour of environment.sh, which sources from
+# ~/.ratos.env (and some variants, see that script for details).
+# See NOTE! at the top of /LOGGING_SYSTEM.md for more details/discussion.
+
 # Default log configuration
 # Convert RATOS_LOG_LEVEL to lowercase for case-insensitive matching
 RATOS_LOG_LEVEL=${RATOS_LOG_LEVEL:-"debug"}
 RATOS_LOG_LEVEL=${RATOS_LOG_LEVEL,,}  # Convert to lowercase
-# Use the main RatOS log file instead of a separate update log
-RATOS_LOG_FILE=${RATOS_LOG_FILE:-"${LOG_FILE:-/var/log/ratos-configurator.log}"}
+RATOS_LOG_FILE=${RATOS_LOG_FILE:-"${LOG_FILE:-$RATOS_PRINTER_DATA_DIR/logs/ratos-configurator.log}"}
 # Disable custom rotation since main log file has its own rotation
 RATOS_LOG_MAX_SIZE=${RATOS_LOG_MAX_SIZE:-0}  # 0 = disabled
 RATOS_LOG_BACKUP_COUNT=${RATOS_LOG_BACKUP_COUNT:-0}
