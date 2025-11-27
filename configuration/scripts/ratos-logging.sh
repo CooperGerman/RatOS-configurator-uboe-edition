@@ -195,12 +195,12 @@ log_message() {
 }
 
 # Convenience logging functions
-log_trace() { log_message "trace" "$1" "$2" "$3"; }
-log_debug() { log_message "debug" "$1" "$2" "$3"; }
-log_info() { log_message "info" "$1" "$2" "$3"; }
-log_warn() { log_message "warn" "$1" "$2" "$3"; }
-log_error() { log_message "error" "$1" "$2" "$3"; }
-log_fatal() { log_message "fatal" "$1" "$2" "$3"; }
+log_trace() { log_message "trace" "$1" "${2:-}" "${3:-}"; }
+log_debug() { log_message "debug" "$1" "${2:-}" "${3:-}"; }
+log_info() { log_message "info" "$1" "${2:-}" "${3:-}"; }
+log_warn() { log_message "warn" "$1" "${2:-}" "${3:-}"; }
+log_error() { log_message "error" "$1" "${2:-}" "${3:-}"; }
+log_fatal() { log_message "fatal" "$1" "${2:-}" "${3:-}"; }
 
 # Function to log command execution with error handling
 # Usage: execute_with_logging "context" "error_code" command arg1 arg2 ...
