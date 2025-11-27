@@ -209,7 +209,10 @@ execute_with_logging() {
     local error_code="$2"
     shift 2
 
-    local cmd_str="$*"
+    # Build command string space-separated regardless of IFS
+    local cmd_str
+    cmd_str=$(printf "%s " "$@")
+    cmd_str=${cmd_str% }
     log_debug "Executing command: $cmd_str" "$context"
 
     # Create temporary file for capturing output while still displaying it
