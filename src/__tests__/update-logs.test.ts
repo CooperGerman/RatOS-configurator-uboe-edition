@@ -253,6 +253,58 @@ describe('Bash Logging Library Integration', () => {
 		}
 	});
 
+	it('should handle multi-line messages correctly', async () => {
+		const testLogPath = path.join(TEST_LOG_DIR, 'bash-multiline-test.log');
+		const originalLogFile = process.env.RATOS_LOG_FILE;
+
+		// Clear any existing log file
+		if (existsSync(testLogPath)) {
+			await rm(testLogPath);
+		}
+
+		try {
+			const scriptPath = path.resolve(__dirname, '../../configuration/scripts/ratos-logging.sh');
+			// Use explicit \n escapes to avoid shell argument truncation when passing multi-line content
+			const multiLineMessage = 'Line 1\nLine 2\nLine 3';
+			const messageEscapedForBash = multiLineMessage.replace(/\n/g, '\\n'); // for $'...'
+
+			// Invoke logging with $'' quoting so bash interprets \n as newlines in a single argument
+			execSync(`bash -c "source ${scriptPath} && log_info $'${messageEscapedForBash}' 'multiline_context'"`, {
+				env: { ...process.env, RATOS_LOG_FILE: testLogPath },
+			});
+
+			// Verify the log file was created and contains valid JSON
+			expect(existsSync(testLogPath)).toBe(true);
+			const logContent = await readFile(testLogPath, 'utf-8');
+			const lines = logContent
+				.trim()
+				.split('\n')
+				.filter((line) => line.trim());
+
+			expect(lines.length).toBeGreaterThan(0);
+			const logEntry = JSON.parse(lines[lines.length - 1]); // Get the last entry
+			expect(logEntry.level).toBe(30);
+			expect(logEntry.msg).toBe(multiLineMessage);
+			const parts = logEntry.msg.split('\n');
+			expect(parts).toHaveLength(3);
+			expect(parts[0]).toBe('Line 1');
+			expect(parts[1]).toBe('Line 2');
+			expect(parts[2]).toBe('Line 3');
+			expect(logEntry.context).toBe('multiline_context');
+			expect(logEntry.source).toBe('ratos-update');
+			expect(logEntry).toHaveProperty('time');
+			expect(logEntry).toHaveProperty('pid');
+			expect(logEntry).toHaveProperty('hostname');
+		} finally {
+			// Restore original environment
+			if (originalLogFile) {
+				process.env.RATOS_LOG_FILE = originalLogFile;
+			} else {
+				process.env.RATOS_LOG_FILE = undefined;
+			}
+		}
+	});
+
 	it('should handle different log levels correctly', async () => {
 		const testLogPath = path.join(TEST_LOG_DIR, 'bash-error-test.log');
 		const originalLogFile = process.env.RATOS_LOG_FILE;

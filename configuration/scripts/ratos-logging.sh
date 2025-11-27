@@ -45,9 +45,11 @@ fi
 # Current log level numeric value
 CURRENT_LOG_LEVEL=${LOG_LEVELS[$RATOS_LOG_LEVEL]}
 
-# Helper function to escape strings for JSON
+# Helper function to escape strings for JSON using Python for robust handling.
 escape_json() {
-    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g; s/\f/\\f/g; s/\x08/\\b/g'
+    # Use Python's json library to dump the string, then strip the surrounding quotes
+    # because log_message adds its own quotes.
+    printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])'
 }
 
 # Get current timestamp as Unix timestamp in milliseconds (Pino format)
