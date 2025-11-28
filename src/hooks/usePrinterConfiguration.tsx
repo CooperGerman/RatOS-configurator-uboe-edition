@@ -87,7 +87,7 @@ export const ChamberLightingRefState = atom<OptionalChamberLightingRef>({
 					write(AtomKeys.ChamberLightingRef, DefaultValue);
 				} else {
 					const parsed = ChamberLightingRef.safeParse(newValue);
-					if (parsed.success){
+					if (parsed.success) {
 						write(AtomKeys.ChamberLightingRef, parsed.data);
 					} else {
 						getLogger().error(
@@ -104,35 +104,40 @@ export const ChamberLightingRefState = atom<OptionalChamberLightingRef>({
 	],
 });
 
-export const ChamberLightingState = selector<ChamberLighting | undefined>({
-	key: 'ChamberLighting',
-	get: async ({ get }) => {		
-		const chamberLightingRef = get(ChamberLightingRefState);
-		if (chamberLightingRef == null) {
-			return undefined;
-		}
+export const CompatibleChamberLightingQuery = selector<ChamberLighting[]>({
+	key: 'CompatibleChamberLightingQuery',
+	get: async ({ get }) => {
 		const controlboard = get(ControlboardState);
 		if (controlboard == null) {
-			return undefined;
+			return [];
 		}
 		try {
 			const opts = await trpcClient.printer.chamberLightingOptions.query({
 				config: { controlboard: controlboard.id },
 			});
-			const selectedOption = opts.find((opt) => ChamberLightingSchemas.refEquals(opt, chamberLightingRef));
-			return selectedOption;
+			return opts;
 		} catch (error) {
-			getLogger().error('Failed to hydrate ChamberLighting', error);
+			getLogger().error('Failed to run CompatibleChamberLightingQuery', error);
+			return [];
+		}
+	},
+});
+
+export const ChamberLightingState = selector<ChamberLighting | undefined>({
+	key: 'ChamberLighting',
+	get: async ({ get }) => {
+		const chamberLightingRef = get(ChamberLightingRefState);
+		if (chamberLightingRef == null) {
 			return undefined;
 		}
+		return get(CompatibleChamberLightingQuery).find((opt) => ChamberLightingSchemas.refEquals(opt, chamberLightingRef));
 	},
 	set: ({ set }, newValue) => {
 		if (newValue instanceof DefaultValue || newValue == null) {
 			set(ChamberLightingRefState, undefined);
-			return;
+		} else {
+			set(ChamberLightingRefState, ChamberLightingSchemas.toRef(newValue));
 		}
-		const newRef = ChamberLightingSchemas.toRef(newValue);
-		set(ChamberLightingRefState, newRef);
 	},
 });
 
@@ -151,7 +156,7 @@ export const ToolheadAlignmentSystemRefState = atom<OptionalToolheadAlignmentSys
 					write(AtomKeys.ToolheadAlignmentSystemRef, DefaultValue);
 				} else {
 					const parsed = ToolheadAlignmentSystemRef.safeParse(newValue);
-					if (parsed.success){
+					if (parsed.success) {
 						write(AtomKeys.ToolheadAlignmentSystemRef, parsed.data);
 					} else {
 						getLogger().error(
@@ -168,35 +173,42 @@ export const ToolheadAlignmentSystemRefState = atom<OptionalToolheadAlignmentSys
 	],
 });
 
-export const ToolheadAlignmentSystemState = selector<ToolheadAlignmentSystem | undefined>({
-	key: 'ToolheadAlignmentSystem',
-	get: async ({ get }) => {		
-		const ToolheadAlignmentSystemRef = get(ToolheadAlignmentSystemRefState);
-		if (ToolheadAlignmentSystemRef == null) {
-			return undefined;
-		}
+export const CompatibleToolheadAlignmentSystemQuery = selector<ToolheadAlignmentSystem[]>({
+	key: 'CompatibleToolheadAlignmentSystemQuery',
+	get: async ({ get }) => {
 		const controlboard = get(ControlboardState);
 		if (controlboard == null) {
-			return undefined;
+			return [];
 		}
 		try {
 			const opts = await trpcClient.printer.toolheadAlignmentSystemOptions.query({
 				config: { controlboard: controlboard.id },
 			});
-			const selectedOption = opts.find((opt) => ToolheadAlignmentSystemSchemas.refEquals(opt, ToolheadAlignmentSystemRef));
-			return selectedOption;
+			return opts;
 		} catch (error) {
-			getLogger().error('Failed to hydrate ToolheadAlignmentSystem', error);
+			getLogger().error('Failed to run CompatibleToolheadAlignmentSystemQuery', error);
+			return [];
+		}
+	},
+});
+
+export const ToolheadAlignmentSystemState = selector<ToolheadAlignmentSystem | undefined>({
+	key: 'ToolheadAlignmentSystem',
+	get: async ({ get }) => {
+		const ToolheadAlignmentSystemRef = get(ToolheadAlignmentSystemRefState);
+		if (ToolheadAlignmentSystemRef == null) {
 			return undefined;
 		}
+		return get(CompatibleToolheadAlignmentSystemQuery).find((opt) =>
+			ToolheadAlignmentSystemSchemas.refEquals(opt, ToolheadAlignmentSystemRef),
+		);
 	},
 	set: ({ set }, newValue) => {
 		if (newValue instanceof DefaultValue || newValue == null) {
 			set(ToolheadAlignmentSystemRefState, undefined);
-			return;
+		} else {
+			set(ToolheadAlignmentSystemRefState, ToolheadAlignmentSystemSchemas.toRef(newValue));
 		}
-		const newRef = ToolheadAlignmentSystemSchemas.toRef(newValue);
-		set(ToolheadAlignmentSystemRefState, newRef);
 	},
 });
 
@@ -215,7 +227,7 @@ export const ChamberAirFilterRefState = atom<OptionalChamberAirFilterRef>({
 					write(AtomKeys.ChamberAirFilterRef, DefaultValue);
 				} else {
 					const parsed = ChamberAirFilterRef.safeParse(newValue);
-					if (parsed.success){
+					if (parsed.success) {
 						write(AtomKeys.ChamberAirFilterRef, parsed.data);
 					} else {
 						getLogger().error(
@@ -232,35 +244,42 @@ export const ChamberAirFilterRefState = atom<OptionalChamberAirFilterRef>({
 	],
 });
 
-export const ChamberAirFilterState = selector<ChamberAirFilter | undefined>({
-	key: 'ChamberAirFilter',
-	get: async ({ get }) => {		
-		const ChamberAirFilterRef = get(ChamberAirFilterRefState);
-		if (ChamberAirFilterRef == null) {
-			return undefined;
-		}
+export const CompatibleChamberAirFilterQuery = selector<ChamberAirFilter[]>({
+	key: 'CompatibleChamberAirFilterQuery',
+	get: async ({ get }) => {
 		const controlboard = get(ControlboardState);
 		if (controlboard == null) {
-			return undefined;
+			return [];
 		}
 		try {
 			const opts = await trpcClient.printer.chamberAirFilterOptions.query({
 				config: { controlboard: controlboard.id },
 			});
-			const selectedOption = opts.find((opt) => ChamberAirFilterSchemas.refEquals(opt, ChamberAirFilterRef));
-			return selectedOption;
+			return opts;
 		} catch (error) {
-			getLogger().error('Failed to hydrate ChamberAirFilter', error);
+			getLogger().error('Failed to run CompatibleChamberAirFilterQuery', error);
+			return [];
+		}
+	},
+});
+
+export const ChamberAirFilterState = selector<ChamberAirFilter | undefined>({
+	key: 'ChamberAirFilter',
+	get: async ({ get }) => {
+		const ChamberAirFilterRef = get(ChamberAirFilterRefState);
+		if (ChamberAirFilterRef == null) {
 			return undefined;
 		}
+		return get(CompatibleChamberAirFilterQuery).find((opt) =>
+			ChamberAirFilterSchemas.refEquals(opt, ChamberAirFilterRef),
+		);
 	},
 	set: ({ set }, newValue) => {
 		if (newValue instanceof DefaultValue || newValue == null) {
 			set(ChamberAirFilterRefState, undefined);
-			return;
+		} else {
+			set(ChamberAirFilterRefState, ChamberAirFilterSchemas.toRef(newValue));
 		}
-		const newRef = ChamberAirFilterSchemas.toRef(newValue);
-		set(ChamberAirFilterRefState, newRef);
 	},
 });
 
