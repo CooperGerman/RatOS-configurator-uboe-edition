@@ -3,7 +3,12 @@ import React, { startTransition, useEffect, useState } from 'react';
 import { StepNavButtons } from '@/components/step-nav-buttons';
 import { StepScreenProps } from '@/hooks/useSteps';
 import { DropdownWithPrinterQuery } from '@/components/forms/dropdown';
-import { usePrinterConfiguration } from '@/hooks/usePrinterConfiguration';
+import {
+	CompatibleChamberAirFilterQuery,
+	CompatibleChamberLightingQuery,
+	CompatibleToolheadAlignmentSystemQuery,
+	usePrinterConfiguration,
+} from '@/hooks/usePrinterConfiguration';
 import { ErrorMessage } from '@/components/common/error-message';
 import { Toggle } from '@/components/forms/toggle';
 import { PrinterRailSettings } from '@/components/setup-steps/printer-rail-settings';
@@ -15,6 +20,7 @@ import { z } from 'zod';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { AnimatedContainer } from '@/components/common/animated-container';
 import { fanHelp } from '@/data/fans';
+import { DropdownWithSelector } from '@/components/forms/dropdown-with-selector';
 
 export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 	const [advancedSteppers, setAdvancedSteppers] = useState(false);
@@ -141,10 +147,9 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 							/>
 						</div>
 						<div>
-							<DropdownWithPrinterQuery
+							<DropdownWithSelector
 								label="Chamber Lighting"
-								query="chamberLightingOptions"
-								vars={{ config: serializedPrinterConfiguration }}
+								optionsSelector={CompatibleChamberLightingQuery}
 								onSelect={(value) => setChamberLighting(value ?? undefined)}
 								value={chamberLighting}
 								canClear={true}
@@ -153,10 +158,9 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 							/>
 						</div>
 						<div>
-							<DropdownWithPrinterQuery
+							<DropdownWithSelector
 								label="Chamber Air Filter"
-								query="chamberAirFilterOptions"
-								vars={{ config: serializedPrinterConfiguration }}
+								optionsSelector={CompatibleChamberAirFilterQuery}
 								onSelect={(value) => setChamberAirFilter(value ?? undefined)}
 								value={chamberAirFilter}
 								canClear={true}
@@ -166,10 +170,9 @@ export const HardwareSelection: React.FC<StepScreenProps> = (props) => {
 						</div>
 						{(serializedPrinterConfiguration?.toolheads?.length ?? 0) > 1 && (
 							<div>
-								<DropdownWithPrinterQuery
+								<DropdownWithSelector
 									label="Toolhead Alignment System"
-									query="toolheadAlignmentSystemOptions"
-									vars={{ config: serializedPrinterConfiguration }}
+									optionsSelector={CompatibleToolheadAlignmentSystemQuery}
 									onSelect={(value) => setToolheadAlignmentSystem(value ?? undefined)}
 									value={toolheadAlignmentSystem}
 									canClear={true}
