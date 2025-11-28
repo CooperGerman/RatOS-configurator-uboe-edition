@@ -21,10 +21,8 @@ export async function getFilamentSensorOptionsAsync(
  */
 export async function getChamberAirFilterOptionsAsync(
 	config?: PartialPrinterConfiguration | null,
-	toolNumber?: number | null,
-	toolheadConfig?: PartialToolheadConfiguration | null,
 ): Promise<ChamberAirFilter[]> {
-	return await getCompatibleHardwareInstancesAsync('chamber-air-filter', config, toolNumber, toolheadConfig);
+	return await getCompatibleHardwareInstancesAsync('chamber-air-filter', config);
 }
 
 /**
@@ -33,10 +31,8 @@ export async function getChamberAirFilterOptionsAsync(
  */
 export async function getChamberLightingOptionsAsync(
 	config?: PartialPrinterConfiguration | null,
-	toolNumber?: number | null,
-	toolheadConfig?: PartialToolheadConfiguration | null,
 ): Promise<ChamberLighting[]> {
-	return await getCompatibleHardwareInstancesAsync('chamber-lighting', config, toolNumber, toolheadConfig);
+	return await getCompatibleHardwareInstancesAsync('chamber-lighting', config);
 }
 
 /**
@@ -45,8 +41,6 @@ export async function getChamberLightingOptionsAsync(
  */
 export async function getToolheadAlignmentSystemOptionsAsync(
 	config?: PartialPrinterConfiguration | null,
-	toolNumber?: number | null,
-	toolheadConfig?: PartialToolheadConfiguration | null,
 ): Promise<ToolheadAlignmentSystem[]> {
-	return await getCompatibleHardwareInstancesAsync('toolhead-alignment-system', config, toolNumber, toolheadConfig);
+	return await getCompatibleHardwareInstancesAsync('toolhead-alignment-system', config);
 }
