@@ -274,7 +274,10 @@ export const useMoonraker = (options?: MoonrakerHookOptions) => {
 		if (lastJsonMessage?.id && inFlightRequests.current[lastJsonMessage.id]) {
 			window.clearTimeout(inFlightRequestTimeouts.current[lastJsonMessage.id]);
 			if ('error' in lastJsonMessage) {
-				inFlightRequests.current[lastJsonMessage.id](new Error(lastJsonMessage.error.message), null);
+				inFlightRequests.current[lastJsonMessage.id](
+					new Error(lastJsonMessage.error.message, { cause: lastJsonMessage.error.code }),
+					null,
+				);
 			} else {
 				inFlightRequests.current[lastJsonMessage.id](null, lastJsonMessage.result);
 			}
@@ -338,6 +341,14 @@ export const useNamespacedItemQuery = <
 		queryKey: [namespace, key],
 		queryFn: async () => {
 			return getItem(namespace, key) as Promise<V>;
+		},
+		// Don't retry when keys don't exist - this is expected state
+		retry: (failureCount, error) => {
+			if (error instanceof Error && error.cause === 404) {
+				getLogger().info(`Item ${namespace}/${key} not found in database, not retrying.`);
+				return false;
+			}
+			return failureCount < 3;
 		},
 	});
 };
