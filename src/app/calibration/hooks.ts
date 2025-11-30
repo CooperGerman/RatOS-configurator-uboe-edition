@@ -357,34 +357,17 @@ export const useVideoState = () => {
 	};
 };
 
-type VaocSettingsProps = {
-	url: string;
-	isConnected?: boolean;
-};
-
-export const useVaocSettings = ({ url, isConnected }: VaocSettingsProps) => {
-	// Camera state
-	const [settings, saveSettings] = useMoonrakerState('RatOS', 'camera-settings');
-	return { settings, saveSettings };
-};
-
 type StreamSettingsProps = {
 	url: string;
 	isConnected?: boolean;
-	settings: MoonrakerDB['RatOS']['camera-stream-settings'] | null;
-	saveSettings: (settings: MoonrakerDB['RatOS']['camera-stream-settings']) => Promise<void>;
-	isInitialLoading: boolean;
-	isFetched: boolean;
 };
 
-export const useStreamSettings = ({
-	url,
-	isConnected,
-	settings,
-	saveSettings,
-	isInitialLoading,
-	isFetched,
-}: StreamSettingsProps) => {
+export const useStreamSettings = ({ url, isConnected }: StreamSettingsProps) => {
+	const [settings, saveSettings, query] = useMoonrakerState(
+		'RatOS',
+		'camera-stream-settings',
+		{} as MoonrakerDB['RatOS']['camera-stream-settings'],
+	);
 	const [options, setOptions] = useState<CameraOption[]>([]);
 	const settingsRef = useRef(settings);
 	settingsRef.current = settings;
@@ -427,7 +410,7 @@ export const useStreamSettings = ({
 			try {
 				const intVal = typeof value === 'boolean' ? (value ? 1 : 0) : value;
 				const res = await fetch(`${url}/option?${key}=${intVal.toString()}`);
-				if (res.ok && isInitialLoading === false) {
+				if (res.ok && query.isInitialLoading === false) {
 					getLogger().info(
 						'saving',
 						key,
@@ -442,14 +425,14 @@ export const useStreamSettings = ({
 				return false;
 			}
 		},
-		[options, url, isInitialLoading, saveSettings],
+		[options, url, query.isInitialLoading, saveSettings],
 	);
 
 	useEffect(() => {
 		if (isConnected) {
 			compression(100);
 		}
-		if (isConnected && isFetched && settingsRef.current != null) {
+		if (isConnected && query.isFetched && settingsRef.current != null) {
 			for (const opt in settingsRef.current) {
 				const val = settingsRef.current[opt]?.value;
 
@@ -459,7 +442,7 @@ export const useStreamSettings = ({
 				}
 			}
 		}
-	}, [isFetched, url, isConnected, compression]);
+	}, [query.isFetched, url, isConnected, compression]);
 
 	return {
 		options: mergedOptions,

@@ -3,6 +3,15 @@ export type CameraOption = {
 	value?: number | boolean;
 } & ({ min: number; max: number; float?: boolean } | { toggle?: true });
 
+/**
+ * The value stored in the database for each camera stream setting.
+ * This is a simplified version - the full CameraOption type includes
+ * metadata (min/max/toggle) that comes from the camera API.
+ */
+export type CameraStreamSettingValue = {
+	value?: number | boolean;
+};
+
 export const parseOptions = (options: string) => {
 	const ints = options.matchAll(/- available option:\s(\w+)\s.+(\[-?\d+\.\.\d+\])/g);
 	let result: CameraOption[] = [];
