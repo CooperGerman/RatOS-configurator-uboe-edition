@@ -18,17 +18,9 @@ type StreamSettingsDialogProps = {
 
 export const StreamSettingsDialog: React.FC<StreamSettingsDialogProps> = (props) => {
 	const { url, isConnected, isAdvancedVisible, isColorVisible, isExposureVisible } = props;
-	const [streamSettings, saveStreamSettings, streamSettingsQuery] = useMoonrakerState(
-		'RatOS',
-		'camera-stream-settings',
-	);
 	const { options, setOption } = useStreamSettings({
 		url,
 		isConnected,
-		settings: streamSettings,
-		saveSettings: saveStreamSettings,
-		isInitialLoading: streamSettingsQuery.isInitialLoading,
-		isFetched: streamSettingsQuery.isFetched,
 	});
 
 	const [animate] = useAutoAnimate();

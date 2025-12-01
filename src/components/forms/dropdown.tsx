@@ -40,7 +40,7 @@ const isSameOption = (
 	return a.id === b.id && a.connectedTo === b.connectedTo;
 };
 
-interface DropdownProps<DropdownOption extends Option = Option, CanClear extends boolean = false> {
+export interface DropdownProps<DropdownOption extends Option = Option, CanClear extends boolean = false> {
 	options: DropdownOption[];
 	value: DropdownOption | null | undefined;
 	help?: React.ReactNode;

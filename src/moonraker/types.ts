@@ -1,5 +1,5 @@
 import { VaocSettings } from '@/app/calibration/vaoc-settings-dialog';
-import { CameraOption } from '@/app/calibration/helpers';
+import { CameraStreamSettingValue } from '@/app/calibration/helpers';
 
 export type MoonrakerStatus = 'connected' | 'connecting' | 'not-running';
 
@@ -43,7 +43,7 @@ export type MoonrakerDBItemResponse<Data = unknown> = {
 export type MoonrakerDB = {
 	RatOS: {
 		'camera-settings': VaocSettings;
-		'camera-stream-settings': { [key: string]: CameraOption };
+		'camera-stream-settings': { [key: string]: CameraStreamSettingValue };
 		__recoil: unknown;
 	};
 	mainsail: {
