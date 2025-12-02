@@ -291,6 +291,11 @@ class BeaconTrueZeroCorrection:
 
 	def _validate_probing_region(self, range_x, range_y, span):
 		r = self.ratos.get_beacon_probing_regions()
+		
+		if r is None:
+			# This should not be possible, as this code should only be called when beacon and bed_mesh are present.
+			raise self.gcode.error('get_beacon_probing_regions() unexpectedly returned None, this should not be possible.')
+		
 		probable_x = (r.contact_min[0], r.contact_max[0])
 		probable_y = (r.contact_min[1], r.contact_max[1])
 
@@ -302,7 +307,7 @@ class BeaconTrueZeroCorrection:
 			in_range(probable_y, range_y[0]) and in_range(probable_y, range_y[1])):
 
 			self.ratos.console_echo(RATOS_TITLE, 'error', f'The required probing region ({span:.1f}x{span:.1f}) would probe outside the configured contact probing area.')
-			raise self.gcmd.error('The required probing region would probe outside the contact probing area')
+			raise self.gcode.error('The required probing region would probe outside the contact probing area')
 
 class ProbingSession:
 
