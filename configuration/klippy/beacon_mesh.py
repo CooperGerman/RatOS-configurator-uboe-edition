@@ -645,7 +645,6 @@ class BeaconMesh:
 
 			measured_mesh_params = measured_zmesh.get_mesh_params()
 			measured_mesh_name = measured_zmesh.get_profile_name()
-			measured_mesh_bed_temp = measured_mesh_params[RATOS_MESH_BED_TEMP_PARAMETER]
 
 			if not self._validate_extended_parameters(
 				measured_mesh_params,
@@ -654,6 +653,8 @@ class BeaconMesh:
 				allowed_kinds=(RATOS_MESH_KIND_MEASURED,),
 				allowed_probe_methods=(RATOS_MESH_BEACON_PROBE_METHOD_PROXIMITY, RATOS_MESH_BEACON_PROBE_METHOD_PROXIMITY_AUTOMATIC)):
 				return False
+
+			measured_mesh_bed_temp = measured_mesh_params[RATOS_MESH_BED_TEMP_PARAMETER]
 
 			if comp_mesh_profile_name.lower() == RATOS_COMPENSATION_MESH_NAME_AUTO:
 				comp_mesh_profile_name = self.auto_select_compensation_mesh(measured_mesh_bed_temp)
