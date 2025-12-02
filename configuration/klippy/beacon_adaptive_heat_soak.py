@@ -616,7 +616,7 @@ class BeaconAdaptiveHeatSoak:
 										trend_check[0], trend_check[1], threshold
 									) for trend_check in level_2_moving_average_trend_checks)
 
-						if moving_average_trend_checks_passed == True or level_2_moving_average_trend_checks_passed == True:
+						if moving_average_trend_checks_passed is True or level_2_moving_average_trend_checks_passed is True:
 							if elapsed < minimum_wait:
 								min_wait_satisfied = False
 							else:
@@ -628,7 +628,7 @@ class BeaconAdaptiveHeatSoak:
 							logging.info(
 								f"{self.name}: elapsed={elapsed:.1f} s, progress={progress_handler.progress * 100.0:.2f}%, "
 								f"ma={moving_average:.2f} nm/s, ma_hold_count={moving_average_hold_count}/{moving_average_target_hold_count}, ma_trend_checks_passed={moving_average_trend_checks_passed}, "
-								f"ma2={float('inf') if level_2_moving_average is None else level_2_moving_average:.2f} nm/s, ma2_hold_count={level_2_moving_average_hold_count}/{level_2_moving_average_target_hold_count}, ma2_trend_checks_passed={level_2_moving_average_trend_checks}, "
+								f"ma2={float('inf') if level_2_moving_average is None else level_2_moving_average:.2f} nm/s, ma2_hold_count={level_2_moving_average_hold_count}/{level_2_moving_average_target_hold_count}, ma2_trend_checks_passed={level_2_moving_average_trend_checks_passed}, "
 								f"min_wait_satisfied={min_wait_satisfied}, threshold={threshold:.2f} nm/s")
 					elif should_log:
 						logging.info(f"{self.name}: elapsed={elapsed:.1f} s, waiting for first moving average to be available...")
