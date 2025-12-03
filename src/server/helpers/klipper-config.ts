@@ -412,7 +412,7 @@ export const constructKlipperConfigExtrasGenerator = (
 				})
 				.join('\n');
 		},
-		isOverwriteRequestedForFile(fileName: string, defaultIfOverwriteFilesIsUndefined: boolean = true): boolean {
+		isOverwriteRequestedForFile(fileName: string, defaultIfOverwriteFilesIsUndefined: boolean = false): boolean {
 			return (
 				(overwriteFiles?.includes(fileName) || overwriteFiles?.includes('*')) ?? defaultIfOverwriteFilesIsUndefined
 			);
