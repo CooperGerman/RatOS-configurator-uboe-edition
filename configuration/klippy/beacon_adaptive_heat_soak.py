@@ -287,7 +287,6 @@ class BeaconAdaptiveHeatSoak:
 		# TODO: Make trend checks configurable.
 
 		# Setup
-		self.reactor = None
 		self.beacon = None
 
 		# Register commands
@@ -315,8 +314,6 @@ class BeaconAdaptiveHeatSoak:
 											self._handle_connect)
 
 	def _handle_connect(self):
-		self.reactor = self.printer.get_reactor()
-
 		if self.config.has_section("beacon"):
 			self.beacon = self.printer.lookup_object('beacon')
 
