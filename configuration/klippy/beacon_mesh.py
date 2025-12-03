@@ -1298,7 +1298,7 @@ class BeaconMesh:
 		try:
 			self.bed_mesh.bmc.update_config(bed_mesh_calibrate_like_command)
 		except BedMesh.BedMeshError as e:
-			raise RatOSBeaconMeshError(f"Error updating bed mesh config: {str(e)}")
+			raise RatOSBeaconMeshError(f"Error updating bed mesh config: {str(e)}") from e
 
 		params = dict(self.bed_mesh.bmc.mesh_config)
 		params.update(extra_params)
@@ -1312,7 +1312,7 @@ class BeaconMesh:
 		try:
 			z_mesh.build_mesh(probed_points)
 		except BedMesh.BedMeshError as e:
-			raise RatOSBeaconMeshError(str(e))
+			raise RatOSBeaconMeshError(str(e)) from e
 
 		self.bed_mesh.set_mesh(z_mesh)
 		self.bed_mesh.save_profile(profile_name)
