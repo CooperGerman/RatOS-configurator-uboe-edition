@@ -31,7 +31,11 @@ import path from 'path';
 import { serverSchema } from '@/env/schema.mjs';
 import { KlipperAccelSensorName } from '@/zods/hardware';
 import { ToolheadSuffix } from '@/helpers/toolhead';
-import { getVaocControlPointVariables, VAOCControlPoints } from '@/server/helpers/config-generation/ratrig-vaoc';
+import {
+	getVaocControlPointVariables,
+	renderVaocResetMacro,
+	VAOCControlPoints,
+} from '@/server/helpers/config-generation/ratrig-vaoc';
 import { renderTemplateAsync } from '@/templates/template-api';
 
 type WritableFiles = { fileName: string; content: string; overwrite: boolean; order?: number }[];
@@ -1083,6 +1087,9 @@ export const constructKlipperConfigHelpers = async (
 		},
 		renderSaveVariables(options?: VAOCControlPoints) {
 			return extrasGenerator.generateSaveVariables(options).join('\n');
+		},
+		renderVaocResetMacro(options?: VAOCControlPoints) {
+			return renderVaocResetMacro(config, options);
 		},
 		renderControllerFan() {
 			let result: string[] = [];
