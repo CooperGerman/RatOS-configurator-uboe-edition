@@ -4,6 +4,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
+import os
 import math, time, logging, socket
 import numpy as np
 from . import probe
@@ -173,7 +174,9 @@ class BeaconTrueZeroCorrection:
 			)
 
 			timestamp = time.strftime("%Y%m%d_%H%M%S")
-			filename = f'/home/pi/printer_data/config/mpp_capture_{timestamp}.csv'
+			config_file = self.printer.get_start_args()['config_file']
+			config_dir = os.path.dirname(config_file)
+			filename = os.path.join(config_dir, f'mpp_capture_{timestamp}.csv')			
 
 			gcmd.respond_info(f"Capturing diagnostic data to {filename}...")
 
