@@ -1,4 +1,4 @@
-# Beacaon contact compensation mesh
+# Beacon contact compensation mesh
 #
 # Copyright (C) 2024 Helge Keck <HelgeKeck@hotmail.com>
 # Copyright (C) 2024-2025 Mikkel Schmidt <mikkel.schmidt@gmail.com>
