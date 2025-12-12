@@ -42,6 +42,8 @@ export const getDebugZipFiles = async () => {
 
 	let vars = await glob([`/var/log/ratos*.log`]);
 
+	let temps = await glob([`/tmp/heat_soak_*.csv`]);
+
 	const gatherInfo = async (f: string, source: string, dest: string) => {
 		let s = await stat(f);
 		let p = f;
@@ -66,7 +68,8 @@ export const getDebugZipFiles = async () => {
 				.map((f) => gatherInfo(f, 'RatOS', 'RatOS'))
 				.concat(logs.map((f) => gatherInfo(f, 'logs', 'logs')))
 				.concat(configs.map((f) => gatherInfo(f, 'configs', 'configs')))
-				.concat(vars.map((f) => gatherInfo(f, 'var/log', 'var/log'))),
+				.concat(vars.map((f) => gatherInfo(f, 'var/log', 'var/log')))
+				.concat(temps.map((f) => gatherInfo(f, 'tmp', 'tmp'))),
 		)
 	).filter((f) => f.isFile);
 	return files;
