@@ -47,7 +47,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z1`}
+							onClick={() => G`G91\nG0 Z1\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -64,7 +64,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z0.5`}
+							onClick={() => G`G91\nG0 Z0.5\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -78,7 +78,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z0.1`}
+							onClick={() => G`G91\nG0 Z0.1\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -92,7 +92,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z0.05`}
+							onClick={() => G`G91\nG0 Z0.05\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -106,7 +106,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z0.01`}
+							onClick={() => G`G91\nG0 Z0.01\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -135,7 +135,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z-0.01`}
+							onClick={() => G`G91\nG0 Z-0.01\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -149,7 +149,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z-0.05`}
+							onClick={() => G`G91\nG0 Z-0.05\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -163,7 +163,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z-0.1`}
+							onClick={() => G`G91\nG0 Z-0.1\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -177,7 +177,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z-0.5`}
+							onClick={() => G`G91\nG0 Z-0.5\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
@@ -191,7 +191,7 @@ export const FocusControls: React.FC<CameraSettingsProps> = (props) => {
 				<li className={twJoin('flex')}>
 					<div className={twJoin('flex flex-1 items-center justify-center text-center')}>
 						<button
-							onClick={() => G`G91\nG0 Z-1.0`}
+							onClick={() => G`G91\nG0 Z-1.0\nG90`}
 							type="button"
 							className={twMerge(
 								'flex flex-1 items-center justify-center space-x-2 whitespace-nowrap px-5 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100',
