@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 COMPRESS_BUILD=false
 CREATE_DEPLOYMENT_BRANCH=false
+DEPLOYMENT_BRANCH_SOURCE=""
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,18 +19,19 @@ if [ "$current_dir" != "$current_git_repo" ] && [[ "$current_dir" != *"RatOS-con
 fi
 
 # Parse command line arguments
-while getopts ":zg" opt; do
+while getopts ":zg:" opt; do
     case $opt in
         z)
             COMPRESS_BUILD=true
             ;;
         g)
             CREATE_DEPLOYMENT_BRANCH=true
+            DEPLOYMENT_BRANCH_SOURCE="$OPTARG"
             ;;
         *)
-            echo "Usage: $0 [-z] [-g]"
-            echo "  -z  Create a gzipped tar archive of the current build"
-            echo "  -g  Create deployment branch from the current build"
+            echo "Usage: $0 [-z] [-g branch-name]"
+            echo "  -z                 Create a gzipped tar archive of the current build"
+            echo "  -g branch-name     Create deployment branch from the specified source branch"
             exit 1
             ;;
     esac
@@ -154,14 +156,62 @@ compress_build(){
     echo "Build compressed successfully at: ${archive_name}"
 }
 
+_is_valid_deployment_branch_source(){
+    local branch="$1"
+    if [[ "$branch" == *"-deployment" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+_strip_remote_reference(){
+    local input="$1"
+    
+    # Check if input contains a forward slash
+    if [[ "$input" == */* ]]; then
+        # Extract the part before the slash
+        local remote="${input%%/*}"
+        
+        # Get list of remotes from git
+        local remotes=$(git remote)
+        # Check if remote matches any known remotes
+        if echo "$remotes" | grep -q "^${remote}$"; then
+            # Return the part after the slash (the branch name)
+            echo "${input#*/}"
+        else
+            # Not a remote reference, return input as is
+            echo "$input"
+        fi
+    else
+        echo "$input"
+    fi 
+}
+
 create_deployment_branch(){
     check_required_command git
-    local current_branch
-    current_branch=$(git rev-parse --abbrev-ref HEAD)
-    local deployment_branch="${current_branch}-deployment"
+    local source_branch="$DEPLOYMENT_BRANCH_SOURCE"
     
-    echo "Creating deployment branch: ${deployment_branch}"
-    git switch -c "${deployment_branch}"
+    # Validate that source branch ends with -deployment
+    if ! _is_valid_deployment_branch_source "$source_branch"; then
+        echo "Error: The new deployment branch must be based on an existing deployment branch" >&2
+        exit 3
+    fi
+
+    local deployment_branch=$(_strip_remote_reference "$source_branch")
+    
+    # Check if deployment branch already exists
+    if git rev-parse --verify "${deployment_branch}" >/dev/null 2>&1; then
+        echo "Switching to existing deployment branch: ${deployment_branch}"
+        git switch "${deployment_branch}"
+    else
+        echo "Creating deployment branch: ${deployment_branch} from ${source_branch}"
+        git switch -c "${deployment_branch}" "${source_branch}"
+    fi
+
+    # unpack the artifacts build directory into the current working directory
+    rsync -a --delete "$(get_artifact_build_directory)/" ./
+    echo "Deployment branch ${deployment_branch} is ready with the latest build artifacts."
 }
 
 # Validate that BUILD_ID file exists before proceeding
