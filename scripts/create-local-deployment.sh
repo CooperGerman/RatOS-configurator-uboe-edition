@@ -210,8 +210,9 @@ create_deployment_branch(){
     fi
 
     # unpack the artifacts build directory into the current working directory
-    rsync -a --delete --exclude=".git" "$(get_artifact_build_directory)/" ./
-    echo "Deployment branch ${deployment_branch} is ready with the latest build artifacts."
+    # rsync -a --delete --exclude=".git" "$(get_artifact_build_directory)/" ./
+    echo "Deployment branch ${deployment_branch} is created."
+    echo ""
 }
 
 # Validate that BUILD_ID file exists before proceeding
