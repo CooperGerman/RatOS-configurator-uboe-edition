@@ -2,10 +2,15 @@
 COMPRESS_BUILD=false
 CREATE_DEPLOYMENT_BRANCH=false
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# RatOS-configurator is the parent directory of the scripts directory
+RATOS_CONFIGURATOR_DIR="$(dirname "$SCRIPT_DIR")"
+echo "Ratos Configurator Dir: $RATOS_CONFIGURATOR_DIR"
+
 # Validate that the script is run from the RatOS-configurator git repo
 current_git_repo=$(git rev-parse --show-toplevel 2>/dev/null)
 current_dir=$(pwd)
-RATOS_CONFIGURATOR_DIR="$(current_dir)"
 
 if [ "$current_dir" != "$current_git_repo" ] && [[ "$current_dir" != *"RatOS-configurator" ]]; then
     echo "Error: this command must be run from the root of the RatOS-configurator git repo"
@@ -30,8 +35,17 @@ while getopts ":zg" opt; do
     esac
 done
 
+# Array of files and directories to ignore from the root when running rsync
+declare -a ROOT_RSYNC_IGNORE=(
+    ".git"
+    "artifacts/"
+    "*.log"
+    "*.logs"
+    "devbox.d/printer_config/"
+    "devbox.d/klipper/"
+)   
 # Array of files and directories to ignore when running rsync
-declare -a RSYNC_IGNORE=(
+declare -a SRC_RSYNC_IGNORE=(
 	"__tests__"
 	"app"
 	"pages"
@@ -63,15 +77,15 @@ get_configurator_build_id(){
 	if [ -f "$BUILD_ID_FILE" ]; then
 		cat "$BUILD_ID_FILE"
 	else
-		echo "No current build exists on RatOS-configurator/src"
-		exit 0
+		echo "Error: No current build exists on RatOS-configurator/src" >&2
+		return 1
 	fi
 }
 
 get_artifact_build_directory(){
     local BUILD_ID
     BUILD_ID=$(get_configurator_build_id)
-    echo "./artifacts/${BUILD_ID}"
+    echo "${RATOS_CONFIGURATOR_DIR}/artifacts/${BUILD_ID}"
 }
 
 create_artifact_build_directory(){
@@ -97,51 +111,29 @@ bundle_app(){
     
     # Build exclude args with src/ prefix since we're syncing from root of repo dir
     local exclude_args=()
-    for item in "${RSYNC_IGNORE[@]}"; do
+    for item in "${SRC_RSYNC_IGNORE[@]}"; do
         exclude_args+=("--exclude=src/$item")
     done
+    for item in "${ROOT_RSYNC_IGNORE[@]}"; do
+        exclude_args+=("--exclude=$item")
+    done
     
-    # Read .gitignore entries and add them to exclude args
-    local gitignore_file="${RATOS_CONFIGURATOR_DIR}/src/.gitignore"
-    if [ -f "$gitignore_file" ]; then
+    # Read src/.gitignore entries and add them to exclude args
+    local src_gitignore_file="${RATOS_CONFIGURATOR_DIR}/src/.gitignore"
+    if [ -f "$src_gitignore_file" ]; then
         while IFS= read -r line; do
             # Skip empty lines and comments
             [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
             # Remove leading/trailing whitespace
             line=$(echo "$line" | xargs)
             exclude_args+=("--exclude=src/$line")
-        done < "$gitignore_file"
+        done < "$src_gitignore_file"
     fi
 
-    # exclude the .git directory
-    exclude_args+=("--exclude=.git") 
-
-    # Read root .gitignore entries and add them to exclude args
-    # Read .gitignore entries and add them to exclude args
-    local root_gitignore_file="${RATOS_CONFIGURATOR_DIR}.gitignore"
-    if [ -f "$root_gitignore_file" ]; then
-        while IFS= read -r line; do
-            # Skip empty lines and comments
-            [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-            # Remove leading/trailing whitespace
-            line=$(echo "$line" | xargs)
-            exclude_args+=("--exclude=src/$line")
-        done < "$root_gitignore_file"
-    fi
-
+    # move all files from RATOS_CONFIGURATOR_DIR to BUNDLE_ARTIFACT_BUILD_DIR
     rsync -a --delete "${exclude_args[@]}" "${RATOS_CONFIGURATOR_DIR}/" "${BUNDLE_ARTIFACT_BUILD_DIR}/"
     echo "Bundle completed successfully."
-}
-
-compress_build(){
-    check_required_command tar
-    local BUILD_ID
-    BUILD_ID=$(get_configurator_build_id)
-    local archive_name="./artifacts/${BUILD_ID}.tar.gz"
-    
-    echo "Compressing build into: ${archive_name}"
-    tar -czvf "${archive_name}" -C "./artifacts" "${BUILD_ID}"
-    echo "Build compressed successfully at: ${archive_name}"
+    echo "Total size of bundle: $(du -sh "${BUNDLE_ARTIFACT_BUILD_DIR}" | cut -f1)"
 }
 
 rename_src_to_app(){
@@ -151,9 +143,29 @@ rename_src_to_app(){
     echo "Renamed src/ to app/ in build directory."
 }
 
-create_deployment_branch(){
-    echo "Creating deployment branch..."
+compress_build(){
+    check_required_command tar
+    local BUILD_ID
+    BUILD_ID=$(get_configurator_build_id)
+    local archive_name="${RATOS_CONFIGURATOR_DIR}/artifacts/${BUILD_ID}.tar.gz"
+    
+    echo "Compressing build into: ${archive_name}"
+    tar -czf "${archive_name}" -C "${RATOS_CONFIGURATOR_DIR}/artifacts" "${BUILD_ID}"
+    echo "Build compressed successfully at: ${archive_name}"
 }
+
+create_deployment_branch(){
+    check_required_command git
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD)
+    local deployment_branch="${current_branch}-deployment"
+    
+    echo "Creating deployment branch: ${deployment_branch}"
+    git switch -c "${deployment_branch}"
+}
+
+# Validate that BUILD_ID file exists before proceeding
+get_configurator_build_id > /dev/null || exit 1
 
 create_artifact_build_directory
 bundle_app

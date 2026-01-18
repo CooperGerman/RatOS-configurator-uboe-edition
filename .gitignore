@@ -14,10 +14,8 @@
 .DS_Store
 *:Zone.Identifier
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# logs
+*.log
 
 # SciChart data
 src/public/scichart*
