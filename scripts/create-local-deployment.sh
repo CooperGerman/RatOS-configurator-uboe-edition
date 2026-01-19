@@ -72,8 +72,10 @@ _is_cmd() {
 
 _use_src_or_app_dir() {
     if [ -d "${BUILD_DIR}/app" ]; then
-        echo "app"
-    elif [ -d "${BUILD_DIR}/src" ]; then
+        mv "${BUILD_DIR}/app" "${BUILD_DIR}/src"
+    fi
+    
+    if [ -d "${BUILD_DIR}/src" ]; then
         echo "src"
     else
         echo -e "${RED}Error: Neither src nor app directory found in build worktree.${NC}"
@@ -87,11 +89,11 @@ _pnpm_install() {
 }
 
 _pnpm_build_app() {
-    pnpm --dir "${BUILD_DIR}/$(_use_src_or_app_dir)" run build
+    pnpm --dir "${BUILD_DIR}/src" run build
 }
 
 _pnpm_build_cli() {
-    pnpm --dir "${BUILD_DIR}/$(_use_src_or_app_dir)" run build:cli
+    pnpm --dir "${BUILD_DIR}/src" run build:cli
 }
 
 _cleanup_build_worktree() {
@@ -121,4 +123,4 @@ build_app
 
 
 echo -e "${GREEN}Deployment branch created!${NC}"
-echo -e "${GREEN}View your deployment branches using ${BLUE}'git worktree list'${NC}"
+echo -e "${GREEN}View your deployment branches using ${BLUE}'cd ${BUILD_DIR}'${NC}"
