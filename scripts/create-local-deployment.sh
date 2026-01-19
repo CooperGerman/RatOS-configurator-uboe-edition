@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-PNPM_WORKDIR=""
+BUILD_DIR=""
 
 _ratos_configuration_dir=$(git rev-parse --show-toplevel 2>/dev/null)
 # if in _ratos_configuration_dir,then ensure the repository is RatOS-configurator
@@ -30,7 +30,8 @@ make_or_use_worktree(){
     git worktree add "$_worktree_add_path" 2>/dev/null || {
         echo "Using existing worktree at: $_worktree_add_path"
     }
-
+    PNPM_WORKDIR="$_worktree_add_path/src"
+    BUILD_DIR="$_worktree_add_path"
 }
 
 _is_cmd() {
@@ -42,19 +43,36 @@ _is_cmd() {
 }
 
 _pnpm_install() {
-    _is_cmd pnpm
+    pnpm --dir "${BULD_DIR}/src" install
+}
+
+_pnpm_build_app() {
+    pnpm --dir "${BUILD_DIR}/src" run build
+}
+
+_pnpm_build_cli() {
+    pnpm --dir "${BUILD_DIR}/src" run build:cli
+}
+
+_cleanup_build_worktree() {
+    echo "Cleaning up build worktree at: $BUILD_DIR"
     sleep 2
-    echo "Running pnpm install..."
 }
 
 build_app(){
     echo "Building RatOS-configurator app..."
     # Placeholder for actual build commands
+    echo "Installing dependencies..."
     _pnpm_install
+    echo "Building application..."
+    _pnpm_build_app
+    echo "Building CLI..."
+    _pnpm_build_cli
     echo "Build complete."
 }
 
-
+is_cmd pnpm
 make_or_use_worktree
 build_app
+
 echo "Deployment branch created!"
