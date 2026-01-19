@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
 BUILD_DIR=""
 declare -a SRC_CLEANUP_REMOVE_FILES=(
 	"__tests__"
@@ -28,7 +35,7 @@ declare -a SRC_CLEANUP_REMOVE_FILES=(
 _ratos_configuration_dir=$(git rev-parse --show-toplevel 2>/dev/null)
 # if in _ratos_configuration_dir,then ensure the repository is RatOS-configurator
 if [[ -z "$_ratos_configuration_dir" ]] || [[ ! "$_ratos_configuration_dir" == *"RatOS-configurator" ]]; then
- echo "Error: not a RatOS-configurator git repo" >&2
+ echo -e "${RED}Error: not a RatOS-configurator git repo${NC}" >&2
  exit 1
 fi
 
@@ -36,38 +43,35 @@ fi
 _sanitize_branch_name(){
     local branch_name="$1"
     # Replace slashes with hyphens
-    echo "${branch_name//\//-}"
+    echo -e "${BLUE}${branch_name//\//-}${NC}"
 }
 
 # This will create a git worktree for the branch being worked
 # on in the same parent folder as the repo
 make_or_use_worktree(){
     local _worktree_artifacts_dir # Base dir to hold deployment worktrees for branches
-    local _worktree_add_path # Full path to add the worktree
     local _current_branch # Current git branch name
 
     _worktree_artifacts_dir="$(dirname "$_ratos_configuration_dir")/configurator-deployment-worktrees"
 
     _current_branch=$(git branch --show-current)
-    _worktree_add_path="${_worktree_artifacts_dir}/$(_sanitize_branch_name "${_current_branch}")-deployment"
+    BUILD_DIR="${_worktree_artifacts_dir}/$(_sanitize_branch_name "${_current_branch}")-deployment"
 
-    git worktree add "$_worktree_add_path" 2>/dev/null || {
-        echo "Using existing worktree at: $_worktree_add_path"
+    git worktree add "$BUILD_DIR" 2>/dev/null || {
+        echo -e "${BLUE}Using existing worktree at: $BUILD_DIR${NC}"
     }
-    PNPM_WORKDIR="$_worktree_add_path/src"
-    BUILD_DIR="$_worktree_add_path"
 }
 
 _is_cmd() {
     local cmd="$1"
     if ! command -v "$cmd" &> /dev/null; then
-        echo "Error: The required command: $cmd is required but not available. Please install"
+        echo -e "${RED}Error: The required command: $cmd is required but not available. Please install${NC}"
         exit 1
     fi
 }
 
 _pnpm_install() {
-    pnpm --dir "${BULD_DIR}/src" install
+    pnpm --dir "${BUILD_DIR}/src" install
 }
 
 _pnpm_build_app() {
@@ -79,24 +83,23 @@ _pnpm_build_cli() {
 }
 
 _cleanup_build_worktree() {
-    echo "Cleaning up build worktree at: $BUILD_DIR"
+    echo -e "${BLUE}Cleaning up build worktree at: $BUILD_DIR${NC}"
     mv "${BUILD_DIR}/src" "${BUILD_DIR}/app"
     for file in "${SRC_CLEANUP_REMOVE_FILES[@]}"; do
         rm -rf "${BUILD_DIR}/app/${file}"
     done
-    echo "Cleanup complete."
+    echo -e "${GREEN}Cleanup complete.${NC}"
 }
 
 build_app(){
-    echo "Building RatOS-configurator app..."
-    # Placeholder for actual build commands
-    echo "Installing dependencies..."
+    echo -e "${BLUE}Building RatOS-configurator app...${NC}"
+    echo -e "${BLUE}Installing dependencies...${NC}"
     _pnpm_install
-    echo "Building application..."
+    echo -e "${BLUE}Building application...${NC}"
     _pnpm_build_app
-    echo "Building CLI..."
+    echo -e "${BLUE}Building CLI...${NC}"
     _pnpm_build_cli
-    echo "Build complete."
+    echo -e "${GREEN}Build complete.${NC}"
     _cleanup_build_worktree
 }
 
@@ -105,4 +108,5 @@ make_or_use_worktree
 build_app
 
 
-echo "Deployment branch created!"
+echo -e "${GREEN}Deployment branch created!${NC}"
+echo -e "${GREEN}View your deployment branches using ${BLUE}'git worktree list'${NC}"
