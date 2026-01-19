@@ -58,7 +58,7 @@ make_or_use_worktree(){
     BUILD_DIR="${_worktree_artifacts_dir}/$(_sanitize_branch_name "${_current_branch}")-deployment"
 
     git worktree add "$BUILD_DIR" 2>/dev/null || {
-        echo -e "${BLUE}Using existing worktree at: $BUILD_DIR${NC}"
+        echo -e "${BLUE}Using existing worktree at: ${BUILD_DIR}${NC}"
     }
 }
 
@@ -70,16 +70,28 @@ _is_cmd() {
     fi
 }
 
+_use_src_or_app_dir() {
+    if [ -d "${BUILD_DIR}/app" ]; then
+        echo "app"
+    elif [ -d "${BUILD_DIR}/src" ]; then
+        echo "src"
+    else
+        echo -e "${RED}Error: Neither src nor app directory found in build worktree.${NC}"
+        exit 1
+    fi
+}
+
 _pnpm_install() {
-    pnpm --dir "${BUILD_DIR}/src" install
+    echo -e "${BLUE}Running pnpm install from ${BUILD_DIR}/src${NC}"
+    pnpm --dir "${BUILD_DIR}/$(_use_src_or_app_dir)" install
 }
 
 _pnpm_build_app() {
-    pnpm --dir "${BUILD_DIR}/src" run build
+    pnpm --dir "${BUILD_DIR}/$(_use_src_or_app_dir)" run build
 }
 
 _pnpm_build_cli() {
-    pnpm --dir "${BUILD_DIR}/src" run build:cli
+    pnpm --dir "${BUILD_DIR}/$(_use_src_or_app_dir)" run build:cli
 }
 
 _cleanup_build_worktree() {
