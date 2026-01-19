@@ -43,7 +43,7 @@ fi
 _sanitize_branch_name(){
     local branch_name="$1"
     # Replace slashes with hyphens
-    echo -e "${BLUE}${branch_name//\//-}${NC}"
+    echo "${branch_name//\//-}"
 }
 
 # This will create a git worktree for the branch being worked
@@ -82,8 +82,8 @@ _use_src_or_app_dir() {
 }
 
 _pnpm_install() {
-    echo -e "${BLUE}Running pnpm install from ${BUILD_DIR}/src${NC}"
-    pnpm --dir "${BUILD_DIR}/$(_use_src_or_app_dir)" install
+    echo -e "${BLUE}Running pnpm install from ${BUILD_DIR}/$(_use_src_or_app_dir)${NC}"
+    pnpm --dir "${BUILD_DIR}/$(_use_src_or_app_dir)" install --frozen-lockfile
 }
 
 _pnpm_build_app() {
