@@ -117,7 +117,7 @@ build_app(){
     _cleanup_build_worktree
 }
 
-is_cmd pnpm
+_is_cmd pnpm
 make_or_use_worktree
 build_app
 

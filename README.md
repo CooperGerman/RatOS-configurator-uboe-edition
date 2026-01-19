@@ -119,9 +119,9 @@ cd /path/to/RatOS-configurator
 <summary>Example Output</summary>
 
 ```console
-./scripts/create-local-deployment.sh
-./scripts/create-local-deployment.sh: line 118: is_cmd: command not found
-Preparing worktree (new branch 'local-deploy-branch-automation-deployment')
+ ./scripts/create-local-deployment.sh
+
+Preparing worktree (checking out 'local-deploy-branch-automation-deployment')
 HEAD is now at 5e4cf175f fix: don't escape return statements
 Building RatOS-configurator app...
 Installing dependencies...
@@ -353,7 +353,7 @@ Route (app)                                   Size     First Load JS
   ├ chunks/8458-94fd4fc7ee07d7b5.js           27.7 kB
   ├ chunks/fa86fe2e-e962572a02b89204.js       51.1 kB
   ├ chunks/main-app-f6f529e5ba0d9511.js       286 B
-  └ chunks/webpack-f48214e0e37d707c.js        2.1 kB
+  └ chunks/webpack-d563b6f40073a5b0.js        2.1 kB
 
 Route (pages)                                 Size     First Load JS
 ┌ λ /api/debug-zip                            0 B            80.8 kB
@@ -368,7 +368,7 @@ Route (pages)                                 Size     First Load JS
   ├ chunks/framework-7ef06f7468ce0826.js      45.3 kB
   ├ chunks/main-306731d75a7e33f7.js           33.2 kB
   ├ chunks/pages/_app-4b835bcef9b7da71.js     254 B
-  └ chunks/webpack-f48214e0e37d707c.js        2.1 kB
+  └ chunks/webpack-d563b6f40073a5b0.js        2.1 kB
 
 λ  (Server)  server-side renders at runtime (uses getInitialProps or getServerSideProps)
 ○  (Static)  automatically rendered as static HTML (uses no initial props)
@@ -382,7 +382,7 @@ Build complete.
 Cleaning up build worktree at: /home/chief/code/RatOS-dev/configurator-deployment-worktrees/local-deploy-branch-automation-deployment
 Cleanup complete.
 Deployment branch created!
-View your deployment branches using 'git worktree list'
+View your deployment branches using 'cd /home/chief/code/RatOS-dev/configurator-deployment-worktrees/local-deploy-branch-automation-deployment'
 ```
 #### Publishing the test Deployment branch
 
@@ -391,7 +391,7 @@ deployment branch in a separate working directory. This allows you
 to keep both your current branch, and the deployment branch
 checked out simultaneously.
 
-To commit, cd into the worktree, and use `git push`.
+To commit, cd into the worktree, and use `git push -u <remote> <branch>`.
 
 ## Help and support
 
