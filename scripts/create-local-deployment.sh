@@ -1,6 +1,30 @@
 #!/usr/bin/env bash
 BUILD_DIR=""
-
+declare -a SRC_CLEANUP_REMOVE_FILES=(
+	"__tests__"
+	"app"
+	"pages"
+	"components"
+	"coverage"
+	"data"
+	"helpers"
+	"hooks"
+	"moonraker"
+	"env"
+	"recoil"
+	"server"
+	"utils"
+	"zods"
+	"test-setup.ts"
+	"test-setup-global.ts"
+	"vitest.config.mts"
+	"tsconfig.vitest.json"
+	"copy-files-from-to.json"
+	"components.json"
+	"postcss.config.js"
+	"prettier.config.mjs"
+	"tailwind.config.ts"
+)
 _ratos_configuration_dir=$(git rev-parse --show-toplevel 2>/dev/null)
 # if in _ratos_configuration_dir,then ensure the repository is RatOS-configurator
 if [[ -z "$_ratos_configuration_dir" ]] || [[ ! "$_ratos_configuration_dir" == *"RatOS-configurator" ]]; then
@@ -56,7 +80,11 @@ _pnpm_build_cli() {
 
 _cleanup_build_worktree() {
     echo "Cleaning up build worktree at: $BUILD_DIR"
-    sleep 2
+    mv "${BUILD_DIR}/src" "${BUILD_DIR}/app"
+    for file in "${SRC_CLEANUP_REMOVE_FILES[@]}"; do
+        rm -rf "${BUILD_DIR}/app/${file}"
+    done
+    echo "Cleanup complete."
 }
 
 build_app(){
@@ -69,10 +97,12 @@ build_app(){
     echo "Building CLI..."
     _pnpm_build_cli
     echo "Build complete."
+    _cleanup_build_worktree
 }
 
 is_cmd pnpm
 make_or_use_worktree
 build_app
+
 
 echo "Deployment branch created!"
