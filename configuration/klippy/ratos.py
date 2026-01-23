@@ -610,15 +610,18 @@ class RatOS:
 		config_dir = os.path.dirname(main_config_path)		
 		config_path = os.path.join(config_dir, 'ratos_generated', 'dc-endstop.cfg')
 		existing_content = None
+		
 		if os.path.exists(config_path):
 			try:
 				with open(config_path, 'r') as f:
 					existing_content = f.read()
 			except Exception:
 				pass
+		
 		if existing_content == content:
 			self.console_echo('DC endstop configuration is up to date', 'info', f'No changes were made to dc-endstop.cfg at {config_path}.')
 			return
+		
 		try:
 			os.makedirs(os.path.dirname(config_path), exist_ok=True)
 			with open(config_path, 'w') as f:
@@ -626,6 +629,10 @@ class RatOS:
 		except Exception as e:
 			self.console_echo('Failed to update DC endstop configuration', 'error', f'Could not write to {config_path}: {str(e)}')
 			return
+
+		# Reset idex_xoffset to zero since it's now been implicitly applied via DC endstop configuration
+		self.gcode.run_script_from_command("SAVE_VARIABLE VARIABLE=idex_xoffset VALUE=0")
+
 		if str(gcmd.get('RESTART', '0')).strip().lower() in ('1', 'true', 'yes'):
 			self.console_echo('DC endstop configuration updated', 'info', f'Updated {config_path}_N_Restarting klipper to allow the changes to take effect...')
 			# Request a restart
