@@ -526,7 +526,11 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 		}
 		return result.join('\n');
 	}
-	public renderHotendFan(multipleToolheadHotendFans: boolean = false, controlboard: Board) {
+	public renderHotendFan(
+		multipleToolheadHotendFans: boolean = false,
+		controlboard: Board,
+		opts?: { hotendFanSpeed?: number },
+	) {
 		const toolboard = this.getToolboard();
 		let result: string[] = [
 			`[heater_fan toolhead_cooling_fan${multipleToolheadHotendFans ? `_${this.getShortToolName()}` : ''}]`,
@@ -620,6 +624,9 @@ export class ToolheadGenerator<IsToolboard extends boolean> extends ToolheadHelp
 				result.push(`# ${vc.comment}`);
 			}
 			result.push(`max_power: ${vc.value}`);
+		}
+		if (opts?.hotendFanSpeed != null) {
+			result.push(`fan_speed: ${opts.hotendFanSpeed}`);
 		}
 		return result.join('\n');
 	}

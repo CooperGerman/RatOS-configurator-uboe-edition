@@ -1147,7 +1147,7 @@ export const constructKlipperConfigHelpers = async (
 			const result = await renderTemplateAsync(config.chamberAirFilter, { utils, extrasGenerator });
 			return result?.trim() ?? '';
 		},
-		renderFans() {
+		renderFans(opts?: { hotendFanSpeed?: number }) {
 			const result: string[] = [];
 			const multipleToolheadPartFans = utils.getToolheads().filter((th) => th.getPartFan()).length > 1;
 			const multipleToolheadHotendFans = utils.getToolheads().filter((th) => th.getHotendFan()).length > 1;
@@ -1176,7 +1176,7 @@ export const constructKlipperConfigHelpers = async (
 			result.push(
 				utils
 					.getToolheads()
-					.map((th) => th.renderHotendFan(multipleToolheadHotendFans, config.controlboard))
+					.map((th) => th.renderHotendFan(multipleToolheadHotendFans, config.controlboard, opts))
 					.join('\n'),
 			);
 			// Controller fan
