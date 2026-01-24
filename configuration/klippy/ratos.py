@@ -134,16 +134,25 @@ class RatOS:
 		self.post_process_success = False
 		self._beacon_probing_regions: BeaconProbingRegions = None
 
+		# HELLO_RATOS is called from delayed gcode 2 seconds after startup. Several other macros initialize
+		# before that. Console output may not been seen by moonraker/mainsail if printed too early, so
+		# we defer all console_echo output until after HELLO_RATOS is run. However, we still log the messages
+		# to the klipper log immediately. We also write any deferred messages to the console if klipper
+		# shuts down before HELLO_RATOS is run.
+		self._deferred_init_messages = []
+		self._defer_console_messages = True
+
 		self.load_settings()
 		self.register_commands()
-		self.register_handler()
+		self.register_handlers()
 		self.load_settings()
 
 	#####
 	# Handler
 	#####
-	def register_handler(self):
+	def register_handlers(self):
 		self.printer.register_event_handler("klippy:connect", self._connect)
+		self.printer.register_event_handler("klippy:shutdown", self._handle_shutdown)
 
 	def _connect(self):
 		self.v_sd = self.printer.lookup_object('virtual_sdcard', None)
@@ -164,6 +173,24 @@ class RatOS:
 		# Register overrides.
 		self.register_command_overrides()
 
+	def _handle_shutdown(self):
+		try:
+			self._write_deferred_init_messages()
+		except:
+			pass
+
+	def _write_deferred_init_messages(self):
+		if self._defer_console_messages:
+			self._defer_console_messages = False
+			if self._deferred_init_messages:
+				logging.info(f"Writing {len(self._deferred_init_messages)} deferred RatOS console messages")
+				for title, type, msg in self._deferred_init_messages:
+					self.console_echo(title, type, msg)
+				logging.info(f"Finished writing deferred RatOS console messages")
+			else:
+				logging.info("No deferred RatOS console messages to write.")
+			self._deferred_init_messages = None
+		
 	def _check_cpu_governors(self):
 		desired_governor = 'performance'
 		try:
@@ -285,6 +312,7 @@ class RatOS:
 		_info = '<div style="margin:0; padding:0; color: rgba(255, 255, 255, 0.7)">\nClick image to open documentation.</div>'
 		_img = '\n<a href="' + url + '" target="_blank" ><img style="margin-top:6px;" src="' + img + '" width="258px"></a>'
 		self.gcode.respond_raw('<div>' + _title + _sub_title + _img + _info + '</div>')
+		self._write_deferred_init_messages()
 		self._check_cpu_governors()
 
 	desc_CONSOLE_ECHO = "Multiline console output"
@@ -873,6 +901,16 @@ class RatOS:
 			self.gcode.run_script_from_command("DEBUG_ECHO PREFIX='" + str(prefix) + "' MSG='" + str(msg).replace("'", "`").replace("\n", "_N_") + "'")
 	
 	def console_echo(self, title, type, msg=''):
+		if self._defer_console_messages:
+			if (type == 'error' or type == 'alert'):
+				logging.error(title + ": " + msg)
+
+			if (type == 'warning'):
+				logging.warning(title + ": " + msg)
+			
+			self._deferred_init_messages.append( (title, type, msg) )
+			return
+		
 		color = "white"
 		opacity = 1.0
 		if type == 'info': color = "#38bdf8"
