@@ -14,22 +14,17 @@ else
 fi
 
 # Helper to run commands as a specific user
-# In systemd-nspawn/containers where we're already root, use su
-# Otherwise, use sudo -u
+# Only uses sudo -u if we're not already running as the target user
 run_as_user() {
     local username="$1"
     shift
-    if [ "$EUID" -eq 0 ]; then
-        # We're root, use su to switch user
-        # Need to properly quote arguments for su -c
-        local cmd_array=()
-        for arg in "$@"; do
-            cmd_array+=("$(printf '%q' "$arg")")
-        done
-        su - "$username" -c "${cmd_array[*]}"
-    else
-        # We're not root, use sudo
+	# If running as root or as a different user, use sudo -u
+	if [ "$EUID" -eq 0 ] || [ "$(whoami)" != "$username" ]; then
+        # Need to switch users, use sudo -u
         sudo -u "$username" "$@"
+    else
+        # Already the target user, run directly
+        "$@"
     fi
 }
 
