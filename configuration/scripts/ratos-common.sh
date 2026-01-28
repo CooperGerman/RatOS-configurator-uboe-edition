@@ -73,6 +73,12 @@ update_beacon_fw()
 		echo "beacon: beacon firmware updater script doesn't exist, skipping..."
 		return
 	fi
+
+	if [ ! -d /sys/bus/usb/devices ]; then
+		echo "beacon: no usb devices present, skipping firmware update..."
+		return
+	fi
+
 	"$KLIPPER_ENV"/bin/python "$BEACON_DIR"/update_firmware.py update all --no-sudo
 }
 
