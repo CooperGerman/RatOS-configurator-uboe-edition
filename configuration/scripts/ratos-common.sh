@@ -4,6 +4,35 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "$(realpath -- "${BASH_SOURCE[0]}")" )" &> /d
 # shellcheck source=./configuration/scripts/environment.sh
 source "$SCRIPT_DIR"/environment.sh
 
+# Helper to conditionally use sudo (for compatibility with systemd-nspawn/containers)
+# When running as root (EUID=0), commands are executed directly
+# When not root, sudo is used for privilege escalation
+if [ "$EUID" -eq 0 ]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
+
+# Helper to run commands as a specific user
+# In systemd-nspawn/containers where we're already root, use su
+# Otherwise, use sudo -u
+run_as_user() {
+    local username="$1"
+    shift
+    if [ "$EUID" -eq 0 ]; then
+        # We're root, use su to switch user
+        # Need to properly quote arguments for su -c
+        local cmd_array=()
+        for arg in "$@"; do
+            cmd_array+=("$(printf '%q' "$arg")")
+        done
+        su - "$username" -c "${cmd_array[*]}"
+    else
+        # We're not root, use sudo
+        sudo -u "$username" "$@"
+    fi
+}
+
 # System package requirements for RatOS (read by Moonraker and scripts)
 # shellcheck disable=SC2034
 PKGLIST="python3-numpy python3-matplotlib curl git libopenblas-base"
@@ -17,14 +46,14 @@ disable_modem_manager()
 {
 	report_status "Checking if ModemManager is enabled..."
 	
-	if ! sudo systemctl is-enabled ModemManager.service &> /dev/null; then
+	if ! $SUDO systemctl is-enabled ModemManager.service &> /dev/null; then
 		report_status "Disabling ModemManager..."
-		sudo systemctl disable ModemManager.service
+		$SUDO systemctl disable ModemManager.service
 	else
 		report_status "ModemManager is already disabled.."
 	fi
 	report_status "Masking ModemManager to ensure it won't start in the future..."
-	sudo systemctl mask ModemManager.service
+	$SUDO systemctl mask ModemManager.service
 }
 
 update_beacon_fw()
@@ -66,7 +95,13 @@ install_beacon()
 
 	# install beacon requirements to env
 	echo "beacon: installing python requirements to env."
-	"${KLIPPER_ENV}"/bin/pip install -r "${BEACON_DIR}"/requirements.txt
+	if [ "$EUID" -eq 0 ]; then
+		# Running as root, use su to run pip as the correct user
+		su - "${RATOS_USERNAME}" -c "\"${KLIPPER_ENV}\"/bin/pip install -r \"${BEACON_DIR}\"/requirements.txt"
+	else
+		# Running as user, can run pip directly
+		"${KLIPPER_ENV}"/bin/pip install -r "${BEACON_DIR}"/requirements.txt
+	fi
 
 	# Beacon extension will be registered in verify_registered_extensions
 }
@@ -147,22 +182,20 @@ patch_klipperscreen_service_restarts()
 	if grep "StartLimitIntervalSec=0" /etc/systemd/system/klipperscreen.service &>/dev/null; then
 		report_status "Patching KlipperScreen service restarts..."
 		# Fix restarts
-		sudo sed -i 's/\RestartSec=1/\RestartSec=5/g' /etc/systemd/system/KlipperScreen.service
-		sudo sed -i 's/\StartLimitIntervalSec=0/\StartLimitIntervalSec=100\nStartLimitBurst=4/g' /etc/systemd/system/KlipperScreen.service
-		sudo systemctl daemon-reload
+		$SUDO sed -i 's/\RestartSec=1/\RestartSec=5/g' /etc/systemd/system/KlipperScreen.service
+		$SUDO sed -i 's/\StartLimitIntervalSec=0/\StartLimitIntervalSec=100\nStartLimitBurst=4/g' /etc/systemd/system/KlipperScreen.service
+		$SUDO systemctl daemon-reload
 		echo "KlipperScreen service patched!"
 	fi
 }
 
 ensure_sudo_command_whitelisting()
 {
-	sudo=""
-	[ "$EUID" -ne 0 ] && sudo="sudo"
     report_status "Updating whitelisted commands"
 	# Whitelist RatOS git hook scripts
 	if [[ -e /etc/sudoers.d/030-ratos-githooks ]]
 	then
-		$sudo rm /etc/sudoers.d/030-ratos-githooks
+		$SUDO rm /etc/sudoers.d/030-ratos-githooks
 	fi
 	touch /tmp/030-ratos-githooks
 	cat <<EOF > /tmp/030-ratos-githooks
@@ -172,9 +205,9 @@ ${RATOS_USERNAME}  ALL=(ALL) NOPASSWD: ${RATOS_PRINTER_DATA_DIR}/config/RatOS/sc
 ${RATOS_USERNAME}  ALL=(ALL) NOPASSWD: ${RATOS_PRINTER_DATA_DIR}/config/RatOS/scripts/moonraker-update.sh
 EOF
 
-	$sudo chown root:root /tmp/030-ratos-githooks
-	$sudo chmod 440 /tmp/030-ratos-githooks
-	$sudo cp --preserve=mode /tmp/030-ratos-githooks /etc/sudoers.d/030-ratos-githooks
+	$SUDO chown root:root /tmp/030-ratos-githooks
+	$SUDO chmod 440 /tmp/030-ratos-githooks
+	$SUDO cp --preserve=mode /tmp/030-ratos-githooks /etc/sudoers.d/030-ratos-githooks
 
 	echo "RatOS git hooks has successfully been whitelisted!"
 }

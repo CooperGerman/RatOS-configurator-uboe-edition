@@ -113,7 +113,7 @@ ensure_pip_requirements()
 		# Extract package name (before ==, >=, <=, <, >, etc.)
 		pkg_name=$(echo "$pkg_spec" | sed -E 's/([a-zA-Z0-9_-]+).*/\1/')
 		
-		version_info=$(sudo -u "${RATOS_USERNAME}" "$py_bin" -m pip show "$pkg_name" 2>/dev/null | grep "^Version:" || echo "missing")
+		version_info=$(run_as_user "${RATOS_USERNAME}" "$py_bin" -m pip show "$pkg_name" 2>/dev/null | grep "^Version:" || echo "missing")
 		if [[ "$version_info" == "missing" ]]; then
 			log_info "  $pkg_name: missing" "ensure_pip_requirements"
 			echo "  $pkg_name: missing"
@@ -129,7 +129,7 @@ ensure_pip_requirements()
 	echo "Installing pip requirements from $req_file..."
 	
 	local install_output install_result
-	install_output=$(sudo -u "${RATOS_USERNAME}" "$py_bin" -m pip install -r "$req_file" 2>&1)
+	install_output=$(run_as_user "${RATOS_USERNAME}" "$py_bin" -m pip install -r "$req_file" 2>&1)
 	install_result=$?
 	
 	if [[ $install_result -ne 0 ]]; then
@@ -164,7 +164,7 @@ ensure_pip_requirements()
 		pkg_spec=$(echo "$line" | xargs)
 		pkg_name=$(echo "$pkg_spec" | sed -E 's/([a-zA-Z0-9_-]+).*/\1/')
 		
-		version_info=$(sudo -u "${RATOS_USERNAME}" "$py_bin" -m pip show "$pkg_name" 2>/dev/null | grep "^Version:" || echo "ERROR: missing")
+		version_info=$(run_as_user "${RATOS_USERNAME}" "$py_bin" -m pip show "$pkg_name" 2>/dev/null | grep "^Version:" || echo "ERROR: missing")
 		if [[ "$version_info" == "ERROR: missing" ]]; then
 			log_error "  $pkg_name: still missing after install!" "ensure_pip_requirements" "PACKAGE_MISSING"
 			echo "  $pkg_name: ERROR - still missing!"
