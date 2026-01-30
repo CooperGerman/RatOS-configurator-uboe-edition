@@ -307,11 +307,13 @@ class RatOS:
 		url = "https://os.ratrig.com/"
 		img = "../server/files/config/RatOS/Logo-white.png"
 		ratos_version = self.get_ratos_version().split('-')
+		ratos_distro = self.get_ratos_distro()
+		logging.info(f"HELLO_RATOS: version: {'-'.join(ratos_version)}, distro: {ratos_distro}")
 		_title = '<p style="font-weight: bold; margin:0; color:white">Welcome to RatOS ' +  ratos_version[0] + '</p>'
-		_sub_title = '<div style="margin:0; padding:0; color: rgba(255, 255, 255, 0.7)">' + '-'.join(ratos_version) + '</div>'
+		_sub_title = '<div style="margin:0; padding:0; color: rgba(255, 255, 255, 0.7)">Base image: ' + ratos_distro + '\nUpdated to: ' + '-'.join(ratos_version) + '</div>'
 		_info = '<div style="margin:0; padding:0; color: rgba(255, 255, 255, 0.7)">\nClick image to open documentation.</div>'
 		_img = '\n<a href="' + url + '" target="_blank" ><img style="margin-top:6px;" src="' + img + '" width="258px"></a>'
-		self.gcode.respond_raw('<div>' + _title + _sub_title + _img + _info + '</div>')
+		self.gcode.respond_raw('<div>' + _title + _sub_title + _img + _info +'</div>')
 		self._write_deferred_init_messages()
 		self._check_cpu_governors()
 
@@ -961,6 +963,15 @@ class RatOS:
 		except Exception as exc:
 			self.debug_echo("get_ratos_version", ("Exception on run: %s", exc))
 		return version
+	
+	def get_ratos_distro(self):
+		distro = 'unknown'
+		try:
+			path = pathlib.Path('/etc/ratos-release')
+			distro = path.read_text().strip()			
+		except Exception as exc:
+			self.debug_echo("get_ratos_distro", f"Error getting ratos-distro: {exc}")
+		return distro
 
 	def get_beacon_probing_regions(self) -> BeaconProbingRegions:
 		"""Gets the probing regions configuration for the Beacon probe, or None if not available.
