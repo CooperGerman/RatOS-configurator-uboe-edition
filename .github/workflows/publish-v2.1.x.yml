@@ -113,6 +113,11 @@ jobs:
         working-directory: ./
         run: mv src app
 
+      - name: Modify .env file to fix paths pointing to src/
+        working-directory: ./app
+        run: |
+          sed -i 's|/src/scripts|/app/scripts|g' .env
+
       - name: Publish to ${{ steps.variables.outputs.target-branch }}
         uses: JamesIves/github-pages-deploy-action@v4
         with:
