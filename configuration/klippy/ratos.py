@@ -57,12 +57,12 @@ BeaconProbingRegions = namedtuple('BeaconProbingRegions',
 	- logical_contact_min: Tuple of (min_x, min_y) for contact probing calculated from the printable area and beacon offsets (toolhead position)
 	- logical_contact_max: Tuple of (max_x, max_y) for contact probing calculated from the printable area and beacon offsets (toolhead position)
   Notes:
-    - COIL POSITION VS TOOLHEAD POSITION FOR PROXIMITY VALUES
+	- COIL POSITION VS TOOLHEAD POSITION FOR PROXIMITY VALUES
 	  
 	  - The values suffixed "_coil_pos" represent the position of the beacon coil itself.
 
 	  - The values suffixes "_toolhead_pos" represent the position of the toolhead (aka, nozzle), taking account of
-	    the beacon offsets. This is where the toolhead must be positioned to ensure that the beacon coil is over the
+		the beacon offsets. This is where the toolhead must be positioned to ensure that the beacon coil is over the
 		corresponding "_coil_pos" position.
 
 	- TOOLHEAD POSITION FOR CONTACT VALUES
@@ -248,32 +248,46 @@ class RatOS:
 		self.gcode.register_command('SET_ZERO_REFERENCE_POSITION', self.cmd_SET_ZERO_REFERENCE_POSITION, desc=self.desc_SET_ZERO_REFERENCE_POSITION)
 
 	def register_command_overrides(self):
-		self.register_override('TEST_RESONANCES', self.override_TEST_RESONANCES, desc=self.desc_TEST_RESONANCES)
-		self.register_override('SHAPER_CALIBRATE', self.override_SHAPER_CALIBRATE, desc=self.desc_SHAPER_CALIBRATE)
+		if self.config.has_section('resonance_tester'):
+			self.register_override('TEST_RESONANCES', self.override_TEST_RESONANCES, desc=self.desc_TEST_RESONANCES)
+			self.register_override('SHAPER_CALIBRATE', self.override_SHAPER_CALIBRATE, desc=self.desc_SHAPER_CALIBRATE)
 
-	def register_override(self, command, func, desc):
+	def register_override(self, command, func, desc=None, desc_suffix=None, skip_if_not_registered=False):
 		if self.overridden_commands[command] is not None:
 			if self.overridden_commands[command] != func:
 				raise self.printer.config_error("Command '%s' is already overridden with a different function" % (command,))
 			return
+		
+		if desc is None:
+			desc = self.gcode.get_command_help().get(command, None)
 
+		if desc_suffix is not None:
+			if desc is None:
+				desc = desc_suffix
+			else:
+				if not desc.endswith('.'):
+					desc = desc + '.'
+				desc = desc + ' ' + desc_suffix
+		
 		prev_cmd = self.gcode.register_command(command, None)
+		
 		if prev_cmd is None:
-			if (command == 'TEST_RESONANCES' or command == 'SHAPER_CALIBRATE') and not self.config.has_section('resonance_tester'):
-				# No [resonance_tester] section found, don't throw an error, skip overriding.
-				logging.info("No [resonance_tester] section found, skipping override of command '%s'" % (command,))
+			if skip_if_not_registered:
+				logging.info(f"{self.name}: existing command '{command}' not found, skipping override registration")
 				return
 			else:
-				raise self.printer.config_error("Existing command '%s' not found in RatOS override" % (command,))
+				raise self.printer.config_error(f"{self.name}: expected existing command '{command}' not found, cannot register override")
+		
 		if command not in self.overridden_commands:
-			raise self.printer.config_error("Command '%s' not found in RatOS override list" % (command,))
+			raise self.printer.config_error(f"{self.name}: command '{command}' not found in override list")
 
-		self.overridden_commands[command] = prev_cmd;
-		self.gcode.register_command(command, func, desc=(desc))
+		self.overridden_commands[command] = prev_cmd
+		self.gcode.register_command(command, func, desc=desc)
 
 	def get_prev_cmd(self, command):
 		if command not in self.overridden_commands or self.overridden_commands[command] is None:
-			raise self.printer.config_error("Previous function for command '%s' not found in RatOS override list" % (command,))
+			raise self.printer.config_error(f"{self.name}: previous function for command '{command}' not found in RatOS override list")
+		
 		return self.overridden_commands[command]
 
 	desc_TEST_RESONANCES = ("Runs the resonance test for a specifed axis, positioning errors caused by sweeping are corrected by a RatOS override of this command.")
@@ -1673,6 +1687,7 @@ class RatOS:
 		
 		gcmd.respond_info(f"Snapshot saved to {image_path}")
 	
+		
 class BackgroundDisplayStatusProgressHandler:
 	def __init__(
 			self, 
