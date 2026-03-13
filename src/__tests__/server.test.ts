@@ -1013,6 +1013,22 @@ describe('server', async () => {
 				// and the updated value
 				expect(out).toContain('val:2');
 			});
+			test('preserves blank line between adjacent replaced sections', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[a]\nval: 1\n\n[other]\nfoo: bar\n';
+				const out = replaceOrAddIniSections(content, [
+					{
+						section: 'a',
+						body: 'val: replaced\n',
+					},
+					{
+						section: 'other',
+						body: 'foo: replaced\nbar: baz\n',
+					},
+				]);
+
+				expect(out).toContain('val: replaced\n\n[other]');
+			});
 			test('multiple updates for same name: last update wins', async () => {
 				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
 				const content = '';

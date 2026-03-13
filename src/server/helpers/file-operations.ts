@@ -330,9 +330,14 @@ export function replaceOrAddIniSections(content: string, updates: IniUpdate[]): 
 			if (newBodyTrimmed === originalBodyTrimmed) {
 				out += originalBodyWithTrailing;
 			} else {
-				// Body changed: use new body and ensure it ends with newline
-				out += newBody;
-				if (!out.endsWith('\n')) out += '\n';
+				// Body changed: preserve trailing section spacing from original slice.
+				const originalTrailingNewlines = originalBodyWithTrailing.match(/\n+$/)?.[0].length ?? 0;
+				out += newBody.replace(/\n+$/, '');
+				if (originalTrailingNewlines > 0) {
+					out += '\n'.repeat(originalTrailingNewlines);
+				} else if (!out.endsWith('\n')) {
+					out += '\n';
+				}
 			}
 		} else {
 			// copy original section slice exactly as-is
