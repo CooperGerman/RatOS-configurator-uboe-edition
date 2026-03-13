@@ -567,6 +567,19 @@ const generateKlipperConfiguration = async <T extends boolean>(
 				// At this point we know the file exists.
 				if (file.overwrite) {
 					if (file.exists && file.diskContent === file.content) {
+						// Ensure that last saved file is up to date. This can happen if the desired content has
+						// intentionally been read from the current disk content (eg. some of the
+						// VAOC files do this to achieve "create if it doesn't exist, otherwise keep unchanged" behaviour ).
+						// If we don't do this, the last saved content can get out of sync with the actual content on disk,
+						// which can cause confusion later when we compare desired content with last saved content to
+						// determine if a file has been changed on disk.
+						if (file.lastSavedContent !== file.content) {
+							const lastSavedDir = path.dirname(lastSavedPath);
+							if (!existsSync(lastSavedDir)) {
+								mkdirSync(lastSavedDir, { recursive: true });
+							}
+							await writeFile(lastSavedPath, file.content);
+						}
 						return { fileName: file.fileName, action: 'unchanged' };
 					}
 					// Make a back up.
