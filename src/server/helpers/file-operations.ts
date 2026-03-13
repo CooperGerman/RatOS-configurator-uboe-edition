@@ -357,12 +357,12 @@ export function replaceOrAddIniSections(content: string, updates: IniUpdate[]): 
 				};
 
 				const newBodyWithPreservedComments = preserveTrailingInlineComments(originalBodyWithTrailing, newBody);
+				const trailingDecoration =
+					originalBodyWithTrailing.match(/(\n(?:(?:[ \t]*(?:[#;].*)?)\n)*(?:[ \t]*(?:[#;].*)?)?)$/)?.[1] ?? '';
 
-				// Body changed: preserve trailing section spacing from original slice.
-				const originalTrailingNewlines = originalBodyWithTrailing.match(/\n+$/)?.[0].length ?? 0;
 				out += newBodyWithPreservedComments.replace(/\n+$/, '');
-				if (originalTrailingNewlines > 0) {
-					out += '\n'.repeat(originalTrailingNewlines);
+				if (trailingDecoration.length > 0) {
+					out += trailingDecoration;
 				} else if (!out.endsWith('\n')) {
 					out += '\n';
 				}
