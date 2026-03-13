@@ -330,9 +330,37 @@ export function replaceOrAddIniSections(content: string, updates: IniUpdate[]): 
 			if (newBodyTrimmed === originalBodyTrimmed) {
 				out += originalBodyWithTrailing;
 			} else {
+				const preserveTrailingInlineComments = (originalBody: string, updatedBody: string) => {
+					const commentByKey = new Map<string, string>();
+					for (const line of originalBody.split('\n')) {
+						const match = line.match(/^\s*([^#;\s][^:]*?)\s*:\s*[^\n]*?(\s+[;#].*)$/);
+						if (!match) continue;
+						const key = match[1].trim();
+						const commentSuffix = match[2];
+						if (!commentByKey.has(key)) {
+							commentByKey.set(key, commentSuffix);
+						}
+					}
+
+					return updatedBody
+						.split('\n')
+						.map((line) => {
+							const keyMatch = line.match(/^\s*([^#;\s][^:]*?)\s*:\s*[^\n]*?$/);
+							if (!keyMatch) return line;
+							if (line.match(/\s+[;#].*$/)) return line;
+							const key = keyMatch[1].trim();
+							const commentSuffix = commentByKey.get(key);
+							if (!commentSuffix) return line;
+							return line + commentSuffix;
+						})
+						.join('\n');
+				};
+
+				const newBodyWithPreservedComments = preserveTrailingInlineComments(originalBodyWithTrailing, newBody);
+
 				// Body changed: preserve trailing section spacing from original slice.
 				const originalTrailingNewlines = originalBodyWithTrailing.match(/\n+$/)?.[0].length ?? 0;
-				out += newBody.replace(/\n+$/, '');
+				out += newBodyWithPreservedComments.replace(/\n+$/, '');
 				if (originalTrailingNewlines > 0) {
 					out += '\n'.repeat(originalTrailingNewlines);
 				} else if (!out.endsWith('\n')) {

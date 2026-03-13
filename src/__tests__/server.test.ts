@@ -1029,6 +1029,18 @@ describe('server', async () => {
 
 				expect(out).toContain('val: replaced\n\n[other]');
 			});
+			test('preserves trailing comments after retained values (including surrounding whitespace) ', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[a]\nx: 1    # comment  \ny: 2   # blah\n\n[other]\nq: 123\n';
+				const out = replaceOrAddIniSections(content, [
+					{
+						section: 'a',
+						body: 'x: 42\n',
+					},
+				]);
+
+				expect(out).toContain('x: 42    # comment  \n\n[other]');
+			});
 			test('multiple updates for same name: last update wins', async () => {
 				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
 				const content = '';
