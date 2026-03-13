@@ -582,8 +582,8 @@ const generateKlipperConfiguration = async <T extends boolean>(
 						);
 						if (backups.length > 0) {
 							const sortedBackups = backups.sort((a, b) => {
-								const aDate = new Date(a.split('-').slice(-1)[0].split('.cfg')[0]);
-								const bDate = new Date(b.split('-').slice(-1)[0].split('.cfg')[0]);
+								const aDate = new Date(a.split('-').slice(-1)[0].split(fileExt)[0]);
+								const bDate = new Date(b.split('-').slice(-1)[0].split(fileExt)[0]);
 								return aDate.getTime() - bDate.getTime();
 							});
 							if (sortedBackups.length > BACKUPS_TO_KEEP) {
