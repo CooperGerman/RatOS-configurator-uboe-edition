@@ -1,4 +1,4 @@
-import { getLogger } from '@/app/_helpers/logger';
+import { getLogger } from '@/server/helpers/logger';
 import { getErrorMessage } from '@/utils/exception-handling';
 import { MoonrakerPrinterState, MoonrakerPrinterStateErrorEnum, parseMoonrakerHTTPResponse } from '@/zods/moonraker';
 import { ZodError } from 'zod';
