@@ -76,7 +76,7 @@ import { ToolheadHelper, ToolheadSuffix } from '@/helpers/toolhead';
 import { getLastPrinterSettings, hasLastPrinterSettings, savePrinterSettings } from '@/server/helpers/printer-settings';
 import { PrinterAxis } from '@/zods/motion';
 import { ServerCache, cacheAsyncDirectoryFn } from '@/server/helpers/cache';
-import { klipperRestart } from '@/server/helpers/klipper';
+import { klipperRestart, PermittedServices, serviceRestart } from '@/server/helpers/klipper';
 import { access, copyFile, readFile, unlink, writeFile } from 'fs/promises';
 import { exec } from 'child_process';
 import objectHash from 'object-hash';
@@ -1171,7 +1171,12 @@ export const printerRouter = router({
 		.mutation(async ({ input }) => {
 			const res = await regenerateKlipperConfiguration(undefined, input.overwriteFiles, input.skipFiles);
 			if (res.some((r) => r.action === 'created' || r.action === 'overwritten')) {
-				klipperRestart();
+				const servicesToRestart: PermittedServices[] | undefined = res.some(
+					(r) => r.fileName === 'crowsnest.conf' && (r.action === 'created' || r.action === 'overwritten'),
+				)
+					? ['crowsnest']
+					: undefined;
+				klipperRestart({ servicesToRestart });
 			}
 			return res;
 		}),
@@ -1197,8 +1202,13 @@ export const printerRouter = router({
 		.mutation(async (ctx) => {
 			const { config: serializedConfig, overwriteFiles, skipFiles } = ctx.input;
 			const config = await deserializePrinterConfiguration(serializedConfig);
-			const configResult = await generateKlipperConfiguration(config, overwriteFiles, skipFiles);
-			klipperRestart();
+			const configResult = await generateKlipperConfiguration<false>(config, overwriteFiles, skipFiles);
+			const servicesToRestart: PermittedServices[] | undefined = configResult.some(
+				(r) => r.fileName === 'crowsnest.conf' && (r.action === 'created' || r.action === 'overwritten'),
+			)
+				? ['crowsnest']
+				: undefined;
+			klipperRestart({ servicesToRestart });
 			return configResult;
 		}),
 	flashBeacon: publicProcedure.mutation(async () => {
