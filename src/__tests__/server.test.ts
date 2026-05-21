@@ -1013,6 +1013,34 @@ describe('server', async () => {
 				// and the updated value
 				expect(out).toContain('val:2');
 			});
+			test('preserves blank line between adjacent replaced sections', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[a]\nval: 1\n\n[other]\nfoo: bar\n';
+				const out = replaceOrAddIniSections(content, [
+					{
+						section: 'a',
+						body: 'val: replaced\n',
+					},
+					{
+						section: 'other',
+						body: 'foo: replaced\nbar: baz\n',
+					},
+				]);
+
+				expect(out).toContain('val: replaced\n\n[other]');
+			});
+			test('preserves trailing comments after retained values (including surrounding whitespace) ', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '[a]\nx: 1    # comment  \ny: 2   # blah\n\n[other]\nq: 123\n';
+				const out = replaceOrAddIniSections(content, [
+					{
+						section: 'a',
+						body: 'x: 42\n',
+					},
+				]);
+
+				expect(out).toContain('x: 42    # comment  \n\n[other]');
+			});
 			test('multiple updates for same name: last update wins', async () => {
 				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
 				const content = '';
@@ -1030,8 +1058,26 @@ describe('server', async () => {
 				const out = replaceOrAddIniSections(content, [{ section: 'section1', body: 'v: new\n' }]);
 				// new body should be present
 				expect(out).toContain('v: new');
-				// section2 should still be present
-				expect(out).toContain('[section2]');
+				// comment before section2 should be preserved
+				expect(out).toContain('# Another comment\n[section2]');
+			});
+			test('retains trailing comments after replaced sections at end of content', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '# Start comment\n[section1]\nval: 1\n\n# Another comment\n[section2]\nval: 2\n\n# End comment';
+				const out = replaceOrAddIniSections(content, [{ section: 'section2', body: 'v: new\n' }]);
+				// new body should be present
+				expect(out).toContain('v: new');
+				// comment after section2 should be preserved
+				expect(out).toContain('v: new\n\n# End comment');
+			});
+			test('retains trailing comments after unreplaced sections at end of content', async () => {
+				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');
+				const content = '# Start comment\n[section1]\nval: 1\n\n# Another comment\n[section2]\nval: 2\n\n# End comment';
+				const out = replaceOrAddIniSections(content, [{ section: 'section1', body: 'v: new\n' }]);
+				// new body should be present
+				expect(out).toContain('v: new');
+				// comment after section 2 should be preserved
+				expect(out).toContain('val: 2\n\n# End comment');
 			});
 			test('idempotent: replacing section with identical content returns identical output', async () => {
 				const { replaceOrAddIniSections } = await import('@/server/helpers/file-operations');

@@ -76,7 +76,7 @@ import { ToolheadHelper, ToolheadSuffix } from '@/helpers/toolhead';
 import { getLastPrinterSettings, hasLastPrinterSettings, savePrinterSettings } from '@/server/helpers/printer-settings';
 import { PrinterAxis } from '@/zods/motion';
 import { ServerCache, cacheAsyncDirectoryFn } from '@/server/helpers/cache';
-import { klipperRestart } from '@/server/helpers/klipper';
+import { klipperRestart, PermittedServices, serviceRestart } from '@/server/helpers/klipper';
 import { access, copyFile, readFile, unlink, writeFile } from 'fs/promises';
 import { exec } from 'child_process';
 import objectHash from 'object-hash';
@@ -567,6 +567,19 @@ const generateKlipperConfiguration = async <T extends boolean>(
 				// At this point we know the file exists.
 				if (file.overwrite) {
 					if (file.exists && file.diskContent === file.content) {
+						// Ensure that last saved file is up to date. This can happen if the desired content has
+						// intentionally been read from the current disk content (eg. some of the
+						// VAOC files do this to achieve "create if it doesn't exist, otherwise keep unchanged" behaviour ).
+						// If we don't do this, the last saved content can get out of sync with the actual content on disk,
+						// which can cause confusion later when we compare desired content with last saved content to
+						// determine if a file has been changed on disk.
+						if (file.lastSavedContent !== file.content) {
+							const lastSavedDir = path.dirname(lastSavedPath);
+							if (!existsSync(lastSavedDir)) {
+								mkdirSync(lastSavedDir, { recursive: true });
+							}
+							await writeFile(lastSavedPath, file.content);
+						}
 						return { fileName: file.fileName, action: 'unchanged' };
 					}
 					// Make a back up.
@@ -582,8 +595,8 @@ const generateKlipperConfiguration = async <T extends boolean>(
 						);
 						if (backups.length > 0) {
 							const sortedBackups = backups.sort((a, b) => {
-								const aDate = new Date(a.split('-').slice(-1)[0].split('.cfg')[0]);
-								const bDate = new Date(b.split('-').slice(-1)[0].split('.cfg')[0]);
+								const aDate = new Date(a.split('-').slice(-1)[0].split(fileExt)[0]);
+								const bDate = new Date(b.split('-').slice(-1)[0].split(fileExt)[0]);
 								return aDate.getTime() - bDate.getTime();
 							});
 							if (sortedBackups.length > BACKUPS_TO_KEEP) {
@@ -1158,7 +1171,12 @@ export const printerRouter = router({
 		.mutation(async ({ input }) => {
 			const res = await regenerateKlipperConfiguration(undefined, input.overwriteFiles, input.skipFiles);
 			if (res.some((r) => r.action === 'created' || r.action === 'overwritten')) {
-				klipperRestart();
+				const servicesToRestart: PermittedServices[] | undefined = res.some(
+					(r) => r.fileName === 'crowsnest.conf' && (r.action === 'created' || r.action === 'overwritten'),
+				)
+					? ['crowsnest']
+					: undefined;
+				klipperRestart({ servicesToRestart });
 			}
 			return res;
 		}),
@@ -1184,8 +1202,13 @@ export const printerRouter = router({
 		.mutation(async (ctx) => {
 			const { config: serializedConfig, overwriteFiles, skipFiles } = ctx.input;
 			const config = await deserializePrinterConfiguration(serializedConfig);
-			const configResult = await generateKlipperConfiguration(config, overwriteFiles, skipFiles);
-			klipperRestart();
+			const configResult = await generateKlipperConfiguration<false>(config, overwriteFiles, skipFiles);
+			const servicesToRestart: PermittedServices[] | undefined = configResult.some(
+				(r) => r.fileName === 'crowsnest.conf' && (r.action === 'created' || r.action === 'overwritten'),
+			)
+				? ['crowsnest']
+				: undefined;
+			klipperRestart({ servicesToRestart });
 			return configResult;
 		}),
 	flashBeacon: publicProcedure.mutation(async () => {
