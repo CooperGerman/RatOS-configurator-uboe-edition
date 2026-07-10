@@ -1,5 +1,5 @@
 # .github/workflows/publish.yml
-name: Publish to v2.1.x-deployment-2
+name: Publish to staging/v2.1.x-deployment-2
 on:
   workflow_run:
     workflows: ["CI"] # runs after CI workflow
@@ -24,7 +24,7 @@ jobs:
         id: variables
         shell: bash
         run: |
-          echo "target-branch=v2.1.x-deployment-2" >> "$GITHUB_OUTPUT"
+          echo "target-branch=staging/v2.1.x-deployment-2" >> "$GITHUB_OUTPUT"
           echo "src-branch=v2.1.x" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v3
