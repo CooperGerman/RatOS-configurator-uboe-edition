@@ -65,7 +65,7 @@ OFFSETS: Final[Dict[str, NamedOffsetConfig]] = {
 }
 
 RESET_ALL_EVENT: Final = 'reset_all'
-RESET_EVENTS: Final = { event for config in OFFSETS.values() for event in config.reset_events } | {'motor_off', 'end_print', RESET_ALL_EVENT} 
+RESET_EVENTS: Final = { event for config in OFFSETS.values() for event in config.reset_events } | {'motor_off', 'end_print', RESET_ALL_EVENT}
 COMBINED_OFFSET_KEY: Final = 'combined_offset'
 MAX_OFFSET_NAME_LENGTH: Final = max(max(len(name) for name in OFFSETS.keys()), len(COMBINED_OFFSET_KEY))
 ZERO_OFFSET: Final = (0., 0., 0., 0.)
@@ -96,8 +96,8 @@ class NamedOffsetManager:
 		self.saved_states = {}
 		self.ratos = None
 		self.gcode = self.printer.lookup_object('gcode')
-		
-		# collections.namedtuple('Coord', ('x', 'y', 'z', 'e'))
+
+		# gcode.Coord is a tuple subclass with .x/.y/.z/.e properties.
 		# Use for macro-friendly status items that will behave the same as
 		# for example `printer.gcode_move.gcode_position.z`
 		self.Coord = self.gcode.Coord
@@ -116,24 +116,24 @@ class NamedOffsetManager:
 		self._original_save_gcode_state_cmd = self._override_command('SAVE_GCODE_STATE', self.cmd_SAVE_GCODE_STATE)
 		self._original_restore_gcode_state_cmd = self._override_command('RESTORE_GCODE_STATE', self.cmd_RESTORE_GCODE_STATE)
 		self._original_get_position_cmd = self._override_command('GET_POSITION', self.cmd_GET_POSITION, when_not_ready=True)
-		
+
 		self.ratos = self.printer.lookup_object('ratos')
 
 		self.gcode_move = self.printer.lookup_object('gcode_move')
 		self.next_transform = self.gcode_move.set_move_transform(self, force=True)
 
-	def _handle_motor_off(self, print_time):
+	def _handle_motor_off(self):
 		self.reset_on_event('motor_off')
 
 	def _override_command(self, cmd_name, new_cmd, *, when_not_ready:bool=False):
 		help_text = self.gcode.get_command_help().get(cmd_name, None)
 		is_base_handler = self.gcode.base_gcode_handlers.get(cmd_name, None) is not None
-		
+
 		if is_base_handler != when_not_ready:
 			raise self.printer.config_error(f"{cmd_name} is {'' if is_base_handler else 'not '}a base (aka 'when-not-ready') gcode handler, this is not expected. {self.name} cannot be enabled.")
-		
+
 		original_cmd = self.gcode.register_command(cmd_name, None)
-		
+
 		if original_cmd is None:
 			raise self.printer.config_error(f"{cmd_name} command is not registered, {self.name} cannot be enabled.")
 
@@ -234,7 +234,7 @@ class NamedOffsetManager:
 
 		if not (name or event):
 			raise gcmd.error("Either NAME or EVENT parameter must be specified.")
-		
+
 		if event and name:
 			raise gcmd.error("Only one of NAME or EVENT parameter may be specified.")
 
@@ -276,7 +276,7 @@ class NamedOffsetManager:
 			# no change to any component of the combined offset, no need to update
 			# position or move.
 			return
-		
+
 		gcode_move = self.gcode_move
 		gcode_move.reset_last_position()
 
@@ -321,16 +321,16 @@ class NamedOffsetManager:
 	def reset(self, name:str, move=False, move_speed=None):
 		if name not in OFFSETS:
 			raise self.gcode.error(f"Offset name '{name}' is not recognized.")
-		
+
 		if name in self.offsets:
 			self._debug_echo("reset", f"{name} -> zero")
 			self.offsets.pop(name)
 			self._offset_changed(move, move_speed)
-		
+
 	def reset_on_event(self, event:str, move=False, move_speed=None):
 		if event not in RESET_EVENTS:
 			raise self.gcode.error(f"Event '{event}' is not recognized.")
-		
+
 		changed = False
 		for name, config in OFFSETS.items():
 			if event == RESET_ALL_EVENT or event in config.reset_events:
@@ -364,15 +364,15 @@ class NamedOffsetManager:
 	# status
 	######
 	def _update_status(self):
-		status = {name: self.Coord(*self.offsets.get(name, ZERO_OFFSET)) for name in OFFSETS.keys()}
-		status[COMBINED_OFFSET_KEY] = self.Coord(*self.combined_offset)
+		status = {name: self.Coord(self.offsets.get(name, ZERO_OFFSET)) for name in OFFSETS.keys()}
+		status[COMBINED_OFFSET_KEY] = self.Coord(self.combined_offset)
 		self.status = status
 
 	def get_status(self, eventtime=None):
 		if self.status is None:
 			self._update_status()
 		return self.status
-	
+
 	######
 	# helpers
 	######
