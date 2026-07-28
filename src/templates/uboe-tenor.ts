@@ -15,9 +15,9 @@ ${helper.renderBoards()}
 ### BASE SETUP
 #############################################################################################################
 ${helper.renderBase()}
-[include RatOS/printers/v-core-4-idex/v-core-4-idex.cfg]
-[include RatOS/printers/v-core-4-idex/macros.cfg]
-[include RatOS/printers/v-core-4-idex/${config.size.x}.cfg]
+[include RatOS/printers/uboe-tenor/uboe-tenor.cfg]
+[include RatOS/printers/uboe-tenor/macros.cfg]
+[include RatOS/printers/uboe-tenor/${config.size.x}.cfg]
 
 # Extruder
 ${helper.renderExtruder()}
