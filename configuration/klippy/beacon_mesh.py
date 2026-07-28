@@ -516,7 +516,7 @@ class BeaconMesh:
 			raise self.printer.command_error(f"{subject} not found{purpose}")
 
 		try:
-			zmesh = BedMesh.ZMesh(profiles[profile]["mesh_params"], profile, self.reactor)
+			zmesh = BedMesh.ZMesh(profiles[profile]["mesh_params"], profile)
 			zmesh.build_mesh(profiles[profile]["points"])
 			return zmesh
 		except Exception as e:
@@ -1282,7 +1282,7 @@ class BeaconMesh:
 		params['min_y'] = mesh_min[1]
 		params['max_y'] = mesh_max[1]
 
-		z_mesh = BedMesh.ZMesh(params, profile_name, self.reactor)
+		z_mesh = BedMesh.ZMesh(params, profile_name)
 
 		try:
 			z_mesh.build_mesh(probed_points)
