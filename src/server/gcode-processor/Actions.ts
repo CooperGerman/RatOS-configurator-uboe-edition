@@ -106,9 +106,9 @@ export function validateGenerator(
 				}
 				break;
 			case GCodeFlavour.OrcaSlicer:
-				if (!semver.satisfies(gcodeInfo.generatorVersion, '2.1.1 || 2.2.0 || 2.3.0 || 2.3.1')) {
+				if (!semver.satisfies(gcodeInfo.generatorVersion, '2.1.1 || 2.2.0 || 2.3.1')) {
 					throw new SlicerNotSupported(
-						`Only versions 2.1.1, 2.2.0, 2.3.0 and 2.3.1 of OrcasSlicer are supported. Version ${gcodeInfo.generatorVersion} is not supported.`,
+						`Only versions 2.1.1, 2.2.0, and 2.3.1 of OrcaSlicer are supported. Version ${gcodeInfo.generatorVersion} is not supported.`,
 						{ cause: gcodeInfo },
 					);
 				}
@@ -461,7 +461,8 @@ export const captureConfigSection: Action = (c, s) => {
 					ActionResult.Stop,
 					(c, s) => {
 						if (c.line.startsWith(endLine)) {
-							return ActionResult.RemoveAndStop;
+							// Config section is complete, remove this action and continue to next action in sequence
+							return ActionResult.RemoveAndContinue;
 						} else {
 							const match = /^; ([^\s]+)\s=\s(.+)/.exec(c.line);
 							if (match) {
@@ -474,3 +475,35 @@ export const captureConfigSection: Action = (c, s) => {
 		},
 	];
 };
+
+/**
+ * Extract filament retraction parameters from the config section (OrcaSlicer only).
+ * Looks for filament_retraction_length and filament_retraction_speed.
+ * Replaces 'nil' values with '0' for unused extruders.
+ */
+export const extractFilamentRetraction: Action = [GCodeFlavour.OrcaSlicer, (c, s) => {
+	// Only run once we have the config section and haven't extracted retraction yet
+	if (s.configSection && !s.filamentRetraction) {
+		const retractLength = s.configSection.get('filament_retraction_length');
+		const retractSpeed = s.configSection.get('filament_retraction_speed');
+
+		// Only extract if BOTH values are present (they might not be captured yet)
+		if (retractLength && retractSpeed) {
+			// Store as array since we might have multiple extruders (e.g., "2,nil")
+			// Replace 'nil' values with '0' for unused extruders
+			s.filamentRetraction = retractLength
+				.split(',')
+				.map(v => v.trim())
+				.map(v => v === 'nil' || v === '' ? '0' : v);
+
+			s.filamentRetractionSpeed = retractSpeed
+				.split(',')
+				.map(v => v.trim())
+				.map(v => v === 'nil' || v === '' ? '0' : v);
+
+			// Remove this action once we've successfully extracted both values
+			return ActionResult.RemoveAndContinue;
+		}
+		// If either value not found yet, keep this action active (return undefined/Continue)
+	}
+}];
