@@ -266,7 +266,7 @@ const LogSummaryHeader: React.FC<{ summary: LogSummary; onRefresh: () => void; o
 																	<FileJson className="h-4 w-4 flex-shrink-0 text-zinc-100/40" aria-hidden="true" />
 																)}
 																<span>
-																	{file.orgPath.replace('/home/pi', '~')} ({formatBytes(file.size)})
+																	{file.orgPath.replace('/home/uboe', '~')} ({formatBytes(file.size)})
 																</span>
 															</li>
 														);

@@ -19,7 +19,7 @@ def _download_task(url, path):
 	urllib.request.urlretrieve(url, path)
 	return True
 
-BeaconProbingRegions = namedtuple('BeaconProbingRegions', 
+BeaconProbingRegions = namedtuple('BeaconProbingRegions',
 	[
 		'x_offset',
 		'y_offset',
@@ -58,7 +58,7 @@ BeaconProbingRegions = namedtuple('BeaconProbingRegions',
 	- logical_contact_max: Tuple of (max_x, max_y) for contact probing calculated from the printable area and beacon offsets (toolhead position)
   Notes:
 	- COIL POSITION VS TOOLHEAD POSITION FOR PROXIMITY VALUES
-	  
+
 	  - The values suffixed "_coil_pos" represent the position of the beacon coil itself.
 
 	  - The values suffixes "_toolhead_pos" represent the position of the toolhead (aka, nozzle), taking account of
@@ -70,20 +70,20 @@ BeaconProbingRegions = namedtuple('BeaconProbingRegions',
 	  All contact values represent the toolhead (aka, nozzle) position.
 
 	- LOGICAL VALUES
-	  
+
 	  The "logical" values assume that a 40mm circle of printable area under the beacon coil is required for proximity
 	  probing to be reliable, and that a 20mm circle of printable area under the beacon coil is required for contact
-	  probing to be reliable. 
-	  
+	  probing to be reliable.
+
 	  The configured mesh bounds may sometimes exceed the logical area, because the configured mesh bounds can take account
 	  of the extent of the underlying bed plate and other metal constructions which may extend beyond the printable area.
 	  On the other hand, mesh bounds may have a restricted extent that may be exceeded by the logical bounds on some sides.
 
 	  The logical bounds may include toolhead coordinates that are outside the printable area but which are still valid* for probing
 	  because the beacon probe offset ensures that the beacon coil is still over the printable area when the toolhead is at those
-	  coordinates. Such coordinates might be outside the hard movement limits of the printer - this is considered to be a 
+	  coordinates. Such coordinates might be outside the hard movement limits of the printer - this is considered to be a
 	  separate concern.
-	  
+
 	  *IMPORTANT: it is the responsibility of the consumer to ensure that contact probing is only attempted at coordinates
 	  where the nozzle is expected to be over the build sheet: for example, contact probing at negative y positions should
 	  only be performed if there is confidence that the build sheet will be positioned reliably and extends forward beyond
@@ -194,7 +194,7 @@ class RatOS:
 			else:
 				logging.info("No deferred RatOS console messages to write.")
 			self._deferred_init_messages = None
-		
+
 	def _check_cpu_governors(self):
 		desired_governor = 'performance'
 		try:
@@ -210,7 +210,7 @@ class RatOS:
 			self.console_echo(
 				'CPU governor check', 'warning',
 				f'RatOS recommends setting all CPU governors to "{desired_governor}" for optimal printing performance._N_' +
-				'Current CPU governor(s) detected: ' + ', '.join(governors))		
+				'Current CPU governor(s) detected: ' + ', '.join(governors))
 	#####
 	# Settings
 	#####
@@ -253,7 +253,7 @@ class RatOS:
 			if self.overridden_commands[command] != func:
 				raise self.printer.config_error("Command '%s' is already overridden with a different function" % (command,))
 			return
-		
+
 		if desc is None:
 			desc = self.gcode.get_command_help().get(command, None)
 
@@ -264,16 +264,16 @@ class RatOS:
 				if not desc.endswith('.'):
 					desc = desc + '.'
 				desc = desc + ' ' + desc_suffix
-		
+
 		prev_cmd = self.gcode.register_command(command, None)
-		
+
 		if prev_cmd is None:
 			if skip_if_not_registered:
 				logging.info(f"{self.name}: existing command '{command}' not found, skipping override registration")
 				return
 			else:
 				raise self.printer.config_error(f"{self.name}: expected existing command '{command}' not found, cannot register override")
-		
+
 		if command not in self.overridden_commands:
 			raise self.printer.config_error(f"{self.name}: command '{command}' not found in override list")
 
@@ -283,7 +283,7 @@ class RatOS:
 	def get_prev_cmd(self, command):
 		if command not in self.overridden_commands or self.overridden_commands[command] is None:
 			raise self.printer.config_error(f"{self.name}: previous function for command '{command}' not found in RatOS override list")
-		
+
 		return self.overridden_commands[command]
 
 	desc_TEST_RESONANCES = ("Runs the resonance test for a specifed axis, positioning errors caused by sweeping are corrected by a RatOS override of this command.")
@@ -348,8 +348,8 @@ class RatOS:
 			for file_path in new_is_graph_files:
 				if file_path not in self.old_is_graph_files:
 					title = gcmd.get('TITLE', '')
-					file_name = file_path.replace("/home/pi/printer_data/config/input_shaper/", "")
-					url = file_path.replace("/home/pi/printer_data", "../server/files")
+					file_name = file_path.replace("/home/uboe/printer_data/config/input_shaper/", "")
+					url = file_path.replace("/home/uboe/printer_data", "../server/files")
 					title = title + ': ' if title != '' else ''
 					_title = '<p style="font-weight: bold; margin:0; color:white">' + title + file_name + '</p>'
 					_link = 'Click image to download or right click for options.'
@@ -386,10 +386,10 @@ class RatOS:
 		command = gcmd.get("__COMMAND").strip()
 		if not command:
 			raise gcmd.error("Value for parameter '__COMMAND' must be specified")
-		
+
 		_except = gcmd.get("__EXCEPT", "").strip()
 		_finally = gcmd.get("__FINALLY", "").strip()
-		
+
 		to_run = f'{command} {gcmd.get_raw_command_parameters()}'
 
 		self.debug_echo("TRY", f"Command: {command}")
@@ -430,7 +430,7 @@ class RatOS:
 	def cmd_SET_ZERO_REFERENCE_POSITION(self, gcmd):
 		if not self.bed_mesh:
 			raise gcmd.error("The bed_mesh module is not configured. This command requires a [bed_mesh] section in the printer configuration.")
-		
+
 		if (self.bed_mesh.z_mesh is None):
 			self.console_echo("Set zero reference position error", "error",
 				"No bed mesh loaded._N_Either generate a new bed mesh or load it via BED_MESH_PROFILE LOAD=\"[profile_name]\"")
@@ -472,7 +472,7 @@ class RatOS:
 				]))
 			self.v_sd.cmd_SDCARD_PRINT_FILE(gcmd)
 			return
-		
+
 		if self.process_gcode_file(filename, self.enable_gcode_transform):
 			self.v_sd.cmd_SDCARD_PRINT_FILE(gcmd)
 		else:
@@ -481,6 +481,34 @@ class RatOS:
 	#####
 	# Gcode Post Processor
 	#####
+	def compensate_beacon_scan(self, profile):
+		systime = self.reactor.monotonic()
+		try:
+			if self.bed_mesh.z_mesh:
+				profile_name = self.bed_mesh.z_mesh.get_profile_name()
+				if profile_name != profile:
+					points = self.bed_mesh.get_status(systime)["profiles"][profile_name]["points"]
+					params = self.bed_mesh.z_mesh.get_mesh_params()
+					x_step = ((params["max_x"] - params["min_x"]) / (len(points[0]) - 1))
+					y_step = ((params["max_y"] - params["min_y"]) / (len(points) - 1))
+					new_points = []
+					for y in range(len(points)):
+						new_points.append([])
+						for x in range(len(points[0])):
+							x_pos = params["min_x"] + x * x_step
+							y_pos = params["min_y"] + y * y_step
+							z_val = points[y][x]
+							contact_z = self.contact_mesh.calc_z(x_pos, y_pos)
+							new_z = z_val - (z_val - contact_z)
+							new_points[y].append(new_z)
+					self.bed_mesh.z_mesh.build_mesh(new_points)
+					self.bed_mesh.save_profile(profile_name)
+					self.bed_mesh.set_mesh(self.bed_mesh.z_mesh)
+					self.console_echo("Beacon scan compensation", "debug", "Mesh scan profile %s compensated with contact profile %s" % (str(profile_name), str(profile)))
+
+		except BedMesh.BedMeshError as e:
+			self.console_echo("Beacon scan compensation error", "error", str(e))
+
 	def process_gcode_file(self, filename, enable_gcode_transform):
 		try:
 			[path, size] = self.get_gcode_file_info(filename)
@@ -497,7 +525,7 @@ class RatOS:
 			if self.allow_unsupported_slicer_versions:
 				args.append('--allow-unsupported-slicer-versions')
 			args.append(path)
-			
+
 			if not enable_gcode_transform and isIdex:
 				self.console_echo('Post-processing on IDEX machines without gcode transformation is not recommended', 'warning', '_N_'.join([
 					'RatOS IDEX features require gcode transformation to be enabled.',
@@ -522,7 +550,7 @@ class RatOS:
 				if data['result'] == 'error' and 'message' in data:
 					self.last_processed_file_result = None
 					self.console_echo("Error: " + data['title'], 'alert', data['message'])
-					
+
 					if data['code'] == 'UNKNOWN_GCODE_GENERATOR':
 						message = '_N_'.join([
 							'You can allow gcode from unknown generators by running <a class="command">ALLOW_UNKNOWN_GCODE_GENERATOR</a> in the console before starting a print',
@@ -547,7 +575,7 @@ class RatOS:
 					if printability == 'NOT_SUPPORTED':
 						self.console_echo('Post-processing Error: slicer version not supported', 'error', "You can allow unsupported slicers by adding the following to printer.cfg._N__N_[ratos]_N_allow_unsupported_slicer_versions: True_N__N_Reasons for failure:_N_ %s" % ("_N_".join(data['payload']['printabilityReasons'])))
 						return False
-						
+
 					if printability == 'MUST_REPROCESS':
 						self.console_echo('Post-processing Error: file must be reprocessed', 'error', 'File must be reprocessed before it can be printed, please slice and upload the unprocessed file again._N_Reasons for failure:_N_ %s' % ("_N_".join(data['payload']['printabilityReasons'])))
 						return False
@@ -556,7 +584,7 @@ class RatOS:
 						self.console_echo('Post-processing skipped', 'info', 'File contains gcode from an unknown/unidentified generator._N_Post processing has been skipped since gcode from unknown generators is allowed in your configuration.')
 						self.post_process_success = True
 						return True
-					
+
 					if printability != 'READY':
 						self.console_echo('Post-processing Error: file is not ready to be printed', 'error', '%s_N_File is not ready to be printed, please slice and upload the unprocessed file again._N_Reasons for failure:_N_ %s' % ("_N_".join(data['payload']['printabilityReasons'])))
 						return False
@@ -573,7 +601,7 @@ class RatOS:
 
 					tool_shifts = analysis_result["toolChangeCount"] if "toolChangeCount" in analysis_result else 0
 					used_tools = analysis_result["usedTools"] if "usedTools" in analysis_result else "0"
-					
+
 					success_msg_lines = [
 						f'Slicer: {data["payload"]["generator"]} v{data["payload"]["generatorVersion"]} '
 						f'_N_Used tools: T{", T".join(used_tools)}',
@@ -582,7 +610,7 @@ class RatOS:
 						success_msg_lines.append(f'_N_Toolshifts: {tool_shifts}')
 
 					self.console_echo(
-						'Post-processing completed', 
+						'Post-processing completed',
 						'success',
 						"_N_".join(success_msg_lines)
 					)
@@ -622,7 +650,7 @@ class RatOS:
 					return
 
 				data = self.partial_output + data.decode()
-				
+
 				if '\n' not in data:
 					self.partial_output = data
 					return
@@ -708,7 +736,7 @@ class RatOS:
 	def debug_echo(self, prefix, msg):
 		if self.gcode.is_printer_ready:
 			self.gcode.run_script_from_command("DEBUG_ECHO PREFIX='" + str(prefix) + "' MSG='" + str(msg).replace("'", "`").replace("\n", "_N_") + "'")
-	
+
 	def console_echo(self, title, type, msg=''):
 		if self._defer_console_messages:
 			if (type == 'error' or type == 'alert'):
@@ -716,10 +744,10 @@ class RatOS:
 
 			if (type == 'warning'):
 				logging.warning(title + ": " + msg)
-			
+
 			self._deferred_init_messages.append( (title, type, msg) )
 			return
-		
+
 		color = "white"
 		opacity = 1.0
 		if type == 'info': color = "#38bdf8"
@@ -749,16 +777,16 @@ class RatOS:
 
 	def get_is_graph_files(self):
 		try:
-			folder_path = r"/home/pi/printer_data/config/input_shaper/"
+			folder_path = r"/home/uboe/printer_data/config/input_shaper/"
 			file_type = r"*.png"
 			return glob.glob(os.path.join(folder_path, file_type))
 		except Exception as exc:
 			self.debug_echo("get_is_graph_files", "Something went wrong. " + str(exc))
-		return None		
+		return None
 
 	def get_ratos_version(self):
 		version = '?'
-		path = pathlib.Path('/home/pi/ratos-configurator/.git')
+		path = pathlib.Path('/home/uboe/ratos-configurator/.git')
 		gitdir = os.path.join(path, '..')
 		prog_desc = ('git', '-C', gitdir, 'describe', '--always',
 					'--tags', '--long', '--dirty')
@@ -779,12 +807,12 @@ class RatOS:
 		except Exception as exc:
 			self.debug_echo("get_ratos_version", ("Exception on run: %s", exc))
 		return version
-	
+
 	def get_ratos_distro(self):
 		distro = 'unknown'
 		try:
 			path = pathlib.Path('/etc/ratos-release')
-			distro = path.read_text().strip()			
+			distro = path.read_text().strip()
 		except Exception as exc:
 			self.debug_echo("get_ratos_distro", f"Error getting ratos-distro: {exc}")
 		return distro
@@ -815,7 +843,7 @@ class RatOS:
 			return None
 
 		# printable_x_max and printable_y_max are calculated by delayed a gcode macro, so might possibly change during runtime.
-		# We only need to update the cached probing regions if these values change.		
+		# We only need to update the cached probing regions if these values change.
 		printable_x_max, printable_y_max = self.get_printable_max_dimensions()
 
 		if self._beacon_probing_regions is not None:
@@ -842,9 +870,9 @@ class RatOS:
 			logical_proximity_max_toolhead_pos=(printable_x_max - prox_pr - self.beacon.x_offset, printable_y_max - prox_pr - self.beacon.y_offset),
 			logical_contact_min=(contact_pr - self.beacon.x_offset, contact_pr - self.beacon.y_offset),
 			logical_contact_max=(printable_x_max - contact_pr - self.beacon.x_offset, printable_y_max - contact_pr - self.beacon.y_offset))
-		
+
 		logging.info(f"{self.name}: beacon probing regions updated: {bpr}")
-		
+
 		self._beacon_probing_regions = bpr
 		return bpr
 
@@ -863,7 +891,7 @@ class RatOS:
 		printable_x_max = float(self.gm_ratos.variables['printable_x_max'])
 		printable_y_max = float(self.gm_ratos.variables['printable_y_max'])
 		return (printable_x_max, printable_y_max)
-	
+
 	def get_safe_home_position(self, none_if_not_valid=False):
 		printable_x_max, printable_y_max = self.get_printable_max_dimensions(none_if_not_valid)
 		if printable_x_max is None or printable_y_max is None:
@@ -872,7 +900,7 @@ class RatOS:
 		raw_safe_home_y = safe_home_y = self.gm_ratos.variables.get('safe_home_y', None)
 		safe_home_x = printable_x_max / 2 if safe_home_x is None or str(safe_home_x).lower() == 'middle' else float(safe_home_x)
 		safe_home_y = printable_y_max / 2 if safe_home_y is None or str(safe_home_y).lower() == 'middle' else float(safe_home_y)
-		
+
 		bpr = self.get_beacon_probing_regions()
 		if bpr is not None:
 			safe_min_x = max(bpr.mesh_proximity_min_coil_pos[0], bpr.mesh_contact_min[0])
@@ -884,8 +912,8 @@ class RatOS:
 					return (None, None)
 				if not self.printer.is_shutdown():
 					logging.info(f"{self.name}: (safe_home_x, safe_home_y) is not within beacon-probable region: printable_x_max={printable_x_max}, printable_y_max={printable_y_max}, safe_home_x={safe_home_x}, safe_home_y={safe_home_y}, raw_safe_home_x={raw_safe_home_x}, raw_safe_home_y={raw_safe_home_y}, beacon probing region: ({safe_min_x}, {safe_min_y}) - ({safe_max_x}, {safe_max_y})")
-					self.printer.invoke_shutdown(f"{self.name}: (safe_home_x, safe_home_y) must be within the region that Beacon can probe: ({safe_min_x}, {safe_min_y}) - ({safe_max_x}, {safe_max_y}). The configured location ({safe_home_x:.2f}, {safe_home_y:.2f}) is outside this region.")			
-		
+					self.printer.invoke_shutdown(f"{self.name}: (safe_home_x, safe_home_y) must be within the region that Beacon can probe: ({safe_min_x}, {safe_min_y}) - ({safe_max_x}, {safe_max_y}). The configured location ({safe_home_x:.2f}, {safe_home_y:.2f}) is outside this region.")
+
 		return (safe_home_x, safe_home_y)
 
 	desc_MOVE_TO_SAFE_Z_HOME = "Move to safe home position with optional Z_HOP (pass Z_HOP=True as parameter)"
@@ -894,7 +922,7 @@ class RatOS:
 		fuzzy_radius = gcmd.get_float('FUZZY_RADIUS', 0, minval=0.)
 		z_hop = gcmd.get('Z_HOP', '').lower() in ('true', 'yes', '1')
 		x, y = self.get_safe_home_position()
-		
+
 		if fuzzy_radius > 0:
 			# Set the home position to a random point anywhere within the circle centered on the safe home position
 			# Generate random radius between 0 and fuzzy_radius (sqrt of random ensures uniform distribution)
@@ -951,7 +979,7 @@ class RatOS:
 	desc_DEBUG_ECHO_STACK_TRACE = "Logs a gcode command stack trace when debug is enabled. Add comments to template macros formatted exactly {';$some-short-text-without-whitespace'} to enhance callsite identification."
 	def cmd_DEBUG_ECHO_STACK_TRACE(self, gcmd):
 		macro = self.printer.lookup_object('gcode_macro DEBUG_ECHO')
-		if macro.variables['enabled']:			
+		if macro.variables['enabled']:
 			def callback(frame_info):
 				locals = frame_info.frame.f_locals
 				self_obj = locals.get("self", None)
@@ -1005,13 +1033,13 @@ class RatOS:
 		"""
 		Capture the current stack, format it like traceback.format_list,
 		and for each frame allow a callback (if provided) to add extra lines.
-		
+
 		Parameters:
 		callback (function): A function that takes an inspect.FrameInfo object
 							and returns a string containing extra info (or '' if none).
 		skip (int): Number of frames to skip from the bottom of the stack.
 					For example, skip=1 will omit the current frame.
-		
+
 		Returns:
 		str: The formatted multi-line string of the stack trace plus any extra info.
 		"""
@@ -1020,13 +1048,13 @@ class RatOS:
 		# We skip the first few frames (including this function itself) using skip.
 		stack = inspect.stack()[skip+1:]
 		lines = []
-		
+
 		for frame_info in stack:
 			# Convert each inspect.FrameInfo to a FrameSummary, which is what
 			# traceback.format_list expects. This lets us format it the usual way.
 			code_line = frame_info.code_context[0].strip() if frame_info.code_context else None
 			frame_summary = traceback.FrameSummary(frame_info.filename, frame_info.lineno, frame_info.function, line=code_line)
-						
+
 			# If a callback is provided, get extra information from it.
 			should_emit, extra_lines  = callback(frame_info) if callback is not None else (True, None)
 			if should_emit:
@@ -1036,9 +1064,9 @@ class RatOS:
 			if extra_lines:
 				# Append the extra info as extra lines
 				lines.append(extra_lines + "\n")
-		
+
 		return "".join(lines)
-	
+
 	def get_cpu_governors(self) -> set[str]:
 		"""Return the set of distinct current CPU governor names (lowercased).
 
@@ -1067,11 +1095,11 @@ class RatOS:
 
 		if not governors:
 			logging.error(f"{self.name}: Failed to read any CPU governor values")
-			raise ValueError("failed to read any CPU governor values")			
+			raise ValueError("failed to read any CPU governor values")
 
 		logging.info(f"{self.name}: Current CPU governor(s): {', '.join(sorted(governors))}")
 		return governors
-	
+
 	def _get_nozzle_diameter(self):
 		extruder_name = 'extruder'
 
@@ -1103,17 +1131,17 @@ class RatOS:
 	def cmd_BEACON_PROBE_CLEAN(self, gcmd):
 		if self.beacon is None:
 			raise self.printer.command_error("beacon is not configured, cannot run BEACON_PROBE_CLEAN")
-		
+
 		x = gcmd.get_float('X')
-		y = gcmd.get_float('Y')		
-		
+		y = gcmd.get_float('Y')
+
 		count = gcmd.get_int('COUNT', 6, minval=1)
 		spacing = gcmd.get_float('SPACING', self._get_nozzle_tip_diameter(), minval=0.0)
 		stamp_skip = gcmd.get_int('STAMP_SKIP', 0, minval=0)
 		stamp_depth = gcmd.get_float('STAMP_DEPTH', 0.1, minval=0.0, maxval=0.2)
 		stamp_wait = gcmd.get_int('STAMP_WAIT', 200, minval=0)
 		stamp = gcmd.get('STAMP', '1').lower() in ('1', 'true', 'yes')
-		
+
 		speed = float(self.gm_ratos.variables.get('macro_travel_speed')) * 60.
 		z_speed = float(self.gm_ratos.variables.get('macro_z_speed')) * 60.
 
@@ -1134,10 +1162,10 @@ class RatOS:
 	def cmd_BEACON_CHECK_DIRECTIONAL_REPEATABILITY(self, gcmd):
 		if self.beacon is None:
 			raise self.printer.command_error("Beacon probe not configured")
-		
+
 		proceed = gcmd.get('PROCEED', '').lower() in ('true', 'yes', '1')
 		if not proceed:
-			self.console_echo('BEACON_CHECK_DIRECTIONAL_REPEATABILITY', 'info', 
+			self.console_echo('BEACON_CHECK_DIRECTIONAL_REPEATABILITY', 'info',
 				'_N_'.join([
 					'This command will perform a series of probe points to check the repeatability',
 					'of the Beacon probe. Before proceeding:',
@@ -1173,13 +1201,13 @@ class RatOS:
 		distance = gcmd.get_float('DISTANCE', 50., minval=5.)
 		def_x, def_y = self.get_safe_home_position()
 		x = gcmd.get_float('X', def_x)
-		y = gcmd.get_float('Y', def_y)		
-		
+		y = gcmd.get_float('Y', def_y)
+
 		bpr = self.get_beacon_probing_regions()
-		
+
 		if bpr is None:
 			raise gcmd.error("Unexpected error: beacon probing regions are not available")
-		
+
 		if x < bpr.mesh_contact_min[0] or x > bpr.mesh_contact_max[0] or y < bpr.mesh_contact_min[1] or y > bpr.mesh_contact_max[1]:
 			raise gcmd.error(f"X and Y must be within the beacon contact probing region: ({bpr.mesh_contact_min[0]}, {bpr.mesh_contact_min[1]}) - ({bpr.mesh_contact_max[0]}, {bpr.mesh_contact_max[1]})")
 
@@ -1192,14 +1220,14 @@ class RatOS:
 			nearest_y = max(distance, min(y, printable_y_max - distance))
 			raise gcmd.error(f"The full movement circle must be within the printable area (0,0) - ({printable_x_max}, {printable_y_max}). For distance {distance}, the nearest compatible position to ({x}, {y}) is ({nearest_x}, {nearest_y}). Please adjust X, Y, or DISTANCE accordingly.")
 
-		self.console_echo('BEACON_CHECK_DIRECTIONAL_REPEATABILITY', 'info', 
+		self.console_echo('BEACON_CHECK_DIRECTIONAL_REPEATABILITY', 'info',
 			'_N_'.join([
 				f'Running {cycles} cycles of {divisions} divisions at ({x:.0f}, {y:.0f}), moving {distance} mm at {speed} mm/s, {accel} mm/s² acceleration.',
 				'This may take several minutes, please wait...'
 			]))
-			
+
 		self.gcode.run_script_from_command("MAYBE_HOME ABL=1\nSAVE_GCODE_STATE NAME=_BEACON_CHECK_REPEATABILITY")
-		try:			
+		try:
 			self._beacon_check_directional_repeatability(gcmd, x, y, cycle_count=cycles, divisions=divisions, accel=accel, speed_mms=speed, distance=distance)
 		finally:
 			self.gcode.run_script_from_command("RESTORE_GCODE_STATE NAME=_BEACON_CHECK_REPEATABILITY")
@@ -1231,10 +1259,10 @@ class RatOS:
 				# Get last probe result
 				last_z = self.beacon.last_z_result
 				results.append( (division, last_z) )
-				
+
 		stats_by_division = {}
 		pc_groups = (('<=30pc', 30), ('<=85pc', 85), ('<=98pc', 98), ('all', 100))
-		
+
 		# used_values_mask is a numpy boolean array which the function updates to indicate which values were used
 		# in the calculation (ie, below the percentile cutoff). When computing per-division statistics
 		# pass the `indices` argument (list of indices into the global `results`) so the mask can be
@@ -1252,7 +1280,7 @@ class RatOS:
 					'gradient': None,
 					'count': 0
 				}
-			
+
 			# Mark used values in the mask. If `indices` is provided, arr represents a slice of the
 			# global results and we must assign into the full-length mask at those indices.
 			if used_values_mask is not None:
@@ -1294,7 +1322,7 @@ class RatOS:
 				stats[pc_label] = get_stats_below_percentile(arr, pc, used_values_masks_by_pc_label[pc_label], indices=indices)
 			stats_by_division[division] = stats
 			self.reactor.pause(self.reactor.monotonic() + 0.1)
-		
+
 		def format_stats(stats):
 			mean = f"{stats['mean']*1000.:7.0f}"  if stats['mean']  is not None else f"{'-':>7}"
 			sd   = f"{stats['stddev']*1000.:7.1f}" if stats['stddev'] is not None else f"{'-':>7}"
@@ -1302,7 +1330,7 @@ class RatOS:
 			mx   = f"{stats['max']*1000.:7.0f}"    if stats['max']    is not None else f"{'-':>7}"
 			rng  = f"{stats['range']*1000.:7.0f}"  if stats['range']  is not None else f"{'-':>7}"
 			return mean, sd, mn, mx, rng
-		
+
 		def format_angle(angle):
 			prefix = ''
 			if math.isclose(angle, 0):
@@ -1313,8 +1341,8 @@ class RatOS:
 				prefix = '-Y'
 			elif math.isclose(angle, 270):
 				prefix = '-X'
-			return f"{prefix}{angle:>8.0f}" if prefix else f"{angle:>10.0f}"			
-		
+			return f"{prefix}{angle:>8.0f}" if prefix else f"{angle:>10.0f}"
+
 		header = f"| {'Angle (°)':>10} {'Count':>6} {'Mean':>7} {'StdDev':>7} {'Min':>7} {'Max':>7} {'Range':>7} (µm)"
 		def format_line(angle, count, mean, sd, mn, mx, rng, gradient):
 			note = ''
@@ -1324,7 +1352,7 @@ class RatOS:
 				note = f' ! trend gradient {gradient*1000.:.1f} µm/point, possible thermal drift'
 
 			return f"| {f'{angle:>10}' if isinstance(angle, str) else format_angle(angle)} {count:>6d} {mean} {sd} {mn} {mx} {rng}{note}"
-		
+
 		for pc_label, pc in pc_groups:
 			table_lines = []
 			table_lines.append(header)
@@ -1360,13 +1388,13 @@ class RatOS:
 			gradient = all_stats['gradient']
 			line = format_line('ALL', count, mean, sd, mn, mx, rng, gradient)
 			table_lines.append(line)
-			
+
 			table_str = "\n".join(table_lines)
-			
+
 			gcmd.respond_info(f'({x:.0f}, {y:.0f}) {cycle_count} x {distance} mm @ {speed_mms} mm/s @ {accel} mm/s² {pc_label}:\n\n{table_str}')
-		
+
 		self.reactor.pause(self.reactor.monotonic() + 0.1)
-		
+
 		json_output = {
 			'x_center': x,
 			'y_center': y,
@@ -1389,7 +1417,7 @@ class RatOS:
 		config_file = self.printer.get_start_args()['config_file']
 		config_dir = os.path.dirname(config_file)
 		diag_dir = os.path.join(config_dir, 'diagnostics')
-		
+
 		if not os.path.exists(diag_dir):
 			try:
 				os.makedirs(diag_dir)
@@ -1416,7 +1444,7 @@ class RatOS:
 		if not main_config_path:
 			raise self.printer.command_error("Could not determine the klipper config path!")
 		config_dir = os.path.dirname(main_config_path)
-		snapshots_dir = os.path.join(config_dir, 'snapshots')		
+		snapshots_dir = os.path.join(config_dir, 'snapshots')
 		if subdir:
 			snapshots_dir = os.path.join(snapshots_dir, subdir)
 
@@ -1444,30 +1472,30 @@ class RatOS:
 					index += 1
 
 		self._last_camera_snapshot_index_by_subdir[subdir] = index
-		image_path = os.path.join(snapshots_dir, f"image_{index:04d}.jpg")		
+		image_path = os.path.join(snapshots_dir, f"image_{index:04d}.jpg")
 		executor = ThreadPoolExecutor(max_workers=1)
 		future = executor.submit(_download_task, url, image_path)
-		
+
 		while not future.done():
 			self.reactor.pause(self.reactor.monotonic() + 0.1)
-		
+
 		executor.shutdown(wait=False)
-		
+
 		e = future.exception()
 		if e is not None:
 			raise gcmd.error(f"Failed to retrieve snapshot from {url}: {e!r}") from e
-		
+
 		gcmd.respond_info(f"Snapshot saved to {image_path}")
-	
-		
+
+
 class BackgroundDisplayStatusProgressHandler:
 	def __init__(
-			self, 
+			self,
 			printer,
 			msg_fmt = "{spinner} {progress:.0f}%",
 			display_status_update_interval=0.8,
 			spinner_sequence="⠋⠙⠹⠸⠼⠴⠦⠧⠇"):
-				
+
 		self.reactor = printer.get_reactor()
 		self.gcode = printer.lookup_object('gcode')
 		self.display_status = printer.lookup_object('display_status')
@@ -1483,14 +1511,14 @@ class BackgroundDisplayStatusProgressHandler:
 	def enable(self):
 		if self._timer:
 			return
-		
+
 		self._timer = self.reactor.register_timer(
 			self._handle_timer, self.reactor.NOW)
 
 	def disable(self):
 		if self._timer is None:
 			return
-		
+
 		self.reactor.unregister_timer(self._timer)
 		self._timer = None
 		self.display_status.message = None
@@ -1526,7 +1554,7 @@ class BackgroundDisplayStatusProgressHandler:
 
 		if self.msg_fmt is not None:
 			self.display_status.message = self.msg_fmt.format(progress=self._progress * 100.0, spinner=spinner)
-		
+
 		return self.reactor.monotonic() + self.display_status_update_interval
 
 #####

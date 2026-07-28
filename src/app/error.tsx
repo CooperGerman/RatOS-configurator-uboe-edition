@@ -63,7 +63,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 														<FileJson className="h-4 w-4 flex-shrink-0 text-zinc-100/40" aria-hidden="true" />
 													)}
 													<span>
-														{file.orgPath.replace('/home/pi', '~')} ({formatBytes(file.size)})
+														{file.orgPath.replace('/home/uboe', '~')} ({formatBytes(file.size)})
 													</span>
 												</li>
 											);
