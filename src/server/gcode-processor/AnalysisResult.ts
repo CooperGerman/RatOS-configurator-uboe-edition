@@ -42,11 +42,16 @@ export interface FullAnalysisResult extends BaseAnalysisResult {
 	readonly configSection?: {
 		[key: string]: string;
 	};
+	readonly filamentRetraction?: string[];
+	readonly filamentRetractionSpeed?: string[];
 }
 
 export interface QuickAnalysisResult
 	extends BaseAnalysisResult,
-		Pick<FullAnalysisResult, 'extruderTemps' | 'firstMoveX' | 'firstMoveY' | 'hasPurgeTower' | 'configSection'> {
+		Pick<
+			FullAnalysisResult,
+			'extruderTemps' | 'firstMoveX' | 'firstMoveY' | 'hasPurgeTower' | 'configSection' | 'filamentRetraction' | 'filamentRetractionSpeed'
+		> {
 	readonly kind: AnalysisResultKind.Quick;
 }
 
@@ -65,6 +70,8 @@ export const AnalysisResultSchema = z.discriminatedUnion('kind', [
 		hasPurgeTower: z.boolean().optional(),
 		configSection: z.record(z.string(), z.string()).optional(),
 		usedTools: z.array(z.string()),
+		filamentRetraction: z.array(z.string()).optional(),
+		filamentRetractionSpeed: z.array(z.string()).optional(),
 	}),
 
 	z.object({
@@ -74,6 +81,9 @@ export const AnalysisResultSchema = z.discriminatedUnion('kind', [
 		firstMoveX: z.string().optional(),
 		firstMoveY: z.string().optional(),
 		hasPurgeTower: z.boolean().optional(),
+		configSection: z.record(z.string(), z.string()).optional(),
+		filamentRetraction: z.array(z.string()).optional(),
+		filamentRetractionSpeed: z.array(z.string()).optional(),
 	}),
 ]);
 
