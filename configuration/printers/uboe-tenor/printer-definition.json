@@ -1,10 +1,10 @@
 {
 	"$schema": "../printer-definition.schema.json",
 	"name": "TENOR 600",
-	"description": "Rat Rig flagship 3d printer with the IDEX upgrade kit",
+	"description": "600x600x200 IDEX printer by Uboe.",
 	"manufacturer": "Uboe",
-	"releaseDate": "2024-04-26",
-	"documentationLink": "https://v-core4.ratrig.com/",
+	"releaseDate": "2025-10-15",
+	"documentationLink": "",
 	"image": "uboe-tenor.png",
 	"template": "uboe-tenor-printer.template.cfg",
 	"driverCountRequired": 10,
