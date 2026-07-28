@@ -55,6 +55,8 @@ export class State {
 	public maxX = Number.MIN_VALUE;
 	public hasPurgeTower?: boolean;
 	public configSection?: Map<string, string>;
+	public filamentRetraction?: string[];
+	public filamentRetractionSpeed?: string[];
 	public processingHasBeenFinalized = false;
 
 	/** Used tools, in order of first use. */
