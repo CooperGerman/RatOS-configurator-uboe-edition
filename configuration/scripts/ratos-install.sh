@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # This script installs additional dependencies for RatOS.
 
+# PKGLIST="python3-numpy python3-matplotlib curl git"
+PKGLIST="python-numpy python-matplotlib curl git"
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "$(realpath -- "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )
 CFG_DIR=$(realpath "$SCRIPT_DIR/..")
 
@@ -11,7 +14,8 @@ install_dependencies()
 {
     report_status "Installing RatOS dependencies"
     # shellcheck disable=SC2086
-    $SUDO apt-get update && $SUDO apt-get install -y $PKGLIST
+    # sudo apt-get update && sudo apt-get install -y $PKGLIST
+    pikaur -Syyu --noconfirm && pikaur -S $PKGLIST --noconfirm
 }
 
 install_printer_config()

@@ -8,7 +8,8 @@ CONFIGURATOR_ROOT_DIR=/mnt/persist/workspace
 
 # Install Node.js 20.x
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
+# sudo apt-get install -y nodejs
+pikaur -S nodejs
 
 # Install pnpm
 curl -fsSL https://get.pnpm.io/install.sh | sh -
