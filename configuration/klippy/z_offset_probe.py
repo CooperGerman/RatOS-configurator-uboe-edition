@@ -65,7 +65,10 @@ class ProbeCommandHelper:
     def get_status(self, eventtime):
         return {'name': self.name,
                 'last_query': self.last_state,
-                'last_z_result': self.last_z_result}
+                'last_z_result': self.last_z_result,
+                'x_offset': self.probe.get_offsets()[0],
+                'y_offset': self.probe.get_offsets()[1],
+                'z_offset': self.probe.get_offsets()[2]}
     cmd_QUERY_PROBE_help = "Return the status of the z-probe"
     def cmd_QUERY_PROBE(self, gcmd):
         if self.query_endstop is None:
