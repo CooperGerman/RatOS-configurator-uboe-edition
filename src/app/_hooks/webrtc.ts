@@ -6,6 +6,7 @@ interface WebRTCConfig {
 	sdpSemantics: 'unified-plan';
 }
 
+// !TODO: add logic to switch beetwen camera-streamer logic and go2rtc logic
 export function useWebRTC(url: string, onStreamStats?: (stats: RTCInboundRtpStreamStats) => void) {
 	const videoElRef = useRef<HTMLVideoElement>(null);
 	const [connectionState, setConnectionState] = useState<RTCPeerConnectionState | null>(null);
