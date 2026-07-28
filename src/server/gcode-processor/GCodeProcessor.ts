@@ -80,6 +80,7 @@ export class GCodeProcessor extends SlidingWindowLineProcessor {
 					subSequence(act.whenCommonCommandDoThenStop, [act.findFirstMoveXY, act.findMinMaxX, act.processToolchange]),
 					act.fixOtherLayerTemperature,
 					act.captureConfigSection,
+					act.extractFilamentRetraction,
 				]
 			: [
 					act.getGcodeInfo,
@@ -88,6 +89,7 @@ export class GCodeProcessor extends SlidingWindowLineProcessor {
 					// NB: sequence won't continue past whenCommonCommandDoThenStop when the current line matches a common command (Tn/G0/G1).
 					subSequence(act.whenCommonCommandDoThenStop, [act.findFirstMoveXY]),
 					act.captureConfigSection,
+					act.extractFilamentRetraction,
 				];
 	}
 
@@ -231,6 +233,8 @@ export class GCodeProcessor extends SlidingWindowLineProcessor {
 				firstMoveY: s.firstMoveY,
 				hasPurgeTower: s.hasPurgeTower,
 				configSection: s.configSectionAsObject,
+				filamentRetraction: s.filamentRetraction,
+				filamentRetractionSpeed: s.filamentRetractionSpeed,
 			};
 		} else {
 			s.gcodeInfo.analysisResult = {
@@ -245,6 +249,8 @@ export class GCodeProcessor extends SlidingWindowLineProcessor {
 				hasPurgeTower: s.hasPurgeTower,
 				configSection: s.configSectionAsObject,
 				usedTools: s.usedTools,
+				filamentRetraction: s.filamentRetraction,
+				filamentRetractionSpeed: s.filamentRetractionSpeed,
 			};
 		}
 
@@ -275,18 +281,24 @@ export class GCodeProcessor extends SlidingWindowLineProcessor {
 				toAdd += ` MIN_X=${s.minX} MAX_X=${s.maxX}`;
 			}
 
-			if (s.usedTools.length > 0) {
-				toAdd += ` USED_TOOLS=${s.usedTools.join()}`;
-			}
+		if (s.usedTools.length > 0) {
+			toAdd += ` USED_TOOLS=${s.usedTools.join()}`;
+		}
 
-			if (toAdd) {
-				await options.replaceLine(
-					options.bookmarks.getBookmark(s.startPrintLine.bookmark),
-					s.startPrintLine.line.trimEnd() + toAdd,
-				);
-			}
+		if (s.filamentRetraction && s.filamentRetraction.length > 0) {
+			toAdd += ` FILAMENT_RETRACT_LENGTH=${s.filamentRetraction.join(',')}`;
+		}
 
-			toAdd = '';
+		if (s.filamentRetractionSpeed && s.filamentRetractionSpeed.length > 0) {
+			toAdd += ` FILAMENT_RETRACT_SPEED=${s.filamentRetractionSpeed.join(',')}`;
+		}
+
+		if (toAdd) {
+			await options.replaceLine(
+				options.bookmarks.getBookmark(s.startPrintLine.bookmark),
+				s.startPrintLine.line.trimEnd() + toAdd,
+			);
+		}			toAdd = '';
 
 			if (s.usedTools.length > 0 && s.extruderTemps && s.onLayerChange2Line) {
 				for (let tool of s.usedTools) {
