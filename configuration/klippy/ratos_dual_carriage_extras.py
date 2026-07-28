@@ -38,8 +38,8 @@ class RatOSDualCarriageExtras:
 		self.ratos = self.printer.lookup_object('ratos')
 		self.gm_ratos = self.printer.lookup_object('gcode_macro RatOS')
 		self.dual_carriage = self.printer.lookup_object("dual_carriage")
-		self.dc_axis_index = self.dual_carriage.axis
-		self.dc_axis_name = {0: 'x', 1: 'y'}[self.dual_carriage.axis]
+		self.dc_axis_index = self.dual_carriage.axes[0]
+		self.dc_axis_name = {0: 'x', 1: 'y'}[self.dc_axis_index]
 
 		self._register_commands()
 		self._register_command_overrides()
@@ -59,7 +59,7 @@ class RatOSDualCarriageExtras:
 			logging.info(f"{self.name}: auto_align_on_mode_change is enabled: toolhead will be aligned to kinematic position on {self.dc_axis_name.upper()} axis before changing dual carriage mode to prevent {self.dc_axis_name}-offset drift. Use SKIP_ALIGN=1 with SET_DUAL_CARRIAGE to skip the alignment if needed.")
 		else:
 			logging.info(f"{self.name}: auto_align_on_mode_change is disabled: toolhead will not be automatically aligned to kinematic position before changing dual carriage mode. This may result in {self.dc_axis_name}-offset drift between toolheads. Use auto_align_on_mode_change: True to enable automatic alignment.")
-			
+
 	def _override_command(self, cmd_name, new_cmd, *, when_not_ready:bool=False, desc:str=None, desc_suffix:str=None):
 		if desc is None:
 			desc = self.gcode.get_command_help().get(cmd_name, None)
@@ -73,12 +73,12 @@ class RatOSDualCarriageExtras:
 				desc = desc + ' ' + desc_suffix
 
 		is_base_handler = self.gcode.base_gcode_handlers.get(cmd_name, None) is not None
-		
+
 		if is_base_handler != when_not_ready:
 			raise self.printer.config_error(f"{cmd_name} is {'' if is_base_handler else 'not '}a base (aka 'when-not-ready') gcode handler, this is not expected. {self.name} cannot be enabled.")
-		
+
 		original_cmd = self.gcode.register_command(cmd_name, None)
-		
+
 		if original_cmd is None:
 			raise self.printer.config_error(f"An existing {cmd_name} command is not registered, {self.name} cannot be enabled. Make sure that [beacon] is declared before [{self.name}] in printer.cfg.")
 
@@ -95,9 +95,9 @@ class RatOSDualCarriageExtras:
 	def _align_to_kinematic_position(self, axis_name):
 		"""
 		Align toolhead to kinematic position on the specified axis, if the discrepancy is within a reasonable threshold.
-		
+
 		Parameters:
-			axis_name (str): The axis to align, one of 'x', 'y', or 'z' (case-insensitive).		
+			axis_name (str): The axis to align, one of 'x', 'y', or 'z' (case-insensitive).
 		"""
 		# This is intended to correct sub-microstep offsets that can arise between the toolhead position
 		# and the kinematic position. Such offsets can result in positional drift when changing dual carriage modes,
@@ -123,11 +123,11 @@ class RatOSDualCarriageExtras:
 		kin_pos = kin.calc_position(stepper_positions)
 
 		toolhead_pos = toolhead.get_position()
-		
+
 		kin_ap = kin_pos[axis_index]
 		toolhead_ap = toolhead_pos[axis_index]
 		delta = abs(kin_ap - toolhead_ap)
-		
+
 		if delta < 1e-9:
 			logging.debug(f"{self.name}: _align_to_kinematic_position: toolhead is already aligned to kinematic position on axis {axis_name_upper} (delta {delta:.6f}), no action needed.")
 			return
@@ -149,19 +149,19 @@ class RatOSDualCarriageExtras:
 		for stepper in steppers:
 			name = stepper.get_name()
 			step_dist = stepper.get_step_dist()
-			
+
 			# Check the forward step (+1)
 			steppers_forward = dict(stepper_positions)
 			steppers_forward[name] += step_dist
 			kin_forward = kin.calc_position(steppers_forward)
 			one_step_shift_forward = abs(kin_forward[axis_index] - kin_pos[axis_index])
-			
+
 			# Check the backward step (-1)
 			steppers_backward = dict(stepper_positions)
 			steppers_backward[name] -= step_dist
 			kin_backward = kin.calc_position(steppers_backward)
 			one_step_shift_backward = abs(kin_backward[axis_index] - kin_pos[axis_index])
-			
+
 			min_step_shift = min(one_step_shift_forward, one_step_shift_backward)
 
 			# min_step_shift will be zero for inactive steppers (eg, the inactive carriage in dual carriage),
@@ -177,10 +177,10 @@ class RatOSDualCarriageExtras:
 			# Note: we don't raise an error here because we don't want to cause a failure in this command if the kinematics are in some unexpected state; we just won't perform the alignment.
 			logging.error(f"{self.name}: _align_to_kinematic_position: could not determine the minimum stepper move distance for {axis_name_upper} axis: no steppers found affecting this axis.")
 			return
-		
+
 		# floating point boundary allowance
 		max_no_stepper_move_distance += 1e-7
-		
+
 		curtime = self.printer.get_reactor().monotonic()
 		is_homed = axis_name in kin.get_status(curtime)['homed_axes']
 		is_sensible = delta <= max_no_stepper_move_distance
@@ -203,21 +203,21 @@ class RatOSDualCarriageExtras:
 		main_config_path = self.printer.get_start_args()['config_file']
 		if not main_config_path:
 			raise self.printer.command_error("Could not determine the config path to update adjust-y-max.cfg")
-		config_dir = os.path.dirname(main_config_path)		
+		config_dir = os.path.dirname(main_config_path)
 		config_path = os.path.join(config_dir, 'ratos_generated', 'adjust-y-max.cfg')
 		content = \
 			'# WARNING. THIS FILE IS GENERATED BY RATOS AND\n' + \
 			'# WILL BE UPDATED BY THE INCREASE_Y_MAX MACRO.\n' + \
-			'# DO NOT DELETE OR MODIFY THIS FILE.\n'		
+			'# DO NOT DELETE OR MODIFY THIS FILE.\n'
 		try:
 			os.makedirs(os.path.dirname(config_path), exist_ok=True)
 			with open(config_path, 'w') as f:
 				f.write(content)
 		except Exception as e:
 			self.ratos.console_echo('Failed to reset adjustment of maximum Y position', 'error', f'Could not write to {config_path}: {str(e)}')
-			return		
+			return
 		self.ratos.console_echo('Adjustment of maximum Y position reset', 'info', f'Successfully reset {config_path}_N_You must restart klipper for the changes to take effect, then run INCREASE_Y_MAX to perform the configuration.')
-	
+
 	desc_INCREASE_Y_MAX = "Increases the maximum Y position by one millimeter. Used only on IDEX machines when it's not possible to position the nozzle over the VAOC camera."
 	def cmd_INCREASE_Y_MAX(self, gcmd):
 		bed_margin_y = self.gm_ratos.variables.get('bed_margin_y')
@@ -249,11 +249,11 @@ class RatOSDualCarriageExtras:
 			f'position_max: {new_max_y:.3f}\n' + \
 			'\n' + \
 			'[gcode_macro RatOS]\n' + \
-			f'variable_bed_margin_y: [{abs(stepper_y_position_endstop):.3f}, {bed_margin_y[1] + 1:.3f}]\n'				
+			f'variable_bed_margin_y: [{abs(stepper_y_position_endstop):.3f}, {bed_margin_y[1] + 1:.3f}]\n'
 		main_config_path = self.printer.get_start_args()['config_file']
 		if not main_config_path:
-			raise self.printer.command_error("Could not determine the config path to update adjust-y-max.cfg")		
-		config_dir = os.path.dirname(main_config_path)		
+			raise self.printer.command_error("Could not determine the config path to update adjust-y-max.cfg")
+		config_dir = os.path.dirname(main_config_path)
 		config_path = os.path.join(config_dir, 'ratos_generated', 'adjust-y-max.cfg')
 		try:
 			os.makedirs(os.path.dirname(config_path), exist_ok=True)
@@ -274,36 +274,36 @@ class RatOSDualCarriageExtras:
 		main_config_path = self.printer.get_start_args()['config_file']
 		if not main_config_path:
 			raise self.printer.command_error("Could not determine the config path to update dc-endstop.cfg")
-		config_dir = os.path.dirname(main_config_path)		
+		config_dir = os.path.dirname(main_config_path)
 		config_path = os.path.join(config_dir, 'ratos_generated', 'dc-endstop.cfg')
 		content = \
 			'# WARNING. THIS FILE IS GENERATED BY RATOS AND\n' + \
 			'# WILL BE UPDATED BY THE CONFIGURE_DC_ENDSTOP MACRO.\n' + \
-			'# DO NOT DELETE OR MODIFY THIS FILE.\n'		
+			'# DO NOT DELETE OR MODIFY THIS FILE.\n'
 		try:
 			os.makedirs(os.path.dirname(config_path), exist_ok=True)
 			with open(config_path, 'w') as f:
 				f.write(content)
 		except Exception as e:
 			self.ratos.console_echo('Failed to reset DC endstop configuration', 'error', f'Could not write to {config_path}: {str(e)}')
-			return		
+			return
 		self.ratos.console_echo('DC endstop configuration reset', 'info', f'Successfully reset {config_path}_N_You must restart klipper for the changes to take effect, then run CONFIGURE_DC_ENDSTOP to perform the configuration.')
 
 	desc_CONFIGURE_DC_ENDSTOP = "Updates the dc-endstop.cfg configuration file, configuring dual carriage endstop settings taking account of the last measured IDEX toolhead offsets (for example, from VAOC)."
-	def cmd_CONFIGURE_DC_ENDSTOP(self, gcmd):		
+	def cmd_CONFIGURE_DC_ENDSTOP(self, gcmd):
 		is_configured = self.gm_ratos.variables.get('dc_endstop_is_configured', False) == True
 		if is_configured:
 			self.ratos.console_echo(
-				'DC endstop already configured', 'warning', 
+				'DC endstop already configured', 'warning',
 				'The dual carriage endstop has already been configured. If you want to reconfigure it,_N_' + \
 				'you must run the RESET_DC_ENDSTOP_CONFIGURATION macro first, then RESTART klipper, then run CONFIGURE_DC_ENDSTOP again.')
 			return
 		if not self.config.has_section("stepper_x"):
 			self.ratos.console_echo('Missing [stepper_x] section', 'error', 'The required [stepper_x] configuration section is missing.')
-			return		
+			return
 		if not self.config.has_section("save_variables"):
 			self.ratos.console_echo('Missing [save_variables] section', 'error', 'The required [save_variables] configuration section is missing.')
-			return		
+			return
 		dc_config = self.config.getsection("dual_carriage")
 		stepper_x_config = self.config.getsection("stepper_x")
 
@@ -372,21 +372,21 @@ class RatOSDualCarriageExtras:
 		main_config_path = self.printer.get_start_args()['config_file']
 		if not main_config_path:
 			raise self.printer.command_error("Could not determine the config path to update dc-endstop.cfg")
-		config_dir = os.path.dirname(main_config_path)		
+		config_dir = os.path.dirname(main_config_path)
 		config_path = os.path.join(config_dir, 'ratos_generated', 'dc-endstop.cfg')
 		existing_content = None
-		
+
 		if os.path.exists(config_path):
 			try:
 				with open(config_path, 'r') as f:
 					existing_content = f.read()
 			except Exception:
 				pass
-		
+
 		if existing_content == content:
 			self.ratos.console_echo('DC endstop configuration is up to date', 'info', f'No changes were made to dc-endstop.cfg at {config_path}.')
 			return
-		
+
 		try:
 			os.makedirs(os.path.dirname(config_path), exist_ok=True)
 			with open(config_path, 'w') as f:
