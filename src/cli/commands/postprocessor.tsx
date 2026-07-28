@@ -365,7 +365,18 @@ export const postprocessor = (program: Command) => {
 
 				if (!result.wasAlreadyProcessed && args.overwriteInput && result.isProcessed) {
 					getLogger().info({ outputFile, inputFile }, 'renaming output file to input file');
-					fs.renameSync(outputFile, inputFile);
+					try {
+						fs.renameSync(outputFile, inputFile);
+					} catch (e: any) {
+						if (e.code === 'EXDEV') {
+							// Cross-device: copy and unlink
+							fs.copyFileSync(outputFile, inputFile);
+							fs.unlinkSync(outputFile);
+							getLogger().info({ outputFile, inputFile }, 'Copied and removed output file due to EXDEV');
+						} else {
+							throw e;
+						}
+					}
 				}
 				if (
 					result.wasAlreadyProcessed &&
