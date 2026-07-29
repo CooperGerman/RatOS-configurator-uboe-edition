@@ -58,8 +58,8 @@ class ProbeCommandHelper:
         gcode.register_command('Z_OFFSET_PROBE_ACCURACY', self.cmd_PROBE_ACCURACY,
                                desc=self.cmd_PROBE_ACCURACY_help)
         gcode.register_command('Z_OFFSET_Z_OFFSET_APPLY_PROBE',
-                               self.cmd_Z_OFFSET_APPLY_PROBE,
-                               desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
+                               self.cmd_Z_OFFSET_Z_OFFSET_APPLY_PROBE,
+                               desc=self.cmd_Z_OFFSET_Z_OFFSET_APPLY_PROBE_help)
     def _move(self, coord, speed):
         self.printer.lookup_object('toolhead').manual_move(coord, speed)
     def get_status(self, eventtime):
@@ -158,8 +158,8 @@ class ProbeCommandHelper:
             "probe accuracy results: maximum %.6f, minimum %.6f, range %.6f, "
             "average %.6f, median %.6f, standard deviation %.6f" % (
             max_value, min_value, range_value, avg_value, median, sigma))
-    cmd_Z_OFFSET_APPLY_PROBE_help = "Adjust the probe's z_offset"
-    def cmd_Z_OFFSET_APPLY_PROBE(self, gcmd):
+    cmd_Z_OFFSET_Z_OFFSET_APPLY_PROBE_help = "Adjust the probe's z_offset"
+    def cmd_Z_OFFSET_Z_OFFSET_APPLY_PROBE(self, gcmd):
         gcode_move = self.printer.lookup_object("gcode_move")
         offset = gcode_move.get_status()['homing_origin'].z
         if offset == 0:
