@@ -31,7 +31,7 @@ export const VAOC = () => {
 	);
 	const videoRef = isMSE ? mseVideoRef : webRtcVideoRef;
 	const connectionState = isMSE ? mseState : webRtcState;
-	const isConnected = connectionState === 'connected';
+	const isConnected = connectionState === 'connected' || (isMSE && videoState.aspectRatio != null);
 
 	const [settings, setSettings, settingsQuery] = useMoonrakerState('RatOS', 'camera-settings', initialCameraSettings);
 	const uiState = useUIState();
@@ -111,7 +111,7 @@ export const VAOC = () => {
 					<h3
 						className={twMerge(
 							'absolute inset-0 flex items-center justify-center text-xl font-semibold text-rose-500 transition-all dark:text-rose-500',
-							connectionState === 'failed' ? 'animate-pulse opacity-100' : 'opacity-0',
+							connectionState === 'failed' && videoState.aspectRatio == null ? 'animate-pulse opacity-100' : 'opacity-0',
 						)}
 					>
 						<div className="flex aspect-square h-[30svh] w-[30svh] flex-col items-center justify-center text-center">

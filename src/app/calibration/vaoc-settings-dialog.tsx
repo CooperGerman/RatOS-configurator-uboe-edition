@@ -6,6 +6,8 @@ import { useDebounce } from '@/app/_hooks/debounce';
 import { twMerge } from 'tailwind-merge';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { ScrollContainer } from '@/components/common/scroll-container';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { VideoFormat } from '@/app/calibration/hooks';
 
 export const initialCameraSettings = {
 	pixelPrMm: 160,
@@ -23,10 +25,12 @@ type CameraSettingsProps = {
 	setSettings: (updater: VaocSettings | ((prev: VaocSettings) => VaocSettings)) => Promise<void>;
 	isSettingsFetched: boolean;
 	toggle: (visible: boolean) => void;
+	format: VideoFormat;
+	setFormat: (value: VideoFormat) => void;
 };
 
 export const VaocSettingsDialog: React.FC<CameraSettingsProps> = (props) => {
-	const { settings, setSettings, isSettingsFetched } = props;
+	const { settings, setSettings, isSettingsFetched, format, setFormat } = props;
 	const hasLoaded = useRef(false);
 	const [pixelPrMm, setPixelPrMm] = useState<string | null>(isSettingsFetched ? settings.pixelPrMm.toFixed(2) : null);
 	const [outerNozzleDiameter, setOuterNozzleDiameter] = useState<string | null>(
@@ -107,6 +111,16 @@ export const VaocSettingsDialog: React.FC<CameraSettingsProps> = (props) => {
 					description="Whether to flip the camera horizontally"
 					value={settings?.flipHorizontal ?? initialCameraSettings.flipHorizontal}
 				/>
+				<Select value={format} onValueChange={(value) => setFormat(value as VideoFormat)}>
+					<SelectTrigger>
+						<SelectValue aria-label="Video format" placeholder="Video format" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="webrtc-json">WebRTC (JSON)</SelectItem>
+						<SelectItem value="webrtc-whep">WebRTC (WHEP)</SelectItem>
+						<SelectItem value="mse">MSE (fMP4)</SelectItem>
+					</SelectContent>
+				</Select>
 			</div>
 		</ScrollContainer>
 	);

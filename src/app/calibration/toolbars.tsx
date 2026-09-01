@@ -578,10 +578,12 @@ export const Toolbars: React.FC<ToolbarsProps> = (props) => {
 				settings={settings}
 				isSettingsFetched={isSettingsFetched}
 				setSettings={setSettings}
+				format={format}
+				setFormat={setFormat}
 			/>
 			<StreamSettingsDialog
 				className="pointer-events-auto"
-				{...{ url, isConnected, isExposureVisible, isColorVisible, isAdvancedVisible, format, setFormat }}
+				{...{ url, isConnected, isExposureVisible, isColorVisible, isAdvancedVisible }}
 			/>
 			{confirmCleanNozzleModal}
 		</>
