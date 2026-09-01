@@ -1,12 +1,11 @@
 import React from 'react';
 import { Slider } from '@/components/forms/slider';
 import { useMoonrakerState } from '@/moonraker/hooks';
-import { useStreamSettings, VideoFormat } from '@/app/calibration/hooks';
+import { useStreamSettings } from '@/app/calibration/hooks';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { twJoin } from 'tailwind-merge';
 import { ScrollContainer } from '@/components/common/scroll-container';
 import { motion } from 'framer-motion';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type StreamSettingsDialogProps = {
 	url: string;
@@ -14,13 +13,11 @@ type StreamSettingsDialogProps = {
 	isExposureVisible: boolean;
 	isColorVisible: boolean;
 	isAdvancedVisible: boolean;
-	format: VideoFormat;
-	setFormat: (value: VideoFormat) => void;
 	className?: string;
 };
 
 export const StreamSettingsDialog: React.FC<StreamSettingsDialogProps> = (props) => {
-	const { url, isConnected, isAdvancedVisible, isColorVisible, isExposureVisible, format, setFormat } = props;
+	const { url, isConnected, isAdvancedVisible, isColorVisible, isExposureVisible } = props;
 	const { options, setOption } = useStreamSettings({
 		url,
 		isConnected,
@@ -35,21 +32,6 @@ export const StreamSettingsDialog: React.FC<StreamSettingsDialogProps> = (props)
 			)}
 		>
 			<motion.div ref={animate}>
-				{isAdvancedVisible && (
-					<div className="border-b border-zinc-700 p-4">
-						<label className="mb-2 block text-center text-base font-semibold text-zinc-200">Video format</label>
-						<Select value={format} onValueChange={(value) => setFormat(value as VideoFormat)}>
-							<SelectTrigger className="border-zinc-600 bg-zinc-900/80 text-zinc-200">
-								<SelectValue aria-label="Video format" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="webrtc-json">WebRTC (JSON)</SelectItem>
-								<SelectItem value="webrtc-whep">WebRTC (WHEP)</SelectItem>
-								<SelectItem value="mse">MSE (fMP4)</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-				)}
 				{isExposureVisible &&
 					options
 						.filter(
