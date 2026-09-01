@@ -3,7 +3,7 @@
 # Original resonance_tester by Dmitry Butyugin
 # Copyright (C) 2020-2024  Dmitry Butyugin <dmbutyugin@google.com>
 #
-# Modified by Mikkel Schmidt to generate resonances at a static frequency 
+# Modified by Mikkel Schmidt to generate resonances at a static frequency
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 from toolhead import ToolHead
@@ -32,7 +32,7 @@ class VibrationGenerator:
         X, Y, Z, E = toolhead.get_position()
         sign = 1.
         freq = self.freq
-        # Override maximum acceleration and min cruise ratio 
+        # Override maximum acceleration and min cruise ratio
         # based on the maximum test frequency
         systime = self.printer.get_reactor().monotonic()
         toolhead_info = toolhead.get_status(systime)
@@ -56,13 +56,13 @@ class VibrationGenerator:
             t_seg = .25 / freq
             accel = self.accel_per_hz * freq
             max_v = accel * t_seg
-            toolhead.cmd_M204(self.gcode.create_gcode_command(
-                "M204", "M204", {"S": accel}))
+            toolhead.set_max_velocities(None, accel, None, None)
             L = .5 * accel * t_seg**2
-            dX, dY = axis.get_point(L)
+            dX, dY, dZ = axis.get_point(L)
             nX = X + sign * dX
             nY = Y + sign * dY
-            toolhead.move([nX, nY, Z, E], max_v)
+            nZ = Z + sign * dZ
+            toolhead.move([nX, nY, nZ, E], max_v)
             toolhead.move([X, Y, Z, E], max_v)
             sign = -sign
             run_time_seconds += 2. * t_seg
