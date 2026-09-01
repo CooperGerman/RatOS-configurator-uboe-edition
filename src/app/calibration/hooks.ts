@@ -55,8 +55,7 @@ export const useUIState = () => {
 	useEffect(() => {
 		if (containerRef.current != null) {
 			setContainerAspectRatio(
-				containerRef.current?.getBoundingClientRect().width / containerRef.current?.getBoundingClientRect().height ??
-					windowSize.width / windowSize.height,
+				containerRef.current.getBoundingClientRect().width / containerRef.current.getBoundingClientRect().height,
 			);
 		}
 	}, [windowSize, containerRef]);
