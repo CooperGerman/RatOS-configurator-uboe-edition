@@ -46,7 +46,7 @@ export const useRealtimeAnalysisChart = (
 	const [isLoading, setIsLoading] = useState(false);
 	const toolheads = useToolheads();
 	const controlBoard = useRecoilValue(ControlboardState);
-	const adxl = accelerometer ?? toolheads[0].getYAccelerometerName() ?? 'controlboard';
+	const adxl = accelerometer ?? toolheads[0]?.getYAccelerometerName() ?? 'controlboard';
 	const adxlHardwareName =
 		(adxl === 'controlboard'
 			? controlBoard?.name
@@ -370,10 +370,14 @@ export const useRealtimeAnalysisChart = (
 	);
 };
 
-type RealtimeAnalysisChartProps = ReturnType<typeof useRealtimeAnalysisChart>['chartProps'];
+type RealtimeAnalysisChartProps = ReturnType<typeof useRealtimeAnalysisChart>['chartProps'] & {
+	hasAccelerometer?: boolean;
+};
 
 export const RealtimeAnalysisChart: React.FC<RealtimeAnalysisChartProps> = React.memo(
-	({ xSignalChart, ySignalChart, zSignalChart, psdChart }) => {
+	({ xSignalChart, ySignalChart, zSignalChart, psdChart, hasAccelerometer = true }) => {
+		const noAccelerometerMessage = <span className="text-sm text-muted-foreground">No accelerometer found</span>;
+
 		return (
 			<div className="flex max-h-full min-h-full flex-col space-y-4 @container">
 				{/* <Toolbar buttons={toolbarButtons} /> */}
@@ -385,11 +389,15 @@ export const RealtimeAnalysisChart: React.FC<RealtimeAnalysisChartProps> = React
 							</div>
 							<span className="text-zinc-100">X Signal</span>
 						</h3>
-						<SciChartReact
-							{...xSignalChart.forwardProps}
-							className="flex-1 rounded-lg"
-							fallback={<FullLoadScreen className="ml-[150px]" />}
-						/>
+						{hasAccelerometer ? (
+							<SciChartReact
+								{...xSignalChart.forwardProps}
+								className="flex-1 rounded-lg"
+								fallback={<FullLoadScreen className="ml-[150px]" />}
+							/>
+						) : (
+							<div className="flex flex-1 items-center justify-center">{noAccelerometerMessage}</div>
+						)}
 					</Card>
 					<Card className="flex max-h-32 min-h-32 overflow-hidden @screen-lg:max-h-72 @screen-lg:min-h-72">
 						<h3 className="text-md absolute left-0 right-0 top-0 flex items-center space-x-2 p-4 font-semibold">
@@ -398,11 +406,15 @@ export const RealtimeAnalysisChart: React.FC<RealtimeAnalysisChartProps> = React
 							</div>
 							<span className="text-zinc-100">Y Signal</span>
 						</h3>
-						<SciChartReact
-							{...ySignalChart.forwardProps}
-							className="flex-1 rounded-lg"
-							fallback={<FullLoadScreen className="ml-[150px]" />}
-						/>
+						{hasAccelerometer ? (
+							<SciChartReact
+								{...ySignalChart.forwardProps}
+								className="flex-1 rounded-lg"
+								fallback={<FullLoadScreen className="ml-[150px]" />}
+							/>
+						) : (
+							<div className="flex flex-1 items-center justify-center">{noAccelerometerMessage}</div>
+						)}
 					</Card>
 					<Card className="flex max-h-32 min-h-32 overflow-hidden @screen-lg:max-h-72 @screen-lg:min-h-72">
 						<h3 className="text-md absolute left-0 right-0 top-0 flex items-center space-x-2 p-4 font-semibold">
@@ -411,19 +423,27 @@ export const RealtimeAnalysisChart: React.FC<RealtimeAnalysisChartProps> = React
 							</div>
 							<span className="text-zinc-100">Z Signal</span>
 						</h3>
-						<SciChartReact
-							{...zSignalChart.forwardProps}
-							className="flex-1 rounded-lg"
-							fallback={<FullLoadScreen className="ml-[150px]" />}
-						/>
+						{hasAccelerometer ? (
+							<SciChartReact
+								{...zSignalChart.forwardProps}
+								className="flex-1 rounded-lg"
+								fallback={<FullLoadScreen className="ml-[150px]" />}
+							/>
+						) : (
+							<div className="flex flex-1 items-center justify-center">{noAccelerometerMessage}</div>
+						)}
 					</Card>
 				</div>
 				<Card className="relative flex flex-1 overflow-hidden">
-					<SciChartReact
-						{...psdChart.forwardProps}
-						className="flex-1"
-						fallback={<FullLoadScreen className="ml-[150px]" />}
-					/>
+					{hasAccelerometer ? (
+						<SciChartReact
+							{...psdChart.forwardProps}
+							className="flex-1"
+							fallback={<FullLoadScreen className="ml-[150px]" />}
+						/>
+					) : (
+						<div className="flex flex-1 items-center justify-center">{noAccelerometerMessage}</div>
+					)}
 					<LiveGcodeResponse className="absolute right-4 top-4" />
 				</Card>
 			</div>
