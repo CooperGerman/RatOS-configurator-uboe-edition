@@ -136,9 +136,17 @@ export const Analysis = () => {
 		() => toolheads.some((th) => th.getYAccelerometerName() === 'beacon' || th.getXAccelerometerName() === 'beacon'),
 		[toolheads],
 	);
-	const [adxl, setAdxl] = useState<MacroRecordingSettings['accelerometer']>(
-		toolheads[0].getYAccelerometerName() ?? 'controlboard',
+	const hasAccelerometer = useMemo(
+		() => hasBeacon || toolheads.some((th) => th.getYAccelerometerName() != null || th.getXAccelerometerName() != null),
+		[hasBeacon, toolheads],
 	);
+	const [adxl, setAdxl] = useState<MacroRecordingSettings['accelerometer']>('controlboard');
+	const defaultAccelerometerResolved = useRef(false);
+	useEffect(() => {
+		if (defaultAccelerometerResolved.current || toolheads[0] == null) return;
+		setAdxl(toolheads[0].getYAccelerometerName() ?? 'controlboard');
+		defaultAccelerometerResolved.current = true;
+	}, [toolheads]);
 	const {
 		isChartEnabled,
 		isLoading,
@@ -339,64 +347,68 @@ export const Analysis = () => {
 								<span className="hidden lg:inline">Stream</span>
 							</Menu.MenubarTrigger>
 							<Menu.MenubarContent onCloseAutoFocus={(e) => e.preventDefault()}>
-								<Menu.MenubarSub>
-									<Menu.MenubarSubTrigger>
-										<Menu.MenubarContentIcon Icon={Move3D} /> Accelerometer
-									</Menu.MenubarSubTrigger>
-									<Menu.MenubarSubContent>
-										<Menu.MenubarRadioGroup value={adxl} onValueChange={(e) => setAdxl(e as KlipperAccelSensorName)}>
-											<Menu.MenubarRadioItem
-												value="rpi"
-												className={twJoin(adxl === 'rpi' && 'font-semibold text-brand-400')}
-												onSelect={(e) => e.preventDefault()}
-											>
-												<Menu.MenubarContentIcon Icon={ServerIcon} />
-												Host
-											</Menu.MenubarRadioItem>
-											<Menu.MenubarRadioItem
-												value="controlboard"
-												className={twJoin(adxl === 'controlboard' && 'font-semibold text-brand-400')}
-												onSelect={(e) => e.preventDefault()}
-											>
-												<Menu.MenubarContentIcon Icon={Cpu} />
-												Control Board
-											</Menu.MenubarRadioItem>
-											{toolheads[0].hasToolboard() && (
+								{hasAccelerometer ? (
+									<Menu.MenubarSub>
+										<Menu.MenubarSubTrigger>
+											<Menu.MenubarContentIcon Icon={Move3D} /> Accelerometer
+										</Menu.MenubarSubTrigger>
+										<Menu.MenubarSubContent>
+											<Menu.MenubarRadioGroup value={adxl} onValueChange={(e) => setAdxl(e as KlipperAccelSensorName)}>
 												<Menu.MenubarRadioItem
-													value="toolboard_t0"
-													className={twJoin(adxl === 'toolboard_t0' && 'font-semibold text-brand-400')}
+													value="rpi"
+													className={twJoin(adxl === 'rpi' && 'font-semibold text-brand-400')}
 													onSelect={(e) => e.preventDefault()}
 												>
-													<Menu.MenubarContentIcon Icon={ArrowDownToDot} />
-													Toolboard T0
+													<Menu.MenubarContentIcon Icon={ServerIcon} />
+													Host
 												</Menu.MenubarRadioItem>
-											)}
-											{toolheads.length > 1 && toolheads[1].hasToolboard() && (
 												<Menu.MenubarRadioItem
-													value="toolboard_t1"
-													className={twJoin(adxl === 'toolboard_t1' && 'font-semibold text-brand-400')}
+													value="controlboard"
+													className={twJoin(adxl === 'controlboard' && 'font-semibold text-brand-400')}
 													onSelect={(e) => e.preventDefault()}
 												>
-													<Menu.MenubarContentIcon Icon={ArrowDownToDot} />
-													Toolboard T1
+													<Menu.MenubarContentIcon Icon={Cpu} />
+													Control Board
 												</Menu.MenubarRadioItem>
-											)}
-											{hasBeacon && (
-												<Menu.MenubarRadioItem
-													value="beacon"
-													className={twJoin(adxl === 'beacon' && 'font-semibold text-brand-400')}
-													onSelect={(e) => e.preventDefault()}
-												>
-													<Menu.MenubarContentIcon Icon={Target} />
-													Beacon
-												</Menu.MenubarRadioItem>
-											)}
-										</Menu.MenubarRadioGroup>
-									</Menu.MenubarSubContent>
-								</Menu.MenubarSub>
+												{toolheads[0]?.hasToolboard() && (
+													<Menu.MenubarRadioItem
+														value="toolboard_t0"
+														className={twJoin(adxl === 'toolboard_t0' && 'font-semibold text-brand-400')}
+														onSelect={(e) => e.preventDefault()}
+													>
+														<Menu.MenubarContentIcon Icon={ArrowDownToDot} />
+														Toolboard T0
+													</Menu.MenubarRadioItem>
+												)}
+												{toolheads.length > 1 && toolheads[1].hasToolboard() && (
+													<Menu.MenubarRadioItem
+														value="toolboard_t1"
+														className={twJoin(adxl === 'toolboard_t1' && 'font-semibold text-brand-400')}
+														onSelect={(e) => e.preventDefault()}
+													>
+														<Menu.MenubarContentIcon Icon={ArrowDownToDot} />
+														Toolboard T1
+													</Menu.MenubarRadioItem>
+												)}
+												{hasBeacon && (
+													<Menu.MenubarRadioItem
+														value="beacon"
+														className={twJoin(adxl === 'beacon' && 'font-semibold text-brand-400')}
+														onSelect={(e) => e.preventDefault()}
+													>
+														<Menu.MenubarContentIcon Icon={Target} />
+														Beacon
+													</Menu.MenubarRadioItem>
+												)}
+											</Menu.MenubarRadioGroup>
+										</Menu.MenubarSubContent>
+									</Menu.MenubarSub>
+								) : (
+									<Menu.MenubarLabel>No accelerometer found</Menu.MenubarLabel>
+								)}
 								<Menu.MenubarSeparator />
 								<Menu.MenubarItem
-									disabled={isChartEnabled || isMacroRunning}
+									disabled={!hasAccelerometer || isChartEnabled || isMacroRunning}
 									onClick={async () => {
 										setIsChartEnabled(true);
 									}}
@@ -573,6 +585,7 @@ export const Analysis = () => {
 				adxl,
 				toolheads,
 				hasBeacon,
+				hasAccelerometer,
 				isMacroRunning,
 				runMacro,
 				axis,
@@ -602,5 +615,5 @@ export const Analysis = () => {
 	// 	);
 	// }
 
-	return <RealtimeAnalysisChart {...chartProps} />;
+	return <RealtimeAnalysisChart {...chartProps} hasAccelerometer={hasAccelerometer} />;
 };
