@@ -43,6 +43,13 @@ export const readPrinterRailAtom =
 		if (printerRailState != null) {
 			const parsedRail = SerializedPrinterRail.safeParse(printerRailState);
 			if (parsedRail.success) {
+				if (parsedRail.data.driver.startsWith('tmc')) {
+					const printer = await readPrinterAtom({ read });
+					const printerRailDefault = printer?.defaults.rails.find((r) => r.axis === param);
+					if (printerRailDefault != null) {
+						return { ...parsedRail.data, driver: printerRailDefault.driver };
+					}
+				}
 				return parsedRail.data;
 			}
 			const printer = await readPrinterAtom({ read });
