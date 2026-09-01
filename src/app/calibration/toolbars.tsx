@@ -37,6 +37,7 @@ import {
 import { toast } from 'sonner';
 import { Modal } from '@/components/common/modal';
 import { WarningMessage } from '@/components/warning-message';
+import { VideoFormat } from '@/app/calibration/hooks';
 
 type ToolbarsProps = {
 	setIsLockingCoordinates: React.Dispatch<React.SetStateAction<boolean>>;
@@ -47,6 +48,8 @@ type ToolbarsProps = {
 	zoom: number;
 	fps: number;
 	url: string;
+	format: VideoFormat;
+	setFormat: (value: VideoFormat) => void;
 	isConnected: boolean;
 	settings: VaocSettings;
 	setSettings: (updater: VaocSettings | ((prev: VaocSettings) => VaocSettings)) => Promise<void>;
@@ -134,6 +137,8 @@ export const Toolbars: React.FC<ToolbarsProps> = (props) => {
 		setZoom,
 		fps,
 		url,
+		format,
+		setFormat,
 		isConnected,
 		setSettings,
 		settings,
@@ -576,7 +581,7 @@ export const Toolbars: React.FC<ToolbarsProps> = (props) => {
 			/>
 			<StreamSettingsDialog
 				className="pointer-events-auto"
-				{...{ url, isConnected, isExposureVisible, isColorVisible, isAdvancedVisible }}
+				{...{ url, isConnected, isExposureVisible, isColorVisible, isAdvancedVisible, format, setFormat }}
 			/>
 			{confirmCleanNozzleModal}
 		</>

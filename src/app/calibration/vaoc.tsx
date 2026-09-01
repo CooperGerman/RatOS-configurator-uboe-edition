@@ -1,7 +1,8 @@
 'use client';
 
 import { useWebRTC } from '@/app/_hooks/webrtc';
-import React, { useCallback, useEffect } from 'react';
+import { useMSE } from '@/app/_hooks/mse';
+import React, { useCallback } from 'react';
 import { twJoin, twMerge } from 'tailwind-merge';
 import { initialCameraSettings } from '@/app/calibration/vaoc-settings-dialog';
 import { useMoonrakerState, usePrinterObjectSubscription } from '@/moonraker/hooks';
@@ -15,7 +16,21 @@ import screenfull from 'screenfull';
 
 export const VAOC = () => {
 	const videoState = useVideoState();
-	const { videoRef, connectionState } = useWebRTC(videoState.url + '/webrtc', videoState.onStreamStats);
+	const isMSE = videoState.format === 'mse';
+	const isWhep = videoState.format === 'webrtc-whep';
+	const { videoRef: webRtcVideoRef, connectionState: webRtcState } = useWebRTC(
+		videoState.url + '/webrtc',
+		videoState.onStreamStats,
+		!isMSE,
+		isWhep ? 'application/sdp' : 'application/json',
+	);
+	const { videoRef: mseVideoRef, connectionState: mseState } = useMSE(
+		`${videoState.url.replace(/^http/, 'ws')}/api/ws?src=cam`,
+		isMSE,
+		videoState.onStreamStats,
+	);
+	const videoRef = isMSE ? mseVideoRef : webRtcVideoRef;
+	const connectionState = isMSE ? mseState : webRtcState;
 	const isConnected = connectionState === 'connected';
 
 	const [settings, setSettings, settingsQuery] = useMoonrakerState('RatOS', 'camera-settings', initialCameraSettings);
@@ -56,6 +71,16 @@ export const VAOC = () => {
 			>
 				<video
 					ref={videoRef}
+					onLoadedMetadata={(event) => {
+						const video = event.currentTarget;
+						if (video.videoWidth && video.videoHeight) {
+							videoState.onStreamStats({
+								frameWidth: video.videoWidth,
+								frameHeight: video.videoHeight,
+							} as RTCInboundRtpStreamStats);
+						}
+					}}
+					onError={() => undefined}
 					className={twMerge(
 						'h-full max-h-full w-full min-w-full max-w-full transform-gpu touch-none',
 						uiState.canMove && 'cursor-move',
@@ -89,7 +114,7 @@ export const VAOC = () => {
 							connectionState === 'failed' ? 'animate-pulse opacity-100' : 'opacity-0',
 						)}
 					>
-						<div className="flex aspect-square h-[30svh] w-[30svh] items-center justify-center">
+						<div className="flex aspect-square h-[30svh] w-[30svh] flex-col items-center justify-center text-center">
 							Webcam stream not found
 						</div>
 					</h3>
@@ -100,7 +125,6 @@ export const VAOC = () => {
 							'h-[40svh] w-[40svh] animate-spin text-inherit transition-all',
 							'text-lime-500 dark:text-lime-500',
 							(connectionState === 'connected' || connectionState === 'failed') &&
-								videoState.aspectRatio != null &&
 								'opacity-0',
 							connectionState === 'failed' && 'text-rose-500 dark:text-rose-500',
 							connectionState === 'connecting' && 'text-brand-500 dark:text-brand-500',
@@ -128,6 +152,8 @@ export const VAOC = () => {
 						isConnected={isConnected}
 						isLockingCoordinates={uiState.isLockingCoordinates}
 						url={videoState.url}
+						format={videoState.format}
+						setFormat={videoState.setFormat}
 						setSettings={setSettings}
 						settings={settings}
 						isSettingsFetched={settingsQuery.isFetched}

@@ -29,6 +29,11 @@ const getCameraUrl = () => {
 	return `http://${host}/webcam`;
 };
 
+export type VideoFormat = 'webrtc-json' | 'webrtc-whep' | 'mse';
+
+const isVideoFormat = (value: string): value is VideoFormat =>
+	value === 'webrtc-json' || value === 'webrtc-whep' || value === 'mse';
+
 export const useUIState = () => {
 	if (typeof window === 'undefined') {
 		throw new Error("Can't use useUIState on the server");
@@ -334,6 +339,8 @@ export const useCrossHairState = (props: CrossHairStateProps) => {
 export const useVideoState = () => {
 	// Video state
 	const [url, setUrl] = useState(getCameraUrl());
+	const [storedFormat, setStoredFormat] = useLocalStorage('VAOC_VIDEO_FORMAT', 'webrtc');
+	const format = isVideoFormat(storedFormat) ? storedFormat : 'webrtc-json';
 	useEffect(() => {
 		if (url !== getCameraUrl()) setUrl(getCameraUrl());
 	}, [url]);
@@ -351,6 +358,8 @@ export const useVideoState = () => {
 	return {
 		url,
 		setUrl,
+		format,
+		setFormat: (value: VideoFormat) => setStoredFormat(value),
 		fps,
 		aspectRatio,
 		onStreamStats,
