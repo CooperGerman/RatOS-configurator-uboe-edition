@@ -7,12 +7,18 @@ interface WebRTCConfig {
 }
 
 // !TODO: add logic to switch beetwen camera-streamer logic and go2rtc logic
-export function useWebRTC(url: string, onStreamStats?: (stats: RTCInboundRtpStreamStats) => void) {
+export function useWebRTC(
+	url: string,
+	onStreamStats?: (stats: RTCInboundRtpStreamStats) => void,
+	enabled = true,
+	contentType: 'application/json' | 'application/sdp' = 'application/json',
+) {
 	const videoElRef = useRef<HTMLVideoElement>(null);
 	const [connectionState, setConnectionState] = useState<RTCPeerConnectionState | null>(null);
 	const peerConnection = useRef<RTCPeerConnection | null>(null);
 
 	const connect = useCallback(async () => {
+		if (!enabled) return;
 		try {
 			setConnectionState('connecting');
 
@@ -44,20 +50,18 @@ export function useWebRTC(url: string, onStreamStats?: (stats: RTCInboundRtpStre
 			// Send offer to go2rtc
 			const response = await fetch(url, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					type: 'offer',
-					sdp: offer.sdp,
-				}),
+				headers: { 'Content-Type': contentType },
+				body: contentType === 'application/json' ? JSON.stringify({ type: 'offer', sdp: offer.sdp }) : offer.sdp,
 			});
 
-			const answer = await response.json();
+			if (!response.ok) throw new Error(`WebRTC request failed: ${response.status}`);
+			const answer = contentType === 'application/json' ? await response.json() : { type: 'answer', sdp: await response.text() };
 			await pc.setRemoteDescription(answer);
 		} catch (error) {
 			// Handle error silently or use proper error handling
 			setConnectionState('failed');
 		}
-	}, [url]);
+	}, [contentType, enabled, url]);
 
 	// Get stream stats
 	useEffect(() => {
@@ -78,8 +82,10 @@ export function useWebRTC(url: string, onStreamStats?: (stats: RTCInboundRtpStre
 	}, [onStreamStats]);
 
 	useEffect(() => {
+		if (!enabled) return;
 		connect();
-	}, [connect]);
+		return () => peerConnection.current?.close();
+	}, [connect, enabled]);
 
 	return {
 		videoRef: videoElRef,
